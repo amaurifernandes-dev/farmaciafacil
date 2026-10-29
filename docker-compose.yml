@@ -1,0 +1,16 @@
+# Postgres local para desenvolvimento. Em produção usamos Neon.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ff_owner
+      POSTGRES_PASSWORD: ff_owner
+      POSTGRES_DB: farmaciafacil
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./backend/docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
