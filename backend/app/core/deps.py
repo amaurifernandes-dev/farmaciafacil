@@ -34,3 +34,17 @@ def get_db(usuario: Annotated[TokenDados, Depends(get_usuario_atual)]) -> Iterat
 
 UsuarioAtual = Annotated[TokenDados, Depends(get_usuario_atual)]
 DB = Annotated[Session, Depends(get_db)]
+
+
+def exigir_papel(*papeis: str):
+    """Dependência que só deixa passar usuários com um dos papéis informados."""
+
+    def _verificar(usuario: UsuarioAtual) -> TokenDados:
+        if usuario.papel not in papeis:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem permissão para esta ação")
+        return usuario
+
+    return _verificar
+
+
+Gerente = Annotated[TokenDados, Depends(exigir_papel("admin", "gerente"))]
