@@ -246,3 +246,17 @@ def alertas(db: Session, dias: int) -> Alertas:
             for l in abaixo
         ],
     )
+
+
+def devolver_movimento(db: Session, movimento: MovimentoEstoque, usuario_id: UUID, motivo: str) -> MovimentoEstoque:
+    """Desfaz uma saída, devolvendo a quantidade ao mesmo lote. Não faz commit."""
+    lote = _lote_travado(db, movimento.lote_id)
+    return _movimentar(
+        db,
+        lote,
+        -movimento.quantidade,
+        "devolucao",
+        usuario_id,
+        referencia=Referencia(movimento.referencia_tipo, movimento.referencia_id),
+        motivo=motivo,
+    )
