@@ -16,6 +16,10 @@ class NaoEncontrado(ErroDeNegocio):
     status_code = 404
 
 
+class SemPermissao(ErroDeNegocio):
+    status_code = 403
+
+
 class Conflito(ErroDeNegocio):
     status_code = 409
 
