@@ -67,6 +67,10 @@ class ProdutoSaida(ProdutoBase):
     atualizado_em: datetime
 
 
+class ProdutoPDV(ProdutoSaida):
+    saldo: Decimal = Decimal(0)
+
+
 class CodigoCriar(BaseModel):
     ean: Ean
 
