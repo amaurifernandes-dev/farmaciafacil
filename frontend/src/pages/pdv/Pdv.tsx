@@ -1,0 +1,420 @@
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+
+import { api, ErroApi, mensagem } from "../../api/cliente";
+import type { FormaPagamento, PaginaProdutos, ProdutoPDV, ResumoCaixa, Venda } from "../../api/tipos";
+import { quantidade as fmtQtd, reais } from "../../formato";
+import { useSessao } from "../../sessao";
+import {
+  adicionarProduto,
+  alterarQuantidade,
+  falta,
+  interpretarEntrada,
+  itensSemSaldo,
+  lerQuantidade,
+  montarVenda,
+  novoCarrinho,
+  paraCentavos,
+  problemaParaFinalizar,
+  removerItem,
+  subtotal,
+  total,
+  totalItem,
+  troco,
+  type Carrinho,
+} from "./carrinho";
+import FecharCaixa from "./FecharCaixa";
+
+type Modo = "venda" | "busca" | "quantidade" | "desconto" | "pagamento" | "fechar";
+
+const FORMAS: { tecla: string; forma: FormaPagamento; nome: string }[] = [
+  { tecla: "1", forma: "dinheiro", nome: "Dinheiro" },
+  { tecla: "2", forma: "debito", nome: "Débito" },
+  { tecla: "3", forma: "credito", nome: "Crédito" },
+  { tecla: "4", forma: "pix", nome: "Pix" },
+];
+
+const CHAVE_VENDA = "ff.venda-em-andamento";
+
+// A venda em andamento fica no navegador: se a página recarregar, nada se perde.
+function carregarCarrinho(): Carrinho {
+  try {
+    const salvo = localStorage.getItem(CHAVE_VENDA);
+    if (salvo) return JSON.parse(salvo) as Carrinho;
+  } catch {
+    /* ignora e começa do zero */
+  }
+  return novoCarrinho();
+}
+
+export default function Pdv() {
+  const { sessao } = useSessao();
+  const [caixa, setCaixa] = useState<ResumoCaixa | null | undefined>(undefined);
+  const [carrinho, setCarrinho] = useState<Carrinho>(carregarCarrinho);
+  const [modo, setModo] = useState<Modo>("venda");
+  const [texto, setTexto] = useState("");
+  const [selecionado, setSelecionado] = useState(-1);
+  const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
+  const [forma, setForma] = useState<FormaPagamento>("dinheiro");
+  const [resultados, setResultados] = useState<ProdutoPDV[]>([]);
+  const [indiceBusca, setIndiceBusca] = useState(0);
+  const [confirmarCancelar, setConfirmarCancelar] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const campo = useRef<HTMLInputElement>(null);
+
+  const atualizarCaixa = useCallback(async () => {
+    try {
+      setCaixa(await api<ResumoCaixa>("/caixas/atual"));
+    } catch (e) {
+      if (e instanceof ErroApi && e.status === 404) setCaixa(null);
+      else setAviso({ tipo: "erro", texto: mensagem(e) });
+    }
+  }, []);
+
+  useEffect(() => {
+    atualizarCaixa();
+  }, [atualizarCaixa]);
+
+  useEffect(() => {
+    localStorage.setItem(CHAVE_VENDA, JSON.stringify(carrinho));
+  }, [carrinho]);
+
+  // O campo principal nunca perde o foco: o leitor de código de barras "digita" nele.
+  useEffect(() => {
+    campo.current?.focus();
+  });
+
+  function mudarModo(novo: Modo) {
+    setModo(novo);
+    setTexto("");
+    setConfirmarCancelar(false);
+    if (novo === "pagamento") setTexto(falta(carrinho) ? (falta(carrinho) / 100).toFixed(2).replace(".", ",") : "");
+  }
+
+  function erro(textoErro: string) {
+    setAviso({ tipo: "erro", texto: textoErro });
+  }
+
+  async function adicionarPorCodigo(entrada: string) {
+    const lido = interpretarEntrada(entrada);
+    if (!lido) {
+      // Não é código de barras: trata como busca por nome.
+      if (entrada.trim()) await buscar(entrada);
+      return;
+    }
+    try {
+      const produto = await api<ProdutoPDV>(`/produtos/ean/${lido.codigo}`);
+      incluir(produto, lido.quantidade);
+    } catch (e) {
+      erro(`${lido.codigo}: ${mensagem(e)}`);
+    }
+  }
+
+  function incluir(produto: ProdutoPDV, qtd: number) {
+    const novo = adicionarProduto(carrinho, produto, qtd);
+    setCarrinho(novo);
+    setSelecionado(novo.itens.findIndex((item) => item.produtoId === produto.id));
+    const semSaldo = itensSemSaldo(novo).find((item) => item.produtoId === produto.id);
+    setAviso(
+      semSaldo
+        ? { tipo: "erro", texto: `Atenção: só há ${fmtQtd(semSaldo.saldo)} de ${semSaldo.descricao} em estoque` }
+        : null,
+    );
+  }
+
+  async function buscar(termo: string) {
+    try {
+      const pagina = await api<PaginaProdutos>(`/produtos?busca=${encodeURIComponent(termo)}&por_pagina=20`);
+      if (pagina.itens.length === 0) return erro(`Nenhum produto encontrado para "${termo}"`);
+      // A listagem não traz saldo; o PDV consulta pelo EAN ao escolher.
+      setResultados(pagina.itens.map((p) => ({ ...p, saldo: "0" })));
+      setIndiceBusca(0);
+      setModo("busca");
+      setTexto(termo);
+    } catch (e) {
+      erro(mensagem(e));
+    }
+  }
+
+  async function escolherDaBusca(produto: ProdutoPDV) {
+    try {
+      const completo = produto.ean ? await api<ProdutoPDV>(`/produtos/ean/${produto.ean}`) : produto;
+      incluir(completo, 1);
+    } catch (e) {
+      erro(mensagem(e));
+    }
+    mudarModo("venda");
+  }
+
+  async function finalizar() {
+    const problema = problemaParaFinalizar(carrinho);
+    if (problema) return erro(problema);
+    setEnviando(true);
+    try {
+      const venda = await api<Venda>("/vendas", { corpo: montarVenda(carrinho) });
+      setCarrinho(novoCarrinho());
+      setSelecionado(-1);
+      mudarModo("venda");
+      const textoTroco = Number(venda.troco) > 0 ? ` Troco: ${reais(venda.troco)}` : "";
+      setAviso({ tipo: "ok", texto: `Venda nº ${venda.numero} finalizada.${textoTroco}` });
+      atualizarCaixa();
+    } catch (e) {
+      erro(mensagem(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  function enviarCampo(evento: FormEvent) {
+    evento.preventDefault();
+    const valor = texto;
+    switch (modo) {
+      case "venda":
+        setTexto("");
+        adicionarPorCodigo(valor);
+        break;
+      case "busca":
+        if (resultados[indiceBusca]) escolherDaBusca(resultados[indiceBusca]);
+        break;
+      case "quantidade": {
+        const qtd = lerQuantidade(valor);
+        if (qtd === null || selecionado < 0) return erro("Quantidade inválida");
+        setCarrinho(alterarQuantidade(carrinho, selecionado, qtd));
+        mudarModo("venda");
+        break;
+      }
+      case "desconto": {
+        const centavos = paraCentavos(valor || "0");
+        if (centavos === null || centavos > subtotal(carrinho)) return erro("Desconto inválido");
+        setCarrinho({ ...carrinho, descontoCentavos: centavos });
+        mudarModo("venda");
+        break;
+      }
+      case "pagamento": {
+        if (valor.trim() === "" && falta(carrinho) === 0) return void finalizar();
+        const centavos = paraCentavos(valor);
+        if (!centavos) return erro("Valor inválido");
+        const atualizado = { ...carrinho, pagamentos: [...carrinho.pagamentos, { forma, centavos }] };
+        setCarrinho(atualizado);
+        setAviso(null);
+        const restante = falta(atualizado);
+        setTexto(restante ? (restante / 100).toFixed(2).replace(".", ",") : "");
+        break;
+      }
+    }
+  }
+
+  // Atalhos de teclado do PDV.
+  useEffect(() => {
+    function tecla(evento: KeyboardEvent) {
+      if (!caixa || modo === "fechar") return;
+      const atalhos: Record<string, () => void> = {
+        F2: () => mudarModo("busca"),
+        F3: () => selecionado >= 0 && mudarModo("quantidade"),
+        F4: () => carrinho.itens.length > 0 && mudarModo("pagamento"),
+        F6: () => carrinho.itens.length > 0 && mudarModo("desconto"),
+        F10: () => carrinho.itens.length === 0 ? mudarModo("fechar") : erro("Finalize ou cancele a venda antes de fechar o caixa"),
+        Escape: () => {
+          if (modo !== "venda") return mudarModo("venda");
+          if (carrinho.itens.length === 0) return;
+          if (!confirmarCancelar) {
+            setConfirmarCancelar(true);
+            return setAviso({ tipo: "erro", texto: "Aperte Esc de novo para cancelar a venda" });
+          }
+          setCarrinho(novoCarrinho());
+          setSelecionado(-1);
+          setConfirmarCancelar(false);
+          setAviso({ tipo: "ok", texto: "Venda cancelada" });
+        },
+        ArrowUp: () => {
+          if (modo === "busca") setIndiceBusca((i) => Math.max(i - 1, 0));
+          else if (modo === "venda") setSelecionado((i) => Math.max(i - 1, 0));
+        },
+        ArrowDown: () => {
+          if (modo === "busca") setIndiceBusca((i) => Math.min(i + 1, resultados.length - 1));
+          else if (modo === "venda") setSelecionado((i) => Math.min(i + 1, carrinho.itens.length - 1));
+        },
+        Delete: () => {
+          if (modo !== "venda" || selecionado < 0) return;
+          setCarrinho(removerItem(carrinho, selecionado));
+          setSelecionado((i) => Math.min(i, carrinho.itens.length - 2));
+        },
+      };
+      // No pagamento, Alt+1 a Alt+4 escolhem a forma sem atrapalhar a digitação do valor.
+      if (modo === "pagamento" && evento.altKey) {
+        const escolhida = FORMAS.find((f) => f.tecla === evento.key);
+        if (escolhida) {
+          evento.preventDefault();
+          return setForma(escolhida.forma);
+        }
+      }
+      const acao = atalhos[evento.key];
+      if (acao) {
+        evento.preventDefault();
+        acao();
+      }
+    }
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  });
+
+  if (caixa === undefined) return <div className="pdv-centro">Carregando...</div>;
+  if (caixa === null) return <AbrirCaixa aoAbrir={atualizarCaixa} />;
+  if (modo === "fechar") {
+    return (
+      <FecharCaixa
+        caixa={caixa}
+        aoVoltar={() => mudarModo("venda")}
+        aoFechar={() => {
+          setCaixa(null);
+          setModo("venda");
+        }}
+      />
+    );
+  }
+
+  const rotulos: Record<Modo, string> = {
+    venda: "Código de barras (ou nome do produto)",
+    busca: "Buscar produto por nome",
+    quantidade: "Nova quantidade do item selecionado",
+    desconto: "Desconto na venda (R$)",
+    pagamento: `Valor em ${FORMAS.find((f) => f.forma === forma)?.nome} (Enter vazio finaliza)`,
+    fechar: "",
+  };
+
+  return (
+    <div className="pdv">
+      <header className="pdv-topo">
+        <strong>FarmáciaFácil · PDV</strong>
+        <span>
+          {sessao?.nome} · Caixa aberto · {caixa.quantidade_vendas} vendas · {reais(caixa.total_vendido)}
+        </span>
+        <Link to="/produtos">Gestão</Link>
+      </header>
+
+      <section className="pdv-itens">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Produto</th>
+              <th className="num">Qtd</th>
+              <th className="num">Preço</th>
+              <th className="num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {carrinho.itens.map((item, i) => (
+              <tr
+                key={item.produtoId}
+                className={[i === selecionado ? "selecionado" : "", item.quantidade > item.saldo ? "sem-saldo" : ""].join(" ")}
+                onClick={() => setSelecionado(i)}
+              >
+                <td>{i + 1}</td>
+                <td>{item.descricao}</td>
+                <td className="num">{fmtQtd(item.quantidade)}</td>
+                <td className="num">{reais(item.precoCentavos)}</td>
+                <td className="num">{reais(totalItem(item))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {carrinho.itens.length === 0 && <p className="vazio">Bipe um produto para começar</p>}
+      </section>
+
+      <aside className="pdv-lateral">
+        <div className="totais">
+          <div>Subtotal <span>{reais(subtotal(carrinho))}</span></div>
+          {carrinho.descontoCentavos > 0 && <div>Desconto <span>-{reais(carrinho.descontoCentavos)}</span></div>}
+          <div className="total">Total <span>{reais(total(carrinho))}</span></div>
+          {carrinho.pagamentos.map((p, i) => (
+            <div key={i} className="pagamento">
+              {FORMAS.find((f) => f.forma === p.forma)?.nome} <span>{reais(p.centavos)}</span>
+            </div>
+          ))}
+          {carrinho.pagamentos.length > 0 && (
+            falta(carrinho) > 0
+              ? <div className="falta">Falta <span>{reais(falta(carrinho))}</span></div>
+              : <div className="troco">Troco <span>{reais(troco(carrinho))}</span></div>
+          )}
+        </div>
+
+        {modo === "pagamento" && (
+          <div className="formas">
+            {FORMAS.map((f) => (
+              <button key={f.forma} className={f.forma === forma ? "ativa" : ""} onClick={() => setForma(f.forma)}>
+                Alt+{f.tecla} {f.nome}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {modo === "busca" && (
+          <ul className="resultados">
+            {resultados.map((p, i) => (
+              <li key={p.id} className={i === indiceBusca ? "selecionado" : ""} onClick={() => escolherDaBusca(p)}>
+                {p.nome} {p.apresentacao} <span>{reais(p.preco_venda)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
+
+      <form className="pdv-campo" onSubmit={enviarCampo}>
+        <label htmlFor="campo">{rotulos[modo]}</label>
+        <input
+          id="campo"
+          ref={campo}
+          value={texto}
+          onChange={(e) => {
+            setTexto(e.target.value);
+            if (modo === "busca" && e.target.value.length >= 3) buscar(e.target.value);
+          }}
+          autoComplete="off"
+          disabled={enviando}
+        />
+        {aviso && <p className={aviso.tipo}>{aviso.texto}</p>}
+      </form>
+
+      <footer className="pdv-atalhos">
+        <span>F2 Buscar</span>
+        <span>F3 Quantidade</span>
+        <span>F4 Pagamento</span>
+        <span>F6 Desconto</span>
+        <span>Del Remover item</span>
+        <span>Esc Voltar/Cancelar</span>
+        <span>F10 Fechar caixa</span>
+      </footer>
+    </div>
+  );
+}
+
+function AbrirCaixa({ aoAbrir }: { aoAbrir: () => void }) {
+  const [valor, setValor] = useState("0,00");
+  const [erro, setErro] = useState("");
+
+  async function abrir(evento: FormEvent) {
+    evento.preventDefault();
+    const centavos = paraCentavos(valor);
+    if (centavos === null) return setErro("Valor inválido");
+    try {
+      await api("/caixas/abrir", { corpo: { valor_abertura: (centavos / 100).toFixed(2) } });
+      aoAbrir();
+    } catch (e) {
+      setErro(mensagem(e));
+    }
+  }
+
+  return (
+    <form className="pdv-centro cartao" onSubmit={abrir}>
+      <h2>Abrir caixa</h2>
+      <label>
+        Dinheiro na gaveta (R$)
+        <input value={valor} onChange={(e) => setValor(e.target.value)} autoFocus onFocus={(e) => e.target.select()} />
+      </label>
+      {erro && <p className="erro">{erro}</p>}
+      <button type="submit">Abrir (Enter)</button>
+      <Link to="/produtos">Ir para a gestão</Link>
+    </form>
+  );
+}

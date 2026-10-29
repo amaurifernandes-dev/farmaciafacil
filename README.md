@@ -4,7 +4,7 @@ Sistema web de gestão e vendas para farmácias pequenas (SaaS).
 
 - **Backend:** Python, FastAPI, SQLAlchemy 2, Alembic
 - **Banco:** PostgreSQL (Neon em produção), multi-tenant com `farmacia_id` e Row Level Security
-- **Frontend:** React (em breve)
+- **Frontend:** React + Vite + TypeScript
 
 ## Rodando o backend localmente
 
@@ -25,11 +25,41 @@ uv run uvicorn app.main:app --reload
 A documentação interativa da API fica em http://localhost:8000/docs. Faça login em
 `POST /api/v1/auth/login` e use o token no botão **Authorize**.
 
+## Rodando o frontend
+
+Com o backend rodando na porta 8000:
+
+```bash
+cd frontend
+npm install
+npm run dev                     # http://localhost:5173
+```
+
+O Vite repassa as chamadas `/api` para o backend. Telas:
+
+- **/pdv**: frente de caixa em tela cheia, operada pelo teclado e pelo leitor de código de barras.
+- **/produtos**, **/estoque/entrada** e **/estoque/alertas**: gestão.
+
+### Atalhos do PDV
+
+| Tecla | Ação |
+| --- | --- |
+| Enter | Adiciona o código bipado/digitado (`3*789...` para 3 unidades). Texto sem número busca por nome |
+| F2 | Buscar produto por nome (setas + Enter) |
+| F3 | Alterar a quantidade do item selecionado |
+| F4 | Pagamento (Alt+1 dinheiro, Alt+2 débito, Alt+3 crédito, Alt+4 pix; Enter vazio finaliza) |
+| F6 | Desconto na venda |
+| ↑ ↓ / Del | Selecionar / remover item |
+| Esc | Voltar; na venda, Esc duas vezes cancela |
+| F10 | Fechar caixa |
+
+A venda em andamento fica salva no navegador até ser finalizada.
+
 ## Testes
 
 ```bash
-cd backend
-uv run pytest
+cd backend && uv run pytest     # backend
+cd frontend && npm test         # regras do carrinho do PDV
 ```
 
 Os testes usam o banco `farmaciafacil_test` (criado pelo `docker compose`) e recriam o schema a cada rodada.
