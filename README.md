@@ -74,6 +74,25 @@ Perfis: administrador, gerente, farmacêutico, operador de caixa, atendente (só
 
 A venda em andamento fica salva no navegador até ser finalizada.
 
+## NFC-e
+
+A emissão passa pela [Focus NFe](https://focusnfe.com.br), que assina o XML e fala com a SEFAZ.
+O certificado A1, o CSC (token do QR Code), a inscrição estadual e o endereço da farmácia são
+cadastrados no painel da Focus, não no nosso banco.
+
+1. No `.env`, `NFCE_PROVEDOR=focus` e os tokens `FOCUS_NFE_TOKEN_HOMOLOGACAO` / `FOCUS_NFE_TOKEN_PRODUCAO`.
+   Para desenvolver sem a Focus, use `NFCE_PROVEDOR=falso`: autoriza tudo em memória.
+2. Um gerente salva a configuração fiscal em `PUT /api/v1/fiscal/configuracao` (ambiente, CFOP e
+   CSOSN/CST padrão). Começa em homologação.
+3. Todo produto vendido precisa de NCM. CFOP, CSOSN/CST e PIS/COFINS do produto, se preenchidos,
+   valem no lugar do padrão (ex.: medicamento com ICMS-ST: CFOP 5405, CSOSN 500).
+
+Ao finalizar a venda a NFC-e é emitida na mesma chamada e volta em `venda.nota`. A venda é gravada
+mesmo se a nota falhar; nesse caso `POST /api/v1/vendas/{id}/nfce` reenvia (a referência é o id da
+venda, então não duplica) e `GET /api/v1/vendas/{id}/nfce?atualizar=true` consulta uma nota que ficou
+em processamento. Cancelar a venda cancela a NFC-e antes; a SEFAZ exige motivo com 15 caracteres ou
+mais e, em geral, até 30 minutos após a emissão. Se ela recusar, a venda não é cancelada.
+
 ## Testes
 
 ```bash

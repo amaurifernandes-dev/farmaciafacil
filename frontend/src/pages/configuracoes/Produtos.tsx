@@ -15,6 +15,9 @@ type Formulario = {
   tipo: Produto["tipo"];
   controla_lote: boolean;
   ncm: string;
+  cest: string;
+  cfop: string;
+  icms_situacao_tributaria: string;
   registro_ms: string;
 };
 
@@ -28,6 +31,9 @@ const VAZIO: Formulario = {
   tipo: "medicamento",
   controla_lote: true,
   ncm: "",
+  cest: "",
+  cfop: "",
+  icms_situacao_tributaria: "",
   registro_ms: "",
 };
 
@@ -42,6 +48,9 @@ function paraFormulario(p: Produto): Formulario {
     tipo: p.tipo,
     controla_lote: p.controla_lote,
     ncm: p.ncm ?? "",
+    cest: p.cest ?? "",
+    cfop: p.cfop ?? "",
+    icms_situacao_tributaria: p.icms_situacao_tributaria ?? "",
     registro_ms: p.registro_ms ?? "",
   };
 }
@@ -59,6 +68,9 @@ function paraApi(f: Formulario) {
     tipo: f.tipo,
     controla_lote: f.controla_lote,
     ncm: ouNulo(f.ncm),
+    cest: ouNulo(f.cest),
+    cfop: ouNulo(f.cfop),
+    icms_situacao_tributaria: ouNulo(f.icms_situacao_tributaria),
     registro_ms: ouNulo(f.registro_ms),
   };
 }
@@ -166,6 +178,22 @@ export default function Produtos() {
           <label>
             NCM
             <input value={form.ncm} onChange={(e) => campo("ncm", e.target.value)} inputMode="numeric" />
+          </label>
+          <label>
+            CEST
+            <input value={form.cest} onChange={(e) => campo("cest", e.target.value)} inputMode="numeric" />
+          </label>
+          <label>
+            CFOP <small>(vazio usa o padrão fiscal)</small>
+            <input value={form.cfop} onChange={(e) => campo("cfop", e.target.value)} inputMode="numeric" />
+          </label>
+          <label>
+            CSOSN / CST ICMS <small>(vazio usa o padrão fiscal)</small>
+            <input
+              value={form.icms_situacao_tributaria}
+              onChange={(e) => campo("icms_situacao_tributaria", e.target.value)}
+              inputMode="numeric"
+            />
           </label>
           <label>
             Registro MS

@@ -65,7 +65,7 @@ export default function Pdv() {
   const [modo, setModo] = useState<Modo>("venda");
   const [texto, setTexto] = useState("");
   const [selecionado, setSelecionado] = useState(-1);
-  const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
+  const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string; link?: string } | null>(null);
   const [forma, setForma] = useState<FormaPagamento>("dinheiro");
   const [resultados, setResultados] = useState<ProdutoPDV[]>([]);
   const [indiceBusca, setIndiceBusca] = useState(0);
@@ -194,7 +194,7 @@ export default function Pdv() {
       setSelecionado(-1);
       mudarModo("venda");
       const textoTroco = Number(venda.troco) > 0 ? ` Troco: ${reais(venda.troco)}` : "";
-      setAviso({ tipo: "ok", texto: `Venda nº ${venda.numero} finalizada.${textoTroco}` });
+      setAviso(avisoDaVenda(venda, textoTroco));
       atualizarCaixa();
     } catch (e) {
       erro(mensagem(e));
@@ -421,7 +421,19 @@ export default function Pdv() {
           autoComplete="off"
           disabled={enviando}
         />
-        {aviso && <p className={aviso.tipo}>{aviso.texto}</p>}
+        {aviso && (
+          <p className={aviso.tipo}>
+            {aviso.texto}
+            {aviso.link && (
+              <>
+                {" "}
+                <a href={aviso.link} target="_blank" rel="noreferrer">
+                  Imprimir cupom
+                </a>
+              </>
+            )}
+          </p>
+        )}
       </form>
 
       <footer className="pdv-atalhos">
@@ -484,4 +496,17 @@ function SemCaixaAqui({ terminal }: { terminal: EsteTerminal | null }) {
       <Link to="/">Ir para o início</Link>
     </div>
   );
+}
+
+function avisoDaVenda(venda: Venda, textoTroco: string): { tipo: "erro" | "ok"; texto: string; link?: string } {
+  const texto = `Venda nº ${venda.numero} finalizada.${textoTroco}`;
+  const nota = venda.nota;
+  if (!nota) return { tipo: "ok", texto };
+  if (nota.status === "autorizada") {
+    return { tipo: "ok", texto: `${texto} NFC-e nº ${nota.numero} autorizada.`, link: nota.url_danfe ?? undefined };
+  }
+  if (nota.status === "processando") {
+    return { tipo: "erro", texto: `${texto} NFC-e em processamento: confira na lista de vendas.` };
+  }
+  return { tipo: "erro", texto: `${texto} NFC-e não emitida: ${nota.mensagem ?? "erro desconhecido"}` };
 }

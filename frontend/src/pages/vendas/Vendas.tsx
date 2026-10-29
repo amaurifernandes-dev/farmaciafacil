@@ -9,10 +9,20 @@ import { reais } from "../../formato";
 import { ehGerente, useSessao } from "../../sessao";
 import { lerEsteTerminal } from "../caixas/Caixas";
 
-const FORMAS: Record<string, string> = { dinheiro: "Dinheiro", debito: "Débito", credito: "Crédito", pix: "Pix" };
+const FORMAS: Record<string, string> = {
+  dinheiro: "Dinheiro",
+  debito: "Débito",
+  credito: "Crédito",
+  pix: "Pix",
+};
 
 function dataHora(iso: string): string {
-  return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function Vendas() {
@@ -122,6 +132,7 @@ export default function Vendas() {
                   <th>Atendente</th>
                   <th>Hora</th>
                   <th className="num">Total</th>
+                  <th>NFC-e</th>
                   <th></th>
                 </tr>
               </thead>
@@ -163,6 +174,7 @@ export default function Vendas() {
                   <th>Itens</th>
                   <th>Pagamento</th>
                   <th className="num">Total</th>
+                  <th>NFC-e</th>
                   <th></th>
                 </tr>
               </thead>
@@ -176,6 +188,9 @@ export default function Vendas() {
                     <td>{v.itens.length} item(ns)</td>
                     <td>{v.pagamentos.map((p) => FORMAS[p.forma]).join(" + ")}</td>
                     <td className="num">{reais(v.total)}</td>
+                    <td>
+                      <SituacaoNota venda={v} aoMudar={carregar} />
+                    </td>
                     <td className="num">
                       {v.status === "cancelada" ? (
                         <span className="etiqueta erro-etiqueta" title={v.motivo_cancelamento ?? ""}>
@@ -210,9 +225,71 @@ export default function Vendas() {
   );
 }
 
+function SituacaoNota({ venda, aoMudar }: { venda: Venda; aoMudar: () => void }) {
+  const [enviando, setEnviando] = useState(false);
+  const [falha, setFalha] = useState("");
+  const nota = venda.nota;
+
+  async function tentar(caminho: string, metodo?: "GET") {
+    setEnviando(true);
+    setFalha("");
+    try {
+      await api(caminho, metodo ? undefined : { corpo: {} });
+      aoMudar();
+    } catch (e) {
+      setFalha(mensagem(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (nota?.status === "autorizada" || nota?.status === "cancelada") {
+    const texto = `${nota.status === "cancelada" ? "Cancelada" : "Nº"} ${nota.numero}`;
+    return nota.url_danfe ? (
+      <a href={nota.url_danfe} target="_blank" rel="noreferrer">
+        {texto}
+      </a>
+    ) : (
+      <span>{texto}</span>
+    );
+  }
+  if (venda.status === "cancelada") return <span className="vazio">—</span>;
+  if (nota?.status === "processando") {
+    return (
+      <>
+        <button
+          type="button"
+          className="botao-pequeno"
+          disabled={enviando}
+          onClick={() => tentar(`/vendas/${venda.id}/nfce?atualizar=true`, "GET")}
+        >
+          Consultar
+        </button>
+        {falha && <small className="erro">{falha}</small>}
+      </>
+    );
+  }
+  return (
+    <span title={nota?.mensagem ?? "Nota não emitida"}>
+      {nota && <span className="etiqueta erro-etiqueta">{nota.status === "rejeitada" ? "Rejeitada" : "Erro"}</span>}{" "}
+      <button
+        type="button"
+        className="botao-pequeno"
+        disabled={enviando}
+        onClick={() => tentar(`/vendas/${venda.id}/nfce`)}
+      >
+        {nota ? "Reenviar" : "Emitir"}
+      </button>
+      {falha && <small className="erro">{falha}</small>}
+    </span>
+  );
+}
+
 function CancelarVenda({ venda, aoFechar }: { venda: Venda; aoFechar: () => void }) {
   const [motivo, setMotivo] = useState("");
   const [erro, setErro] = useState("");
+  // A SEFAZ exige justificativa de pelo menos 15 caracteres.
+  const temNota = venda.nota?.status === "autorizada";
 
   async function cancelar() {
     try {
@@ -234,10 +311,17 @@ function CancelarVenda({ venda, aoFechar }: { venda: Venda; aoFechar: () => void
       >
         <p className="largo">
           Total de {reais(venda.total)}. Os produtos voltam para o estoque, nos mesmos lotes.
+          {temNota && " A NFC-e também é cancelada na SEFAZ (em geral só até 30 minutos depois da emissão)."}
         </p>
         <label className="largo">
           Motivo
-          <input value={motivo} onChange={(e) => setMotivo(e.target.value)} required minLength={3} autoFocus />
+          <input
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            required
+            minLength={temNota ? 15 : 3}
+            autoFocus
+          />
         </label>
         {erro && <p className="erro largo">{erro}</p>}
         <div className="acoes largo direita">

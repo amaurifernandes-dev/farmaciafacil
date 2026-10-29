@@ -9,6 +9,10 @@ Ean = Annotated[str, Field(pattern=r"^\d{8,14}$", description="Somente dígitos,
 Preco = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
 Quantidade = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=3)]
 TipoProduto = Literal["medicamento", "perfumaria", "outros"]
+Cfop = Annotated[str, Field(pattern=r"^[5-7]\d{3}$", description="CFOP de saída, ex.: 5102 ou 5405")]
+IcmsOrigem = Annotated[str, Field(pattern=r"^[0-8]$")]
+IcmsSituacao = Annotated[str, Field(pattern=r"^\d{2,3}$", description="CSOSN (Simples) ou CST do ICMS")]
+PisCofinsSituacao = Annotated[str, Field(pattern=r"^\d{2}$")]
 
 
 class ProdutoBase(BaseModel):
@@ -18,6 +22,10 @@ class ProdutoBase(BaseModel):
     fabricante: str | None = Field(default=None, max_length=120)
     ncm: str | None = Field(default=None, pattern=r"^\d{8}$")
     cest: str | None = Field(default=None, pattern=r"^\d{7}$")
+    cfop: Cfop | None = None
+    icms_origem: IcmsOrigem = "0"
+    icms_situacao_tributaria: IcmsSituacao | None = None
+    pis_cofins_situacao_tributaria: PisCofinsSituacao | None = None
     unidade: str = Field(default="UN", max_length=6)
     preco_venda: Preco
     preco_custo: Preco | None = None
@@ -40,6 +48,10 @@ class ProdutoAtualizar(BaseModel):
     fabricante: str | None = Field(default=None, max_length=120)
     ncm: str | None = Field(default=None, pattern=r"^\d{8}$")
     cest: str | None = Field(default=None, pattern=r"^\d{7}$")
+    cfop: Cfop | None = None
+    icms_origem: IcmsOrigem | None = None
+    icms_situacao_tributaria: IcmsSituacao | None = None
+    pis_cofins_situacao_tributaria: PisCofinsSituacao | None = None
     unidade: str | None = Field(default=None, max_length=6)
     preco_venda: Preco | None = None
     preco_custo: Preco | None = None
