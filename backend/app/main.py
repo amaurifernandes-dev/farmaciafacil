@@ -4,6 +4,7 @@ from app.modules import todos_os_modelos  # noqa: F401  (registra as tabelas)
 from app.modules.auth.router import router as auth_router
 from app.modules.auth.usuarios import router as usuarios_router
 from app.modules.clientes.router import router as clientes_router
+from app.modules.compras.router import router as compras_router
 from app.modules.estoque.router import router as estoque_router
 from app.modules.farmacias.router import router as configuracoes_router
 from app.modules.fornecedores.router import router as fornecedores_router
@@ -23,6 +24,7 @@ registrar_tratadores(app)
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(produtos_router, prefix="/api/v1")
 app.include_router(estoque_router, prefix="/api/v1")
+app.include_router(compras_router, prefix="/api/v1")
 app.include_router(caixas_router, prefix="/api/v1")
 app.include_router(vendas_router, prefix="/api/v1")
 app.include_router(pre_vendas_router, prefix="/api/v1")

@@ -8,6 +8,7 @@ from app.core.db import SessionLocal
 from app.core.security import gerar_hash_senha, ler_token
 from app.modules.auth.models import Usuario
 from app.modules.estoque import service as estoque
+from app.modules.lojas.service import matriz
 from app.modules.produtos.models import Produto
 from app.shared.datas import hoje
 
@@ -160,14 +161,15 @@ def test_baixa_fefo_tira_primeiro_do_que_vence_antes(client, farmacia_a):
 
     with SessionLocal(info={"farmacia_id": farmacia_a["id"]}) as db:
         p = db.get(Produto, produto["id"])
+        loja_id = matriz(db).id
         movimentos = estoque.baixar_fefo(
-            db, p, Decimal(5), _usuario_id(farmacia_a), estoque.Referencia("teste")
+            db, loja_id, p, Decimal(5), _usuario_id(farmacia_a), estoque.Referencia("teste")
         )
         db.commit()
         assert [(m.lote.numero_lote, m.quantidade) for m in movimentos] == [("CEDO", -3), ("MEIO", -2)]
 
         with pytest.raises(estoque.EstoqueInsuficiente):
-            estoque.baixar_fefo(db, p, Decimal(100), _usuario_id(farmacia_a), estoque.Referencia("teste"))
+            estoque.baixar_fefo(db, loja_id, p, Decimal(100), _usuario_id(farmacia_a), estoque.Referencia("teste"))
 
 
 def test_caixa_nao_pode_dar_entrada(client, engine_dono, farmacia_a):

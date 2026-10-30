@@ -2,7 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 
 import { cuidaDoEstoque, useSessao } from "../../sessao";
 
-/** Abas do estoque: alertas de validade e mínimo, e entrada de mercadoria. */
+/** Abas do estoque: alertas, saldo em cada loja, entrada manual e transferência entre lojas. */
 export default function Estoque() {
   const { sessao } = useSessao();
   return (
@@ -11,7 +11,13 @@ export default function Estoque() {
         <NavLink to="/estoque" end>
           Alertas
         </NavLink>
-        {cuidaDoEstoque(sessao) && <NavLink to="/estoque/entrada">Entrada de mercadoria</NavLink>}
+        <NavLink to="/estoque/saldos">Saldo por loja</NavLink>
+        {cuidaDoEstoque(sessao) && (
+          <>
+            <NavLink to="/estoque/entrada">Entrada manual</NavLink>
+            <NavLink to="/estoque/transferencia">Transferir entre lojas</NavLink>
+          </>
+        )}
       </nav>
       <Outlet />
     </div>

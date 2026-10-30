@@ -21,6 +21,7 @@ class ItemEntrada(BaseModel):
 class EntradaCriar(BaseModel):
     """Entrada de mercadoria, normalmente uma nota de compra com vários itens."""
 
+    loja_id: UUID | None = Field(default=None, description="Loja que recebe a mercadoria. Vazio = matriz")
     itens: Annotated[list[ItemEntrada], Field(min_length=1)]
     observacao: str | None = Field(default=None, max_length=200)
 
@@ -41,10 +42,24 @@ class PerdaCriar(BaseModel):
     motivo: Motivo
 
 
+class ItemTransferencia(BaseModel):
+    lote_id: UUID
+    quantidade: QuantidadePositiva
+
+
+class TransferenciaCriar(BaseModel):
+    """Leva lotes de uma loja para outra. A loja de origem é a de cada lote."""
+
+    loja_destino_id: UUID
+    itens: Annotated[list[ItemTransferencia], Field(min_length=1)]
+    observacao: str | None = Field(default=None, max_length=200)
+
+
 class LoteSaida(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    loja_id: UUID
     produto_id: UUID
     numero_lote: str
     validade: date | None
@@ -53,6 +68,7 @@ class LoteSaida(BaseModel):
 
 class LoteComProduto(LoteSaida):
     produto_nome: str
+    loja_nome: str
     dias_para_vencer: int | None
 
 
@@ -60,6 +76,7 @@ class MovimentoSaida(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    loja_id: UUID
     produto_id: UUID
     lote_id: UUID
     tipo: str
@@ -75,6 +92,8 @@ class MovimentoSaida(BaseModel):
 class ProdutoAbaixoMinimo(BaseModel):
     produto_id: UUID
     nome: str
+    loja_id: UUID
+    loja_nome: str
     saldo: Decimal
     estoque_minimo: Decimal
 
@@ -83,3 +102,21 @@ class Alertas(BaseModel):
     vencidos: list[LoteComProduto]
     vencendo: list[LoteComProduto]
     abaixo_do_minimo: list[ProdutoAbaixoMinimo]
+
+
+class SaldoProduto(BaseModel):
+    produto_id: UUID
+    nome: str
+    apresentacao: str | None
+    ean: str | None
+    estoque_minimo: Decimal
+    total: Decimal
+    por_loja: dict[str, Decimal] = Field(description="Saldo vendável por id da loja")
+    vencido: Decimal = Field(description="Quantidade vencida ainda no estoque, em todas as lojas")
+
+
+class PaginaSaldos(BaseModel):
+    itens: list[SaldoProduto]
+    total: int
+    pagina: int
+    por_pagina: int

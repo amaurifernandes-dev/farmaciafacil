@@ -12,17 +12,21 @@ from app.shared.models import FARMACIA_DA_SESSAO, Base, TabelaDaFarmacia, uuid7
 # Produtos que não controlam lote (perfumaria, por exemplo) usam um lote único com este número.
 LOTE_PADRAO = "SEM-LOTE"
 
-TIPOS_MOVIMENTO = ("entrada", "venda", "ajuste", "perda", "devolucao")
+TIPOS_MOVIMENTO = ("entrada", "venda", "ajuste", "perda", "devolucao", "transferencia")
 
 
 class Lote(TabelaDaFarmacia, Base):
+    """Lote de um produto guardado numa loja. O mesmo lote em duas lojas são duas linhas."""
+
     __tablename__ = "lotes"
     __table_args__ = (
-        UniqueConstraint("farmacia_id", "produto_id", "numero_lote"),
+        UniqueConstraint("farmacia_id", "loja_id", "produto_id", "numero_lote", name="uq_lotes_loja_produto_numero"),
         UniqueConstraint("farmacia_id", "id"),
         ForeignKeyConstraint(["farmacia_id", "produto_id"], ["produtos.farmacia_id", "produtos.id"]),
+        ForeignKeyConstraint(["farmacia_id", "loja_id"], ["lojas.farmacia_id", "lojas.id"]),
     )
 
+    loja_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     produto_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     numero_lote: Mapped[str] = mapped_column(String(40))
     validade: Mapped[date | None] = mapped_column(Date)
@@ -39,12 +43,14 @@ class MovimentoEstoque(Base):
     __table_args__ = (
         ForeignKeyConstraint(["farmacia_id", "produto_id"], ["produtos.farmacia_id", "produtos.id"]),
         ForeignKeyConstraint(["farmacia_id", "lote_id"], ["lotes.farmacia_id", "lotes.id"]),
+        ForeignKeyConstraint(["farmacia_id", "loja_id"], ["lojas.farmacia_id", "lojas.id"]),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid7)
     farmacia_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, server_default=FARMACIA_DA_SESSAO
     )
+    loja_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     produto_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     lote_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     tipo: Mapped[str] = mapped_column(String(20))
