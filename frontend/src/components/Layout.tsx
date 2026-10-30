@@ -17,6 +17,7 @@ const MENU: ItemMenu[] = [
   { para: "/", rotulo: "Visão geral", icone: "painel" },
   { para: "/vendas", rotulo: "Vendas / PDV", icone: "carrinho", agrupa: true },
   { para: "/caixas", rotulo: "Caixas", icone: "caixa" },
+  { para: "/clientes", rotulo: "Clientes", icone: "pessoa", agrupa: true },
   { para: "/estoque", rotulo: "Estoque", icone: "pacote", agrupa: true },
   { para: "/compras", rotulo: "Compras", icone: "caminhao", agrupa: true, pode: cuidaDoEstoque },
   { para: "/financeiro", rotulo: "Financeiro", icone: "dinheiro", agrupa: true, pode: ehGerente },
@@ -24,12 +25,11 @@ const MENU: ItemMenu[] = [
 ];
 
 export const CONFIGURACOES: (ItemMenu & { descricao: string })[] = [
-  { para: "/configuracoes/clientes", rotulo: "Clientes", icone: "pessoa", descricao: "Cadastro opcional e autorização de ofertas" },
   { para: "/configuracoes/fornecedores", rotulo: "Fornecedores", icone: "caminhao", descricao: "Distribuidoras e contatos de compra" },
   { para: "/configuracoes/produtos", rotulo: "Produtos", icone: "pacote", descricao: "Preços, códigos de barras e dados fiscais" },
   { para: "/configuracoes/usuarios", rotulo: "Usuários", icone: "pessoas", descricao: "Quem acessa o sistema e o que pode fazer", pode: ehAdmin },
   { para: "/configuracoes/farmacia", rotulo: "Minha farmácia", icone: "loja", descricao: "Dados da farmácia, matriz e filiais" },
-  { para: "/configuracoes/gerais", rotulo: "Configurações gerais", icone: "ajustes", descricao: "Monocaixa ou multicaixa, descontos e alertas" },
+  { para: "/configuracoes/gerais", rotulo: "Configurações gerais", icone: "ajustes", descricao: "Monocaixa ou multicaixa, descontos, alertas e pontos" },
 ];
 
 function iniciais(nome: string): string {

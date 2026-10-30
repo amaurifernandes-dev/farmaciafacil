@@ -54,6 +54,10 @@ class Venda(TabelaDaFarmacia, Base):
     cliente_cpf: Mapped[str | None] = mapped_column(String(11))
     # Obrigatório na venda a prazo: é quem fica devendo.
     cliente_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    # Fidelidade: o desconto_pontos já está dentro de desconto.
+    pontos_ganhos: Mapped[int] = mapped_column(Integer, default=0)
+    pontos_resgatados: Mapped[int] = mapped_column(Integer, default=0)
+    desconto_pontos: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     chave_idempotencia: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     finalizada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     cancelada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -75,7 +75,10 @@ class VendaCriar(BaseModel):
     pagamentos: Annotated[list[PagamentoCriar], Field(min_length=1)]
     desconto: Dinheiro = Decimal(0)
     cliente_cpf: Cpf
-    cliente_id: UUID | None = Field(default=None, description="Obrigatório na venda a prazo")
+    cliente_id: UUID | None = Field(default=None, description="Obrigatório na venda a prazo e para usar pontos")
+    pontos_resgatados: Annotated[int, Field(ge=0, le=10_000_000)] = Field(
+        default=0, description="Pontos do cliente trocados por desconto nesta venda"
+    )
     pre_venda_id: UUID | None = Field(default=None, description="Pré-venda que está sendo recebida")
 
 
@@ -116,6 +119,9 @@ class VendaSaida(BaseModel):
     troco: Decimal
     cliente_cpf: str | None
     cliente_id: UUID | None = None
+    pontos_ganhos: int = 0
+    pontos_resgatados: int = 0
+    desconto_pontos: Decimal = Decimal(0)
     finalizada_em: datetime
     cancelada_em: datetime | None
     motivo_cancelamento: str | None

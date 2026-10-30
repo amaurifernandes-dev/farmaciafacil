@@ -45,6 +45,11 @@ interface Props<T extends { id: string; ativo: boolean }> {
   semBusca?: boolean;
   aviso?: ReactNode;
   rodape?: ReactNode;
+  sobretitulo?: string;
+  /** Recortes prontos da lista, enviados como ?filtro=. */
+  filtros?: { valor: string; rotulo: string }[];
+  /** Botões extras de cada linha, antes do Editar. */
+  acoes?: (registro: T) => ReactNode;
 }
 
 function valoresIniciais(campos: Campo[], registro?: Record<string, unknown>): Valores {
@@ -62,13 +67,15 @@ export default function Cadastro<T extends { id: string; ativo: boolean }>(props
   const { titulo, descricao, endpoint, rotuloNovo, campos, colunas, podeEditar } = props;
   const [busca, setBusca] = useState("");
   const [inativos, setInativos] = useState(false);
+  const [filtro, setFiltro] = useState("");
   const [registros, setRegistros] = useState<T[] | null>(null);
   const [editando, setEditando] = useState<T | "novo" | null>(null);
   const [erro, setErro] = useState("");
 
-  async function carregar(termo = busca, comInativos = inativos) {
+  async function carregar(termo = busca, comInativos = inativos, recorte = filtro) {
     try {
       const parametros = new URLSearchParams({ busca: termo, incluir_inativos: String(comInativos), por_pagina: "100" });
+      if (recorte) parametros.set("filtro", recorte);
       const resposta = await api<T[] | { itens: T[] }>(`${endpoint}?${parametros}`);
       setRegistros(Array.isArray(resposta) ? resposta : resposta.itens);
       setErro("");
@@ -87,7 +94,7 @@ export default function Cadastro<T extends { id: string; ativo: boolean }>(props
     <div className="pagina">
       <div className="pagina-titulo">
         <div>
-          <p className="sobretitulo">Cadastros</p>
+          <p className="sobretitulo">{props.sobretitulo ?? "Cadastros"}</p>
           <h1>{titulo}</h1>
           <p className="vazio">{descricao}</p>
         </div>
@@ -114,6 +121,22 @@ export default function Cadastro<T extends { id: string; ativo: boolean }>(props
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
             />
+            {props.filtros && (
+              <select
+                value={filtro}
+                onChange={(e) => {
+                  setFiltro(e.target.value);
+                  carregar(busca, inativos, e.target.value);
+                }}
+              >
+                <option value="">Todos</option>
+                {props.filtros.map((f) => (
+                  <option key={f.valor} value={f.valor}>
+                    {f.rotulo}
+                  </option>
+                ))}
+              </select>
+            )}
             <button type="submit">Buscar</button>
             <label className="checkbox">
               <input
@@ -149,7 +172,8 @@ export default function Cadastro<T extends { id: string; ativo: boolean }>(props
                       {c.valor(r)}
                     </td>
                   ))}
-                  <td className="num">
+                  <td className="num acoes-linha">
+                    {props.acoes?.(r)}
                     {podeEditar && (
                       <button type="button" className="botao-pequeno" onClick={() => setEditando(r)}>
                         Editar

@@ -81,6 +81,10 @@ export interface Venda {
   desconto: string;
   total: string;
   troco: string;
+  cliente_id?: string | null;
+  pontos_ganhos?: number;
+  pontos_resgatados?: number;
+  desconto_pontos?: string;
   itens: { id: string; descricao: string; quantidade: string; preco_unitario: string; total: string }[];
   pagamentos: { forma: FormaPagamento; valor: string }[];
   finalizada_em: string;
@@ -287,6 +291,11 @@ export interface Configuracoes {
   desconto_maximo_caixa: string;
   dias_alerta_vencimento: number;
   dias_prazo_padrao: number;
+  fidelidade_ativa: boolean;
+  pontos_por_real: string;
+  valor_ponto: string;
+  pontos_minimo_resgate: number;
+  pontos_validade_meses: number | null;
 }
 
 export interface ItemPreVenda {
@@ -395,7 +404,69 @@ export interface Cliente {
   id: string;
   nome: string;
   cpf: string | null;
+  data_nascimento: string | null;
   telefone: string | null;
+  email: string | null;
+  cep: string | null;
+  endereco: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  aceita_ofertas: boolean;
+  consentimento_em: string | null;
+  observacoes: string | null;
   limite_credito: string | null;
   ativo: boolean;
+  criado_em: string;
+  /** Só na listagem. */
+  pontos?: number;
+  ultima_compra?: string | null;
+}
+
+export interface MovimentoPontos {
+  id: string;
+  tipo: "ganho" | "resgate" | "estorno" | "ajuste" | "expirado";
+  pontos: number;
+  venda_id: string | null;
+  venda_numero: number | null;
+  observacao: string | null;
+  criado_em: string;
+}
+
+export interface Pontos {
+  ativo: boolean;
+  saldo: number;
+  valor: string;
+  valor_ponto: string;
+  minimo_resgate: number;
+  pode_resgatar: boolean;
+  expiram_em: string | null;
+  movimentos: MovimentoPontos[];
+}
+
+export interface FichaCliente {
+  cliente: Cliente;
+  compras: {
+    quantidade: number;
+    total: string;
+    ticket_medio: string;
+    primeira: string | null;
+    ultima: string | null;
+    dias_sem_comprar: number | null;
+  };
+  pontos: Pontos;
+  fiado_em_aberto: string;
+  fiado_vencido: string;
+  produtos_frequentes: { produto_id: string; descricao: string; vezes: number; quantidade: string; ultima: string }[];
+  ultimas_compras: {
+    id: string;
+    numero: number;
+    finalizada_em: string;
+    status: "finalizada" | "cancelada";
+    total: string;
+    itens: number;
+    formas: FormaPagamento[];
+    pontos_ganhos: number;
+    pontos_resgatados: number;
+  }[];
 }

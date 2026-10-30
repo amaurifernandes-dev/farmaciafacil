@@ -5,6 +5,7 @@ import {
   adicionarProduto,
   falta,
   interpretarEntrada,
+  maximoDePontos,
   montarVenda,
   novoCarrinho,
   paraCentavos,
@@ -111,6 +112,7 @@ describe("carrinho", () => {
       desconto: "0.00",
       cliente_cpf: "52998224725",
       cliente_id: null,
+      pontos_resgatados: 0,
       pre_venda_id: null,
     });
     expect(montarVenda({ ...c, preVenda: { id: "pv1", numero: 7 } }).pre_venda_id).toBe("pv1");
@@ -129,5 +131,32 @@ describe("venda a prazo", () => {
     carrinho = { ...carrinho, cliente: { id: "c1", nome: "João", disponivelCentavos: 5000 } };
     expect(problemaParaFinalizar(carrinho)).toBeNull();
     expect(montarVenda(carrinho).cliente_id).toBe("c1");
+  });
+});
+
+describe("pontos", () => {
+  const maria = { id: "c1", nome: "Maria", disponivelCentavos: 0, pontos: { saldo: 500, valorPonto: "0.05", minimo: 100 } };
+
+  it("viram desconto e entram na venda", () => {
+    let carrinho = adicionarProduto(novoCarrinho(), produto({ preco_venda: "30.00" }), 1);
+    carrinho = { ...carrinho, cliente: maria, pontosResgatados: 200 };
+    expect(total(carrinho)).toBe(2000);
+    expect(montarVenda(carrinho).pontos_resgatados).toBe(200);
+  });
+
+  it("não passam do valor da compra nem do mínimo", () => {
+    let carrinho = adicionarProduto(novoCarrinho(), produto({ preco_venda: "12.34" }), 1);
+    carrinho = { ...carrinho, cliente: maria };
+    expect(maximoDePontos(carrinho)).toBe(246);
+    carrinho = { ...carrinho, pontosResgatados: 50, pagamentos: [{ forma: "dinheiro", centavos: 1234 }] };
+    expect(problemaParaFinalizar(carrinho)).toMatch(/mínimo/);
+    carrinho = { ...carrinho, pontosResgatados: 300 };
+    expect(problemaParaFinalizar(carrinho)).toMatch(/valem mais/);
+  });
+
+  it("exigem o cliente", () => {
+    let carrinho = adicionarProduto(novoCarrinho(), produto(), 1);
+    carrinho = { ...carrinho, pontosResgatados: 100, pagamentos: [{ forma: "dinheiro", centavos: 890 }] };
+    expect(problemaParaFinalizar(carrinho)).toMatch(/Escolha o cliente/);
   });
 });

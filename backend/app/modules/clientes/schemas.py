@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.modules.fidelidade.schemas import Pontos
 from app.shared.campos import Cep, Cpf, Email, Telefone, UfOpcional, texto
 
 Nome = Annotated[str, Field(min_length=1, max_length=120)]
@@ -56,6 +57,50 @@ class ClienteSaida(ClienteDados):
     criado_em: datetime
 
 
+class ClienteLista(ClienteSaida):
+    pontos: int = 0
+    ultima_compra: datetime | None = None
+
+
 class PaginaClientes(BaseModel):
-    itens: list[ClienteSaida]
+    itens: list[ClienteLista]
     total: int
+
+
+class ResumoCompras(BaseModel):
+    quantidade: int
+    total: Decimal
+    ticket_medio: Decimal
+    primeira: datetime | None
+    ultima: datetime | None
+    dias_sem_comprar: int | None
+
+
+class ProdutoFrequente(BaseModel):
+    produto_id: UUID
+    descricao: str
+    vezes: int = Field(description="Em quantas compras o produto apareceu")
+    quantidade: Decimal
+    ultima: datetime
+
+
+class CompraCliente(BaseModel):
+    id: UUID
+    numero: int
+    finalizada_em: datetime
+    status: str
+    total: Decimal
+    itens: int
+    formas: list[str]
+    pontos_ganhos: int
+    pontos_resgatados: int
+
+
+class FichaCliente(BaseModel):
+    cliente: ClienteSaida
+    compras: ResumoCompras
+    pontos: Pontos
+    fiado_em_aberto: Decimal
+    fiado_vencido: Decimal
+    produtos_frequentes: list[ProdutoFrequente]
+    ultimas_compras: list[CompraCliente]

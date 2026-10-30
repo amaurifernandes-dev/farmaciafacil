@@ -312,3 +312,23 @@ button.indicador:hover { border-color: var(--primaria); }
 .pdv-cliente { padding: 10px 12px; border-radius: 8px; background: var(--primaria-suave); font-size: 14px; }
 .pdv-cliente strong { display: block; font-size: 16px; }
 .pdv-cliente .abaixo { color: var(--erro); }
+
+/* Clientes */
+.acoes-linha { white-space: nowrap; }
+.acoes-linha > * + * { margin-left: 6px; }
+a.botao-pequeno { padding: 5px 10px; border: 1px solid var(--borda); border-radius: 6px; background: var(--superficie); color: var(--texto); font-size: 13px; display: inline-flex; align-items: center; text-decoration: none; }
+.link-forte { font-weight: 600; color: var(--texto); text-decoration: none; }
+.link-forte:hover { color: var(--primaria); text-decoration: underline; }
+.ficha-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.ficha-colunas .cartao { margin: 0; min-width: 0; }
+.linha-detalhe { display: block; color: var(--suave); font-size: 12px; }
+.texto-ok { color: var(--ok); font-weight: 600; }
+.texto-erro { color: var(--erro); font-weight: 600; }
+.pagina-titulo h1 .etiqueta { vertical-align: middle; }
+.pagina-titulo .vazio .etiqueta { margin-left: 8px; }
+@media (max-width: 900px) {
+  .ficha-colunas { grid-template-columns: 1fr; }
+}
+.pdv-cliente .pontos { display: block; color: var(--primaria); font-weight: 600; }
+.ficha-colunas .cartao-cabecalho, .ficha-extrato .cartao-cabecalho { margin-bottom: 12px; }
+.cartao-separado { margin-top: 16px; }

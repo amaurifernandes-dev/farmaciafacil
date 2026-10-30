@@ -92,7 +92,7 @@ export default function Inicio() {
           </div>
           <div className="atalhos">
             <Atalho para="/vendas" icone="mais" rotulo="Nova venda" />
-            <Atalho para="/configuracoes/clientes" icone="pessoa" rotulo="Clientes" />
+            <Atalho para="/clientes" icone="pessoa" rotulo="Clientes" />
             <Atalho para="/configuracoes/produtos" icone="pacote" rotulo="Produtos" />
             <Atalho para="/caixas" icone="caixa" rotulo="Gerenciar caixa" />
           </div>

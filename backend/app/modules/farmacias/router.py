@@ -15,8 +15,10 @@ def obter(db: DB, usuario: UsuarioAtual) -> Configuracoes:
 @router.patch("")
 def atualizar(db: DB, usuario: Admin, dados: ConfiguracoesAtualizar) -> Configuracoes:
     farmacia = db.get(Farmacia, usuario.farmacia_id)
-    for campo, valor in dados.model_dump(exclude_unset=True, exclude_none=True).items():
-        setattr(farmacia, campo, valor)
+    for campo, valor in dados.model_dump(exclude_unset=True).items():
+        # Só a validade dos pontos aceita vazio (= não expiram).
+        if valor is not None or campo == "pontos_validade_meses":
+            setattr(farmacia, campo, valor)
     db.commit()
     db.refresh(farmacia)
     return farmacia

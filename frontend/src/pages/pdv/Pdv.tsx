@@ -17,10 +17,12 @@ import { useSessao } from "../../sessao";
 import {
   adicionarProduto,
   alterarQuantidade,
+  descontoPontos,
   falta,
   interpretarEntrada,
   itensSemSaldo,
   lerQuantidade,
+  maximoDePontos,
   montarVenda,
   novoCarrinho,
   paraCentavos,
@@ -32,11 +34,20 @@ import {
   troco,
   type Carrinho,
 } from "./carrinho";
-import type { Cliente as ClienteCadastro, CreditoCliente } from "../../api/tipos";
+import type { Cliente as ClienteCadastro, CreditoCliente, Pontos } from "../../api/tipos";
 import { lerEsteTerminal } from "../caixas/Caixas";
 import FecharCaixa from "./FecharCaixa";
 
-type Modo = "venda" | "busca" | "quantidade" | "desconto" | "pagamento" | "cliente" | "preVenda" | "fechar";
+type Modo =
+  | "venda"
+  | "busca"
+  | "quantidade"
+  | "desconto"
+  | "pagamento"
+  | "cliente"
+  | "pontos"
+  | "preVenda"
+  | "fechar";
 
 const FORMAS: { tecla: string; forma: FormaPagamento; nome: string }[] = [
   { tecla: "1", forma: "dinheiro", nome: "Dinheiro" },
@@ -72,6 +83,9 @@ export default function Pdv() {
   const [resultados, setResultados] = useState<ProdutoPDV[]>([]);
   const [indiceBusca, setIndiceBusca] = useState(0);
   const [clientes, setClientes] = useState<ClienteCadastro[]>([]);
+  // De onde veio a escolha do cliente: da venda a prazo (Alt+5) ou do F8, e para onde voltar.
+  const [clienteParaPrazo, setClienteParaPrazo] = useState(false);
+  const [voltarPara, setVoltarPara] = useState<Modo>("venda");
   const [confirmarCancelar, setConfirmarCancelar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const campo = useRef<HTMLInputElement>(null);
@@ -112,21 +126,47 @@ export default function Pdv() {
     setAviso({ tipo: "erro", texto: textoErro });
   }
 
+  function textoValor(centavos: number) {
+    return centavos ? (centavos / 100).toFixed(2).replace(".", ",") : "";
+  }
+
+  function identificarCliente(paraPrazo: boolean) {
+    setClienteParaPrazo(paraPrazo);
+    setVoltarPara(modo === "pagamento" ? "pagamento" : "venda");
+    setClientes([]);
+    setIndiceBusca(0);
+    mudarModo("cliente");
+  }
+
+  /** F9: troca os pontos do cliente por desconto. */
+  function usarPontos() {
+    if (carrinho.itens.length === 0) return;
+    const cliente = carrinho.cliente;
+    if (!cliente) {
+      identificarCliente(false);
+      return setAviso({ tipo: "erro", texto: "Primeiro identifique o cliente (CPF, telefone ou nome)" });
+    }
+    if (!cliente.pontos) return erro("O programa de pontos está desligado. Ligue em Configurações gerais.");
+    if (cliente.pontos.saldo < cliente.pontos.minimo) {
+      return erro(`${cliente.nome} tem ${cliente.pontos.saldo} pontos. O mínimo para trocar é ${cliente.pontos.minimo}.`);
+    }
+    setVoltarPara(modo === "pagamento" ? "pagamento" : "venda");
+    setModo("pontos");
+    setTexto(String(maximoDePontos(carrinho)));
+    setAviso({ tipo: "ok", texto: `${cliente.nome} tem ${cliente.pontos.saldo} pontos. Enter usa o máximo; 0 tira.` });
+  }
+
   /** A prazo precisa de um cliente com limite: escolhe antes de lançar o valor. */
   function escolherForma(nova: FormaPagamento) {
     setForma(nova);
-    if (nova === "prazo" && !carrinho.cliente) {
-      setClientes([]);
-      setIndiceBusca(0);
-      mudarModo("cliente");
-    }
+    if (nova === "prazo" && !carrinho.cliente) identificarCliente(true);
   }
 
   async function buscarCliente(termo: string) {
     if (!termo.trim()) return;
     try {
       const pagina = await api<{ itens: ClienteCadastro[] }>(`/clientes?busca=${encodeURIComponent(termo.trim())}&por_pagina=8`);
-      if (pagina.itens.length === 0) return erro("Cliente não encontrado. Cadastre em Configurações › Clientes.");
+      if (pagina.itens.length === 0) return erro("Cliente não encontrado. Cadastre no menu Clientes.");
       if (pagina.itens.length === 1) return escolherCliente(pagina.itens[0]);
       setClientes(pagina.itens);
       setIndiceBusca(0);
@@ -138,20 +178,53 @@ export default function Pdv() {
 
   async function escolherCliente(cliente: ClienteCadastro) {
     try {
-      const credito = await api<CreditoCliente>(`/financeiro/clientes/${cliente.id}/credito`);
-      const disponivel = paraCentavos(credito.disponivel) ?? 0;
-      if (Number(credito.limite) <= 0) return erro(`${cliente.nome} não tem limite para comprar a prazo.`);
-      if (disponivel <= 0) return erro(`${cliente.nome} já usou todo o limite (deve ${reais(credito.em_aberto)}).`);
-      const atualizado = { ...carrinho, cliente: { id: cliente.id, nome: cliente.nome, disponivelCentavos: disponivel } };
+      const [credito, pontos] = await Promise.all([
+        api<CreditoCliente>(`/financeiro/clientes/${cliente.id}/credito`),
+        api<Pontos>(`/clientes/${cliente.id}/pontos`),
+      ]);
+      const temLimite = Number(credito.limite) > 0;
+      const disponivel = temLimite ? Math.max(paraCentavos(credito.disponivel) ?? 0, 0) : 0;
+      const atualizado: Carrinho = {
+        ...carrinho,
+        pontosResgatados: 0,
+        cliente: {
+          id: cliente.id,
+          nome: cliente.nome,
+          disponivelCentavos: disponivel,
+          pontos: pontos.ativo
+            ? { saldo: pontos.saldo, valorPonto: pontos.valor_ponto, minimo: pontos.minimo_resgate }
+            : undefined,
+        },
+      };
       setCarrinho(atualizado);
       setClientes([]);
-      setForma("prazo");
+      const sobrePontos = pontos.ativo
+        ? ` ${pontos.saldo} pontos (${reais(pontos.valor)})${pontos.pode_resgatar ? ", F9 troca por desconto" : ""}.`
+        : "";
+      const vencido = Number(credito.vencido) > 0 ? ` Atenção: ${reais(credito.vencido)} de fiado vencido.` : "";
+
+      if (!clienteParaPrazo) {
+        setModo(voltarPara);
+        setTexto(voltarPara === "pagamento" ? textoValor(falta(atualizado)) : "");
+        return setAviso({ tipo: vencido ? "erro" : "ok", texto: `Cliente: ${cliente.nome}.${sobrePontos}${vencido}` });
+      }
+      setClienteParaPrazo(false);
       setModo("pagamento");
-      setTexto((Math.min(falta(atualizado), disponivel) / 100).toFixed(2).replace(".", ","));
+      if (!temLimite || disponivel <= 0) {
+        setForma("dinheiro");
+        setTexto(textoValor(falta(atualizado)));
+        return erro(
+          temLimite
+            ? `${cliente.nome} já usou todo o limite (deve ${reais(credito.em_aberto)}).`
+            : `${cliente.nome} não tem limite para comprar a prazo.`,
+        );
+      }
+      setForma("prazo");
+      setTexto(textoValor(Math.min(falta(atualizado), disponivel)));
       setAviso(
-        Number(credito.vencido) > 0
-          ? { tipo: "erro", texto: `Atenção: ${cliente.nome} tem ${reais(credito.vencido)} vencido.` }
-          : { tipo: "ok", texto: `${cliente.nome} pode comprar até ${reais(disponivel)} a prazo.` },
+        vencido
+          ? { tipo: "erro", texto: `${vencido.trim()}` }
+          : { tipo: "ok", texto: `${cliente.nome} pode comprar até ${reais(disponivel)} a prazo.${sobrePontos}` },
       );
     } catch (e) {
       erro(mensagem(e));
@@ -242,7 +315,8 @@ export default function Pdv() {
       setCarrinho(novoCarrinho());
       setSelecionado(-1);
       mudarModo("venda");
-      const textoTroco = Number(venda.troco) > 0 ? ` Troco: ${reais(venda.troco)}` : "";
+      const ganhos = venda.pontos_ganhos ? ` ${carrinho.cliente?.nome} ganhou ${venda.pontos_ganhos} pontos.` : "";
+      const textoTroco = (Number(venda.troco) > 0 ? ` Troco: ${reais(venda.troco)}` : "") + ganhos;
       setAviso(avisoDaVenda(venda, textoTroco));
       atualizarCaixa();
     } catch (e) {
@@ -277,6 +351,19 @@ export default function Pdv() {
         if (clientes.length > 0 && clientes[indiceBusca]) escolherCliente(clientes[indiceBusca]);
         else buscarCliente(valor);
         break;
+      case "pontos": {
+        const quantos = valor.trim() === "" ? 0 : Number(valor.trim());
+        if (!Number.isInteger(quantos) || quantos < 0) return erro("Informe um número inteiro de pontos");
+        const pontos = carrinho.cliente?.pontos;
+        if (quantos > 0 && pontos && quantos < pontos.minimo) return erro(`O mínimo para trocar é ${pontos.minimo} pontos`);
+        if (quantos > maximoDePontos(carrinho)) return erro(`Dá para usar no máximo ${maximoDePontos(carrinho)} pontos nesta compra`);
+        const atualizado = { ...carrinho, pontosResgatados: quantos };
+        setCarrinho(atualizado);
+        setModo(voltarPara);
+        setTexto(voltarPara === "pagamento" ? textoValor(falta(atualizado)) : "");
+        setAviso(quantos ? { tipo: "ok", texto: `${quantos} pontos viraram ${reais(descontoPontos(atualizado))} de desconto.` } : null);
+        break;
+      }
       case "desconto": {
         const centavos = paraCentavos(valor || "0");
         if (centavos === null || centavos > subtotal(carrinho)) return erro("Desconto inválido");
@@ -308,12 +395,16 @@ export default function Pdv() {
         F4: () => carrinho.itens.length > 0 && mudarModo("pagamento"),
         F6: () => carrinho.itens.length > 0 && mudarModo("desconto"),
         F7: () => mudarModo("preVenda"),
+        F8: () => (modo === "venda" || modo === "pagamento") && identificarCliente(false),
+        F9: () => (modo === "venda" || modo === "pagamento") && usarPontos(),
         F10: () => carrinho.itens.length === 0 ? mudarModo("fechar") : erro("Finalize ou cancele a venda antes de fechar o caixa"),
         Escape: () => {
-          if (modo === "cliente") {
+          if (modo === "cliente" && clienteParaPrazo) {
+            setClienteParaPrazo(false);
             setForma("dinheiro");
             return mudarModo("pagamento");
           }
+          if (modo === "cliente" || modo === "pontos") return mudarModo(voltarPara);
           if (modo !== "venda") return mudarModo("venda");
           if (carrinho.itens.length === 0) return;
           if (!confirmarCancelar) {
@@ -382,7 +473,8 @@ export default function Pdv() {
     quantidade: "Nova quantidade do item selecionado",
     desconto: "Desconto na venda (R$)",
     pagamento: `Valor em ${FORMAS.find((f) => f.forma === forma)?.nome} (Enter vazio finaliza)`,
-    cliente: "Cliente da venda a prazo: CPF, telefone ou nome (Enter busca; Esc volta)",
+    cliente: `${clienteParaPrazo ? "Cliente da venda a prazo" : "Cliente"}: CPF, telefone ou nome (Enter busca; Esc volta)`,
+    pontos: "Quantos pontos usar como desconto (Enter confirma; 0 tira)",
     preVenda: "Número da pré-venda",
     fechar: "",
   };
@@ -434,6 +526,11 @@ export default function Pdv() {
         <div className="totais">
           <div>Subtotal <span>{reais(subtotal(carrinho))}</span></div>
           {carrinho.descontoCentavos > 0 && <div>Desconto <span>-{reais(carrinho.descontoCentavos)}</span></div>}
+          {descontoPontos(carrinho) > 0 && (
+            <div>
+              Pontos ({carrinho.pontosResgatados}) <span>-{reais(descontoPontos(carrinho))}</span>
+            </div>
+          )}
           <div className="total">Total <span>{reais(total(carrinho))}</span></div>
           {carrinho.pagamentos.map((p, i) => (
             <div key={i} className="pagamento">
@@ -459,9 +556,19 @@ export default function Pdv() {
 
         {carrinho.cliente && (
           <div className="pdv-cliente">
-            <small>Venda a prazo para</small>
+            <small>Cliente</small>
             <strong>{carrinho.cliente.nome}</strong>
-            <small>Pode comprar até {reais(carrinho.cliente.disponivelCentavos)}</small>{" "}
+            {carrinho.cliente.pontos && (
+              <small className="pontos">
+                {carrinho.cliente.pontos.saldo.toLocaleString("pt-BR")} pontos
+                {carrinho.pontosResgatados
+                  ? ` · usando ${carrinho.pontosResgatados}`
+                  : carrinho.cliente.pontos.saldo >= carrinho.cliente.pontos.minimo && " · F9 usar"}
+              </small>
+            )}
+            {carrinho.cliente.disponivelCentavos > 0 && (
+              <small>Pode comprar até {reais(carrinho.cliente.disponivelCentavos)} a prazo</small>
+            )}{" "}
             <button
               type="button"
               className="botao-pequeno"
@@ -469,6 +576,7 @@ export default function Pdv() {
                 setCarrinho({
                   ...carrinho,
                   cliente: undefined,
+                  pontosResgatados: 0,
                   pagamentos: carrinho.pagamentos.filter((p) => p.forma !== "prazo"),
                 })
               }
@@ -533,6 +641,8 @@ export default function Pdv() {
         <span>F4 Pagamento (Alt+5 a prazo)</span>
         <span>F6 Desconto</span>
         <span>F7 Receber pré-venda</span>
+        <span>F8 Cliente</span>
+        <span>F9 Usar pontos</span>
         <span>Del Remover item</span>
         <span>Esc Voltar/Cancelar</span>
         <span>F10 Fechar caixa</span>
