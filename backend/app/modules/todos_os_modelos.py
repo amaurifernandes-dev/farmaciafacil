@@ -10,3 +10,4 @@ from app.modules.estoque.models import Lote, MovimentoEstoque  # noqa: F401
 from app.modules.vendas.models import Caixa, PreVenda, Venda, VendaItem, VendaPagamento  # noqa: F401
 from app.modules.fiscal.models import ConfiguracaoFiscal, NotaFiscal  # noqa: F401
 from app.modules.compras.models import NotaEntrada, NotaEntradaItem, ProdutoFornecedor  # noqa: F401
+from app.modules.financeiro.models import Conta  # noqa: F401

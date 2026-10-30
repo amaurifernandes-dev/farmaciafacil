@@ -16,6 +16,9 @@ import Produtos from "./pages/configuracoes/Produtos";
 import Usuarios from "./pages/configuracoes/Usuarios";
 import Alertas from "./pages/gestao/Alertas";
 import Entrada from "./pages/gestao/Entrada";
+import Contas from "./pages/financeiro/Contas";
+import Financeiro from "./pages/financeiro/Financeiro";
+import Fluxo from "./pages/financeiro/Fluxo";
 import Estoque from "./pages/gestao/Estoque";
 import Saldos from "./pages/gestao/Saldos";
 import Transferencia from "./pages/gestao/Transferencia";
@@ -24,7 +27,7 @@ import Login from "./pages/Login";
 import Pdv from "./pages/pdv/Pdv";
 import PreVenda from "./pages/vendas/PreVenda";
 import Vendas from "./pages/vendas/Vendas";
-import { cuidaDoEstoque, ehAdmin, useSessao } from "./sessao";
+import { cuidaDoEstoque, ehAdmin, ehGerente, useSessao } from "./sessao";
 
 function Protegido({ children }: { children: ReactNode }) {
   const { sessao } = useSessao();
@@ -34,6 +37,11 @@ function Protegido({ children }: { children: ReactNode }) {
 function SoAdmin({ children }: { children: ReactNode }) {
   const { sessao } = useSessao();
   return ehAdmin(sessao) ? children : <Navigate to="/configuracoes" replace />;
+}
+
+function SoGerente({ children }: { children: ReactNode }) {
+  const { sessao } = useSessao();
+  return ehGerente(sessao) ? children : <Navigate to="/" replace />;
 }
 
 function SoEstoque({ children }: { children: ReactNode }) {
@@ -61,6 +69,11 @@ export default function App() {
           <Route index element={<Notas />} />
           <Route path="sugestao" element={<Sugestao />} />
           <Route path="notas/:id" element={<Nota />} />
+        </Route>
+        <Route path="/financeiro" element={<SoGerente><Financeiro /></SoGerente>}>
+          <Route index element={<Contas key="pagar" tipo="pagar" />} />
+          <Route path="receber" element={<Contas key="receber" tipo="receber" />} />
+          <Route path="fluxo" element={<Fluxo />} />
         </Route>
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />
         <Route path="/configuracoes/clientes" element={<Clientes />} />

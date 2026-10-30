@@ -22,3 +22,5 @@ class Farmacia(ComDatas, Base):
     # Desconto máximo que um operador de caixa pode dar sozinho, em % do subtotal.
     desconto_maximo_caixa: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal(10))
     dias_alerta_vencimento: Mapped[int] = mapped_column(Integer, default=30)
+    # Vencimento padrão da venda a prazo (fiado), em dias.
+    dias_prazo_padrao: Mapped[int] = mapped_column(Integer, default=30)

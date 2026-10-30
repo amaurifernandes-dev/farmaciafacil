@@ -25,6 +25,7 @@ from app.modules.compras.schemas import (
 )
 from app.modules.estoque.models import MovimentoEstoque
 from app.modules.estoque.service import Referencia, _lotes_vendaveis, entrar, loja_ou_matriz
+from app.modules.financeiro.service import contas_da_nota
 from app.modules.fornecedores.models import Fornecedor
 from app.modules.lojas.models import Loja
 from app.modules.produtos.models import Produto, ProdutoCodigo
@@ -283,6 +284,7 @@ def confirmar(db: Session, usuario: TokenDados, nota_id: UUID) -> NotaEntrada:
             )
         )
 
+    contas_da_nota(db, usuario.usuario_id, nota)
     nota.status = "confirmada"
     nota.confirmada_em = _agora()
     db.commit()

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
@@ -10,7 +10,7 @@ from app.shared.campos import Cpf
 
 Dinheiro = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
 DinheiroPositivo = Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=2)]
-FormaPagamento = Literal["dinheiro", "debito", "credito", "pix"]
+FormaPagamento = Literal["dinheiro", "debito", "credito", "pix", "prazo"]
 
 
 # --- Caixa ---
@@ -45,7 +45,8 @@ class ResumoCaixa(BaseModel):
     quantidade_vendas: int
     total_vendido: Decimal
     por_forma: dict[str, Decimal]
-    dinheiro_esperado: Decimal  # abertura + dinheiro recebido - troco
+    recebimentos_dinheiro: Decimal = Decimal(0)  # contas a receber (fiado) pagas em dinheiro neste caixa
+    dinheiro_esperado: Decimal  # abertura + dinheiro recebido - troco + recebimentos em dinheiro
     diferenca: Decimal | None  # informado - esperado (só depois de fechar)
 
 
@@ -60,6 +61,7 @@ class ItemVendaCriar(BaseModel):
 class PagamentoCriar(BaseModel):
     forma: FormaPagamento
     valor: DinheiroPositivo
+    vencimento: date | None = Field(default=None, description="Só na venda a prazo. Vazio = prazo padrão da farmácia")
 
 
 class VendaCriar(BaseModel):
@@ -73,6 +75,7 @@ class VendaCriar(BaseModel):
     pagamentos: Annotated[list[PagamentoCriar], Field(min_length=1)]
     desconto: Dinheiro = Decimal(0)
     cliente_cpf: Cpf
+    cliente_id: UUID | None = Field(default=None, description="Obrigatório na venda a prazo")
     pre_venda_id: UUID | None = Field(default=None, description="Pré-venda que está sendo recebida")
 
 
@@ -112,6 +115,7 @@ class VendaSaida(BaseModel):
     total: Decimal
     troco: Decimal
     cliente_cpf: str | None
+    cliente_id: UUID | None = None
     finalizada_em: datetime
     cancelada_em: datetime | None
     motivo_cancelamento: str | None

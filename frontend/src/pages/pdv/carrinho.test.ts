@@ -110,8 +110,24 @@ describe("carrinho", () => {
       pagamentos: [{ forma: "dinheiro", valor: "20.00" }],
       desconto: "0.00",
       cliente_cpf: "52998224725",
+      cliente_id: null,
       pre_venda_id: null,
     });
     expect(montarVenda({ ...c, preVenda: { id: "pv1", numero: 7 } }).pre_venda_id).toBe("pv1");
+  });
+});
+
+describe("venda a prazo", () => {
+  it("exige o cliente e respeita o disponível", () => {
+    let carrinho = adicionarProduto(novoCarrinho(), produto({ preco_venda: "30.00" }), 1);
+    carrinho = { ...carrinho, pagamentos: [{ forma: "prazo", centavos: 3000 }] };
+    expect(problemaParaFinalizar(carrinho)).toMatch(/Escolha o cliente/);
+
+    carrinho = { ...carrinho, cliente: { id: "c1", nome: "João", disponivelCentavos: 2000 } };
+    expect(problemaParaFinalizar(carrinho)).toMatch(/João só pode comprar mais 20,00/);
+
+    carrinho = { ...carrinho, cliente: { id: "c1", nome: "João", disponivelCentavos: 5000 } };
+    expect(problemaParaFinalizar(carrinho)).toBeNull();
+    expect(montarVenda(carrinho).cliente_id).toBe("c1");
   });
 });

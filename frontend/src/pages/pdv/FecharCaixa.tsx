@@ -5,7 +5,13 @@ import type { ResumoCaixa } from "../../api/tipos";
 import { reais } from "../../formato";
 import { paraCentavos } from "./carrinho";
 
-const NOMES: Record<string, string> = { dinheiro: "Dinheiro", debito: "Débito", credito: "Crédito", pix: "Pix" };
+const NOMES: Record<string, string> = {
+  dinheiro: "Dinheiro",
+  debito: "Débito",
+  credito: "Crédito",
+  pix: "Pix",
+  prazo: "A prazo (fiado)",
+};
 
 interface Props {
   caixa: ResumoCaixa;
@@ -87,6 +93,12 @@ function Linhas({ resumo }: { resumo: ResumoCaixa }) {
           <dd>{reais(valor)}</dd>
         </div>
       ))}
+      {Number(resumo.recebimentos_dinheiro) > 0 && (
+        <div>
+          <dt>Fiado recebido em dinheiro</dt>
+          <dd>{reais(resumo.recebimentos_dinheiro)}</dd>
+        </div>
+      )}
       <dt>Dinheiro esperado</dt>
       <dd>{reais(resumo.dinheiro_esperado)}</dd>
     </dl>

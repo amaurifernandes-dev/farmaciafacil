@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.models import Base, TabelaDaFarmacia
 
-FORMAS_PAGAMENTO = ("dinheiro", "debito", "credito", "pix")
+FORMAS_PAGAMENTO = ("dinheiro", "debito", "credito", "pix", "prazo")
 
 
 class Caixa(TabelaDaFarmacia, Base):
@@ -39,6 +39,7 @@ class Venda(TabelaDaFarmacia, Base):
         UniqueConstraint("farmacia_id", "numero"),
         UniqueConstraint("farmacia_id", "chave_idempotencia"),
         ForeignKeyConstraint(["farmacia_id", "caixa_id"], ["caixas.farmacia_id", "caixas.id"]),
+        ForeignKeyConstraint(["farmacia_id", "cliente_id"], ["clientes.farmacia_id", "clientes.id"]),
     )
 
     caixa_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
@@ -51,6 +52,8 @@ class Venda(TabelaDaFarmacia, Base):
     troco: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     # Só preenchido se o cliente pedir CPF na nota (LGPD: não coletar sem motivo).
     cliente_cpf: Mapped[str | None] = mapped_column(String(11))
+    # Obrigatório na venda a prazo: é quem fica devendo.
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     chave_idempotencia: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     finalizada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     cancelada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

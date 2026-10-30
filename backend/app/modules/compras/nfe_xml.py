@@ -45,6 +45,15 @@ class ItemNota:
 
 
 @dataclass
+class Duplicata:
+    """Parcela de pagamento da nota (boleto)."""
+
+    numero: str | None
+    vencimento: date
+    valor: Decimal
+
+
+@dataclass
 class Emitente:
     cnpj: str
     razao_social: str
@@ -69,6 +78,7 @@ class NotaLida:
     valor_produtos: Decimal
     valor_total: Decimal
     itens: list[ItemNota]
+    duplicatas: list[Duplicata] = field(default_factory=list)
 
 
 def _texto(no: Element | None, caminho: str) -> str | None:
@@ -216,6 +226,13 @@ def ler_nfe(conteudo: str) -> NotaLida:
     if not itens:
         raise XmlInvalido("A nota não tem itens")
 
+    duplicatas = []
+    for dup in inf.findall("n:cobr/n:dup", NS):
+        vencimento = _data(_texto(dup, "n:dVenc"))
+        valor = _decimal(dup, "n:vDup", "0")
+        if vencimento is not None and valor > 0:
+            duplicatas.append(Duplicata((_texto(dup, "n:nDup") or "")[:20] or None, vencimento, valor))
+
     totais = inf.find("n:total/n:ICMSTot", NS)
     soma = sum((i.valor_total for i in itens), Decimal(0))
     return NotaLida(
@@ -228,4 +245,5 @@ def ler_nfe(conteudo: str) -> NotaLida:
         valor_produtos=_decimal(totais, "n:vProd") if totais is not None else soma,
         valor_total=_decimal(totais, "n:vNF") if totais is not None else soma,
         itens=itens,
+        duplicatas=duplicatas,
     )

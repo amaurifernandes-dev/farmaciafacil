@@ -11,7 +11,9 @@ from app.core.security import TokenDados
 from app.modules.auth.models import Usuario
 from app.modules.estoque.models import MovimentoEstoque
 from app.modules.estoque.service import Referencia, baixar_fefo, devolver_movimento
+from app.modules.clientes.models import Cliente
 from app.modules.farmacias.models import Farmacia
+from app.modules.financeiro.service import cancelar_fiado_da_venda, lancar_fiado, recebido_no_caixa
 from app.modules.lojas.models import Loja, Terminal
 from app.modules.lojas.service import matriz, obter_loja, pode_receber
 from app.modules.produtos.models import Produto
@@ -115,7 +117,9 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
             .group_by(VendaPagamento.forma)
         ).all()
     )
-    esperado = caixa.valor_abertura + por_forma.get("dinheiro", Decimal(0)) - troco
+    # Fiado recebido em dinheiro neste caixa também está na gaveta.
+    recebimentos = recebido_no_caixa(db, caixa.id)
+    esperado = caixa.valor_abertura + por_forma.get("dinheiro", Decimal(0)) - troco + recebimentos
     diferenca = None
     if caixa.valor_fechamento_informado is not None:
         diferenca = caixa.valor_fechamento_informado - esperado
@@ -129,6 +133,7 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
         quantidade_vendas=quantidade,
         total_vendido=total,
         por_forma=por_forma,
+        recebimentos_dinheiro=recebimentos,
         dinheiro_esperado=esperado,
         diferenca=diferenca,
     )
@@ -174,11 +179,14 @@ def registrar_venda(
     caixa = caixa_para_vender(db, usuario, terminal)
     pre_venda = _pre_venda_para_receber(db, dados.pre_venda_id) if dados.pre_venda_id else None
 
+    if dados.cliente_id is not None and db.get(Cliente, dados.cliente_id) is None:
+        raise NaoEncontrado("Cliente não encontrado")
     venda = Venda(
         caixa_id=caixa.id,
         usuario_id=usuario.usuario_id,
         chave_idempotencia=dados.chave_idempotencia,
         cliente_cpf=dados.cliente_cpf,
+        cliente_id=dados.cliente_id,
         finalizada_em=_agora(),
     )
 
@@ -207,7 +215,8 @@ def registrar_venda(
 
     if descontos > subtotal:
         raise ErroDeNegocio("Desconto maior que o valor da venda")
-    maximo = db.get(Farmacia, usuario.farmacia_id).desconto_maximo_caixa
+    farmacia = db.get(Farmacia, usuario.farmacia_id)
+    maximo = farmacia.desconto_maximo_caixa
     if usuario.papel not in GERENTES and subtotal > 0 and descontos * 100 / subtotal > maximo:
         raise SemPermissao(f"Desconto acima de {maximo:g}% precisa de um gerente")
 
@@ -234,6 +243,12 @@ def registrar_venda(
     for item in venda.itens:
         produto = db.get(Produto, item.produto_id)
         baixar_fefo(db, loja_id, produto, item.quantidade, usuario.usuario_id, Referencia("venda_item", item.id))
+
+    a_prazo = [p for p in dados.pagamentos if p.forma == "prazo"]
+    if a_prazo:
+        valor = sum((p.valor for p in a_prazo), Decimal(0))
+        vencimento = next((p.vencimento for p in a_prazo if p.vencimento), None)
+        lancar_fiado(db, usuario.usuario_id, venda, loja_id, valor, vencimento, farmacia.dias_prazo_padrao)
 
     if pre_venda is not None:
         pre_venda.status = "recebida"
@@ -282,6 +297,7 @@ def cancelar_venda(db: Session, usuario: TokenDados, venda_id: UUID, motivo: str
             MovimentoEstoque.referencia_id.in_([item.id for item in venda.itens]),
         )
     ).all()
+    cancelar_fiado_da_venda(db, venda)
     for movimento in movimentos:
         devolver_movimento(db, movimento, usuario.usuario_id, motivo=f"Cancelamento da venda {venda.numero}")
 

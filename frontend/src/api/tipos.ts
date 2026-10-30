@@ -65,11 +65,12 @@ export interface ResumoCaixa {
   quantidade_vendas: number;
   total_vendido: string;
   por_forma: Record<string, string>;
+  recebimentos_dinheiro: string;
   dinheiro_esperado: string;
   diferenca: string | null;
 }
 
-export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix";
+export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix" | "prazo";
 
 export interface Venda {
   id: string;
@@ -285,6 +286,7 @@ export interface EsteTerminal {
 export interface Configuracoes {
   desconto_maximo_caixa: string;
   dias_alerta_vencimento: number;
+  dias_prazo_padrao: number;
 }
 
 export interface ItemPreVenda {
@@ -306,4 +308,94 @@ export interface PreVenda {
   total: string;
   cliente_cpf: string | null;
   criado_em: string;
+}
+
+export type TipoConta = "pagar" | "receber";
+export type SituacaoConta = "abertas" | "vencidas" | "pagas" | "canceladas" | "todas";
+
+export interface Conta {
+  id: string;
+  tipo: TipoConta;
+  loja_id: string;
+  descricao: string;
+  categoria: string;
+  fornecedor_id: string | null;
+  cliente_id: string | null;
+  pessoa: string | null;
+  documento: string | null;
+  parcela: number;
+  parcelas: number;
+  valor: string;
+  vencimento: string;
+  status: "aberta" | "paga" | "cancelada";
+  vencida: boolean;
+  pago_em: string | null;
+  valor_pago: string | null;
+  forma_pagamento: string | null;
+  nota_entrada_id: string | null;
+  venda_id: string | null;
+  observacao: string | null;
+  criado_em: string;
+}
+
+export interface TotaisContas {
+  vencidas: string;
+  quantidade_vencidas: number;
+  vence_hoje: string;
+  proximos_7_dias: string;
+  em_aberto: string;
+  pago_no_mes: string;
+}
+
+export interface PaginaContas {
+  itens: Conta[];
+  total: number;
+  soma: string;
+  totais: TotaisContas;
+}
+
+export interface CreditoCliente {
+  cliente_id: string;
+  nome: string;
+  limite: string;
+  em_aberto: string;
+  disponivel: string;
+  vencido: string;
+  contas: Conta[];
+}
+
+export interface DiaFluxo {
+  data: string;
+  vendas: string;
+  recebimentos: string;
+  pagamentos: string;
+  previsto_receber: string;
+  previsto_pagar: string;
+  saldo: string;
+  acumulado: string;
+}
+
+export interface FluxoCaixa {
+  inicio: string;
+  fim: string;
+  dias: DiaFluxo[];
+  entradas: string;
+  saidas: string;
+  resultado: string;
+  vencido_receber: string;
+  vencido_pagar: string;
+}
+
+export interface Categorias {
+  pagar: { id: string; nome: string }[];
+  receber: { id: string; nome: string }[];
+}
+
+export interface Cliente {
+  id: string;
+  nome: string;
+  cpf: string | null;
+  telefone: string | null;
+  limite_credito: string | null;
+  ativo: boolean;
 }
