@@ -41,7 +41,14 @@ O Vite repassa as chamadas `/api` para o backend. Telas:
 - **/vendas**: pré-vendas aguardando o caixa, últimas vendas (cancelamento pelo gerente) e **/vendas/pre-venda** para montar um pedido no balcão.
 - **/pdv**: frente de caixa em tela cheia, operada pelo teclado e pelo leitor de código de barras.
 - **/caixas**: este computador, caixas abertos, PDVs cadastrados e últimos fechamentos.
-- **/estoque**: alertas e entrada de mercadoria.
+- **/estoque**: alertas, saldo de cada loja, entrada manual e transferência entre lojas.
+- **/compras**: importação do XML da NF-e de compra (conferência e entrada no estoque) e sugestão de compras.
+
+Cada lote pertence a uma loja. A venda baixa do estoque da loja do PDV, a entrada escolhe a loja
+(ou vai para a matriz) e a transferência leva o lote para outra loja com o mesmo número e validade.
+Na nota pelo XML, o fornecedor é cadastrado pelo CNPJ, a loja é a do CNPJ de destino e cada item é
+reconhecido pelo código que o fornecedor já usou antes ou pelo código de barras. A nota só entra no
+estoque depois de conferida e confirmada.
 - **/configuracoes**: clientes, fornecedores, produtos, usuários, minha farmácia (matriz e filiais) e configurações gerais.
 
 ## Caixas: monocaixa, multicaixa e PDVs registrados
