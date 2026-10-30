@@ -2,7 +2,16 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { Link } from "react-router-dom";
 
 import { api, ErroApi, mensagem } from "../../api/cliente";
-import type { FormaPagamento, PaginaProdutos, ProdutoPDV, ResumoCaixa, Venda } from "../../api/tipos";
+import type {
+  EsteTerminal,
+  FormaPagamento,
+  PaginaProdutos,
+  PreVenda,
+  Produto,
+  ProdutoPDV,
+  ResumoCaixa,
+  Venda,
+} from "../../api/tipos";
 import { quantidade as fmtQtd, reais } from "../../formato";
 import { useSessao } from "../../sessao";
 import {
@@ -23,9 +32,10 @@ import {
   troco,
   type Carrinho,
 } from "./carrinho";
+import { lerEsteTerminal } from "../caixas/Caixas";
 import FecharCaixa from "./FecharCaixa";
 
-type Modo = "venda" | "busca" | "quantidade" | "desconto" | "pagamento" | "fechar";
+type Modo = "venda" | "busca" | "quantidade" | "desconto" | "pagamento" | "preVenda" | "fechar";
 
 const FORMAS: { tecla: string; forma: FormaPagamento; nome: string }[] = [
   { tecla: "1", forma: "dinheiro", nome: "Dinheiro" },
@@ -49,6 +59,7 @@ function carregarCarrinho(): Carrinho {
 
 export default function Pdv() {
   const { sessao } = useSessao();
+  const [terminal, setTerminal] = useState<EsteTerminal | null | undefined>(undefined);
   const [caixa, setCaixa] = useState<ResumoCaixa | null | undefined>(undefined);
   const [carrinho, setCarrinho] = useState<Carrinho>(carregarCarrinho);
   const [modo, setModo] = useState<Modo>("venda");
@@ -64,6 +75,9 @@ export default function Pdv() {
 
   const atualizarCaixa = useCallback(async () => {
     try {
+      const este = await lerEsteTerminal();
+      setTerminal(este);
+      if (!este?.pode_receber) return;
       setCaixa(await api<ResumoCaixa>("/caixas/atual"));
     } catch (e) {
       if (e instanceof ErroApi && e.status === 404) setCaixa(null);
@@ -146,6 +160,30 @@ export default function Pdv() {
     mudarModo("venda");
   }
 
+  async function receberPreVenda(numeroDigitado: string) {
+    const numero = Number(numeroDigitado.trim().replace("#", ""));
+    if (!Number.isInteger(numero) || numero <= 0) return erro("Número de pré-venda inválido");
+    if (carrinho.itens.length > 0) return erro("Finalize ou cancele a venda atual antes de receber uma pré-venda");
+    try {
+      const pre = await api<PreVenda>(`/pre-vendas/numero/${numero}`);
+      if (pre.status !== "aberta") return erro(`A pré-venda nº ${numero} já foi ${pre.status}`);
+      let novo: Carrinho = { ...novoCarrinho(), preVenda: { id: pre.id, numero: pre.numero } };
+      for (const item of pre.itens) {
+        // Busca o produto de novo para pegar o preço e o saldo de agora.
+        const produto = item.ean
+          ? await api<ProdutoPDV>(`/produtos/ean/${item.ean}`)
+          : { ...(await api<Produto>(`/produtos/${item.produto_id}`)), saldo: item.quantidade };
+        novo = adicionarProduto(novo, produto, Number(item.quantidade));
+      }
+      setCarrinho(novo);
+      setSelecionado(0);
+      mudarModo("venda");
+      setAviso({ tipo: "ok", texto: `Pré-venda nº ${numero} carregada (${pre.vendedor}). Confira e receba com F4.` });
+    } catch (e) {
+      erro(mensagem(e));
+    }
+  }
+
   async function finalizar() {
     const problema = problemaParaFinalizar(carrinho);
     if (problema) return erro(problema);
@@ -183,6 +221,9 @@ export default function Pdv() {
         mudarModo("venda");
         break;
       }
+      case "preVenda":
+        receberPreVenda(valor);
+        break;
       case "desconto": {
         const centavos = paraCentavos(valor || "0");
         if (centavos === null || centavos > subtotal(carrinho)) return erro("Desconto inválido");
@@ -213,6 +254,7 @@ export default function Pdv() {
         F3: () => selecionado >= 0 && mudarModo("quantidade"),
         F4: () => carrinho.itens.length > 0 && mudarModo("pagamento"),
         F6: () => carrinho.itens.length > 0 && mudarModo("desconto"),
+        F7: () => mudarModo("preVenda"),
         F10: () => carrinho.itens.length === 0 ? mudarModo("fechar") : erro("Finalize ou cancele a venda antes de fechar o caixa"),
         Escape: () => {
           if (modo !== "venda") return mudarModo("venda");
@@ -258,6 +300,8 @@ export default function Pdv() {
     return () => window.removeEventListener("keydown", tecla);
   });
 
+  if (terminal === undefined) return <div className="pdv-centro">Carregando...</div>;
+  if (terminal === null || !terminal.pode_receber) return <SemCaixaAqui terminal={terminal} />;
   if (caixa === undefined) return <div className="pdv-centro">Carregando...</div>;
   if (caixa === null) return <AbrirCaixa aoAbrir={atualizarCaixa} />;
   if (modo === "fechar") {
@@ -279,14 +323,18 @@ export default function Pdv() {
     quantidade: "Nova quantidade do item selecionado",
     desconto: "Desconto na venda (R$)",
     pagamento: `Valor em ${FORMAS.find((f) => f.forma === forma)?.nome} (Enter vazio finaliza)`,
+    preVenda: "Número da pré-venda",
     fechar: "",
   };
 
   return (
     <div className="pdv">
       <header className="pdv-topo">
-        <strong>FarmáciaFácil · PDV</strong>
+        <strong>
+          FarmáciaFácil · {terminal.terminal.nome} · {terminal.loja.nome}
+        </strong>
         <span>
+          {carrinho.preVenda && <>Pré-venda nº {carrinho.preVenda.numero} · </>}
           {sessao?.nome} · Caixa aberto · {caixa.quantidade_vendas} vendas · {reais(caixa.total_vendido)}
         </span>
         <Link to="/">Início</Link>
@@ -381,6 +429,7 @@ export default function Pdv() {
         <span>F3 Quantidade</span>
         <span>F4 Pagamento</span>
         <span>F6 Desconto</span>
+        <span>F7 Receber pré-venda</span>
         <span>Del Remover item</span>
         <span>Esc Voltar/Cancelar</span>
         <span>F10 Fechar caixa</span>
@@ -416,5 +465,23 @@ function AbrirCaixa({ aoAbrir }: { aoAbrir: () => void }) {
       <button type="submit">Abrir (Enter)</button>
       <Link to="/">Ir para o início</Link>
     </form>
+  );
+}
+
+function SemCaixaAqui({ terminal }: { terminal: EsteTerminal | null }) {
+  return (
+    <div className="pdv-centro cartao">
+      <h2>{terminal ? `${terminal.terminal.nome} não recebe pagamentos` : "Este computador não é um caixa"}</h2>
+      <p>
+        {terminal
+          ? terminal.motivo
+          : "Só computadores registrados como PDV podem abrir caixa. Um gerente registra o computador em Caixas."}
+      </p>
+      <Link to="/vendas/pre-venda" className="botao">
+        Fazer pré-venda
+      </Link>
+      <Link to="/caixas">Ir para Caixas</Link>
+      <Link to="/">Ir para o início</Link>
+    </div>
   );
 }

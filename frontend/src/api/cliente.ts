@@ -1,6 +1,7 @@
 import type { Sessao } from "./tipos";
 
 const CHAVE_SESSAO = "ff.sessao";
+const CHAVE_TERMINAL = "ff.terminal";
 
 export class ErroApi extends Error {
   constructor(
@@ -25,6 +26,23 @@ export function salvarSessao(sessao: Sessao | null) {
   else localStorage.removeItem(CHAVE_SESSAO);
 }
 
+/**
+ * Chave do PDV registrado neste computador. Fica no navegador, e não no
+ * login, porque identifica a máquina e não a pessoa.
+ */
+export function lerChaveTerminal(): string | null {
+  try {
+    return localStorage.getItem(CHAVE_TERMINAL);
+  } catch {
+    return null;
+  }
+}
+
+export function salvarChaveTerminal(chave: string | null) {
+  if (chave) localStorage.setItem(CHAVE_TERMINAL, chave);
+  else localStorage.removeItem(CHAVE_TERMINAL);
+}
+
 /** Tira a mensagem legível de um erro da API (FastAPI devolve `detail`). */
 function mensagemDoErro(corpo: unknown, status: number): string {
   const detail = (corpo as { detail?: unknown } | null)?.detail;
@@ -40,11 +58,13 @@ function mensagemDoErro(corpo: unknown, status: number): string {
 
 export async function api<T>(caminho: string, opcoes: { metodo?: string; corpo?: unknown } = {}): Promise<T> {
   const sessao = lerSessao();
+  const terminal = lerChaveTerminal();
   const resposta = await fetch(`/api/v1${caminho}`, {
     method: opcoes.metodo ?? (opcoes.corpo === undefined ? "GET" : "POST"),
     headers: {
       "Content-Type": "application/json",
       ...(sessao ? { Authorization: `Bearer ${sessao.access_token}` } : {}),
+      ...(terminal ? { "X-Terminal": terminal } : {}),
     },
     body: opcoes.corpo === undefined ? undefined : JSON.stringify(opcoes.corpo),
   });

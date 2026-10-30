@@ -1,0 +1,254 @@
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
+import { api, mensagem } from "../../api/cliente";
+import type { EsteTerminal, PreVenda, Venda } from "../../api/tipos";
+import { Janela } from "../../components/Cadastro";
+import Icone from "../../components/Icone";
+import { reais } from "../../formato";
+import { ehGerente, useSessao } from "../../sessao";
+import { lerEsteTerminal } from "../caixas/Caixas";
+
+const FORMAS: Record<string, string> = { dinheiro: "Dinheiro", debito: "Débito", credito: "Crédito", pix: "Pix" };
+
+function dataHora(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+export default function Vendas() {
+  const { sessao } = useSessao();
+  const gerente = ehGerente(sessao);
+  const [este, setEste] = useState<EsteTerminal | null | undefined>(undefined);
+  const [preVendas, setPreVendas] = useState<PreVenda[]>([]);
+  const [vendas, setVendas] = useState<Venda[]>([]);
+  const [cancelando, setCancelando] = useState<Venda | null>(null);
+  const [erro, setErro] = useState("");
+
+  const carregar = useCallback(async () => {
+    try {
+      const [terminal, pre, ultimas] = await Promise.all([
+        lerEsteTerminal(),
+        api<PreVenda[]>("/pre-vendas"),
+        api<Venda[]>("/vendas?por_pagina=30"),
+      ]);
+      setEste(terminal);
+      setPreVendas(pre);
+      setVendas(ultimas);
+    } catch (e) {
+      setErro(mensagem(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  async function cancelarPreVenda(pre: PreVenda) {
+    try {
+      await api(`/pre-vendas/${pre.id}/cancelar`, { corpo: {} });
+      carregar();
+    } catch (e) {
+      setErro(mensagem(e));
+    }
+  }
+
+  return (
+    <div className="pagina">
+      <div className="pagina-titulo">
+        <div>
+          <h1>Vendas / PDV</h1>
+          <p className="vazio">Frente de caixa, pré-vendas do balcão e as últimas vendas.</p>
+        </div>
+        <div className="acoes">
+          <Link to="/vendas/pre-venda" className="botao-contorno">
+            <Icone nome="recibo" /> Nova pré-venda
+          </Link>
+          {este?.pode_receber && (
+            <Link to="/pdv" className="botao">
+              <Icone nome="caixa" /> Abrir frente de caixa
+            </Link>
+          )}
+        </div>
+      </div>
+      {erro && <p className="erro">{erro}</p>}
+
+      {este !== undefined && (
+        <section className="cartao este-computador">
+          <span className="atalho-icone">
+            <Icone nome="monitor" />
+          </span>
+          <div>
+            <p className="sobretitulo">Este computador</p>
+            {este ? (
+              <>
+                <h2>
+                  {este.terminal.nome} · {este.loja.nome}
+                </h2>
+                <p className={este.pode_receber ? "positivo" : "vazio"}>
+                  {este.pode_receber ? "Recebe pagamentos e emite o cupom aqui." : este.motivo}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2>Balcão (sem caixa)</h2>
+                <p className="vazio">
+                  Monte a pré-venda aqui e o cliente paga no caixa.{" "}
+                  {gerente && (
+                    <>
+                      Para este computador receber pagamentos, registre-o em <Link to="/caixas">Caixas</Link>.
+                    </>
+                  )}
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      <section className="cartao espaco-acima">
+        <div className="cartao-cabecalho">
+          <h2>Pré-vendas aguardando o caixa</h2>
+          <small>{preVendas.length} aberta(s)</small>
+        </div>
+        {preVendas.length === 0 ? (
+          <p className="lista-vazia">Nenhuma pré-venda aguardando.</p>
+        ) : (
+          <div className="tabela-rolagem">
+            <table className="tabela">
+              <thead>
+                <tr>
+                  <th>Nº</th>
+                  <th>Itens</th>
+                  <th>Atendente</th>
+                  <th>Hora</th>
+                  <th className="num">Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {preVendas.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <strong>{p.numero}</strong>
+                    </td>
+                    <td>{p.itens.map((i) => `${Number(i.quantidade)}x ${i.descricao}`).join(", ")}</td>
+                    <td>{p.vendedor}</td>
+                    <td>{dataHora(p.criado_em)}</td>
+                    <td className="num">{reais(p.total)}</td>
+                    <td className="num">
+                      <button type="button" className="botao-pequeno" onClick={() => cancelarPreVenda(p)}>
+                        Cancelar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="nota">No PDV, aperte F7 e digite o número da pré-venda para receber.</p>
+      </section>
+
+      <section className="cartao espaco-acima">
+        <h2>Últimas vendas</h2>
+        {vendas.length === 0 ? (
+          <p className="lista-vazia">Nenhuma venda ainda.</p>
+        ) : (
+          <div className="tabela-rolagem">
+            <table className="tabela">
+              <thead>
+                <tr>
+                  <th>Nº</th>
+                  <th>Data</th>
+                  <th>Itens</th>
+                  <th>Pagamento</th>
+                  <th className="num">Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {vendas.map((v) => (
+                  <tr key={v.id} className={v.status === "cancelada" ? "inativo" : ""}>
+                    <td>
+                      <strong>{v.numero}</strong>
+                    </td>
+                    <td>{dataHora(v.finalizada_em)}</td>
+                    <td>{v.itens.length} item(ns)</td>
+                    <td>{v.pagamentos.map((p) => FORMAS[p.forma]).join(" + ")}</td>
+                    <td className="num">{reais(v.total)}</td>
+                    <td className="num">
+                      {v.status === "cancelada" ? (
+                        <span className="etiqueta erro-etiqueta" title={v.motivo_cancelamento ?? ""}>
+                          Cancelada
+                        </span>
+                      ) : (
+                        gerente && (
+                          <button type="button" className="botao-pequeno" onClick={() => setCancelando(v)}>
+                            Cancelar
+                          </button>
+                        )
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {cancelando && (
+        <CancelarVenda
+          venda={cancelando}
+          aoFechar={() => {
+            setCancelando(null);
+            carregar();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CancelarVenda({ venda, aoFechar }: { venda: Venda; aoFechar: () => void }) {
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState("");
+
+  async function cancelar() {
+    try {
+      await api(`/vendas/${venda.id}/cancelar`, { corpo: { motivo } });
+      aoFechar();
+    } catch (e) {
+      setErro(mensagem(e));
+    }
+  }
+
+  return (
+    <Janela titulo={`Cancelar venda nº ${venda.numero}`} aoFechar={aoFechar}>
+      <form
+        className="campos"
+        onSubmit={(e) => {
+          e.preventDefault();
+          cancelar();
+        }}
+      >
+        <p className="largo">
+          Total de {reais(venda.total)}. Os produtos voltam para o estoque, nos mesmos lotes.
+        </p>
+        <label className="largo">
+          Motivo
+          <input value={motivo} onChange={(e) => setMotivo(e.target.value)} required minLength={3} autoFocus />
+        </label>
+        {erro && <p className="erro largo">{erro}</p>}
+        <div className="acoes largo direita">
+          <button type="button" onClick={aoFechar}>
+            Voltar
+          </button>
+          <button type="submit" className="perigo">
+            Cancelar venda
+          </button>
+        </div>
+      </form>
+    </Janela>
+  );
+}

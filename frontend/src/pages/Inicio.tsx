@@ -5,7 +5,7 @@ import { api, mensagem } from "../api/cliente";
 import type { Painel } from "../api/tipos";
 import Icone, { type NomeIcone } from "../components/Icone";
 import { reais } from "../formato";
-import { ehGerente, useSessao } from "../sessao";
+import { podeReceber, useSessao } from "../sessao";
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -51,7 +51,7 @@ export default function Inicio() {
           <h1>Seu dia, sob controle.</h1>
           <p className="vazio">Bem-vindo, {primeiroNome}. Veja o que acontece na sua farmácia hoje.</p>
         </div>
-        <Link to="/pdv" className="botao">
+        <Link to="/vendas" className="botao">
           <Icone nome="mais" /> Nova venda
         </Link>
       </div>
@@ -76,8 +76,8 @@ export default function Inicio() {
         <Indicador titulo="Vendas realizadas" icone="recibo" valor={String(painel.quantidade_vendas_hoje)}>
           Ticket médio de {reais(painel.ticket_medio_hoje)}
         </Indicador>
-        <Indicador titulo="Produtos ativos" icone="pacote" valor={String(painel.produtos_ativos)}>
-          No seu cadastro
+        <Indicador titulo="Clientes cadastrados" icone="pessoa" valor={String(painel.clientes)}>
+          {painel.produtos_ativos} produtos ativos no cadastro
         </Indicador>
         <Indicador titulo="Caixas abertos" icone="caixa" valor={String(painel.caixas_abertos)}>
           {painel.meu_caixa_aberto ? "Seu caixa está aberto" : "Seu caixa está fechado"}
@@ -91,10 +91,10 @@ export default function Inicio() {
             <small>Sua rotina mais simples</small>
           </div>
           <div className="atalhos">
-            <Atalho para="/pdv" icone="mais" rotulo="Nova venda" />
-            <Atalho para="/produtos" icone="pacote" rotulo="Novo produto" />
-            {ehGerente(sessao) && <Atalho para="/estoque/entrada" icone="entrada" rotulo="Entrada de estoque" />}
-            <Atalho para="/estoque/alertas" icone="alerta" rotulo="Alertas de estoque" />
+            <Atalho para="/vendas" icone="mais" rotulo="Nova venda" />
+            <Atalho para="/configuracoes/clientes" icone="pessoa" rotulo="Clientes" />
+            <Atalho para="/configuracoes/produtos" icone="pacote" rotulo="Produtos" />
+            <Atalho para="/caixas" icone="caixa" rotulo="Gerenciar caixa" />
           </div>
 
           <div className="cartao-cabecalho">
@@ -156,34 +156,35 @@ function GraficoSemana({ semana }: { semana: Painel["semana"] }) {
 }
 
 function Atencao({ painel }: { painel: Painel }) {
+  const { sessao } = useSessao();
   const avisos: { icone: NomeIcone; titulo: string; texto: string; para: string }[] = [];
   if (painel.lotes_vencidos > 0)
     avisos.push({
       icone: "alerta",
       titulo: `${painel.lotes_vencidos} lote(s) vencido(s) com saldo`,
       texto: "Retire do estoque e registre a perda.",
-      para: "/estoque/alertas",
+      para: "/estoque",
     });
   if (painel.lotes_vencendo > 0)
     avisos.push({
       icone: "relogio",
       titulo: `${painel.lotes_vencendo} lote(s) próximo(s) ao vencimento`,
-      texto: "Revise os lotes com validade em até 30 dias.",
-      para: "/estoque/alertas",
+      texto: `Revise os lotes com validade em até ${painel.dias_alerta_vencimento} dias.`,
+      para: "/estoque",
     });
   if (painel.abaixo_do_minimo > 0)
     avisos.push({
       icone: "baixa",
       titulo: `${painel.abaixo_do_minimo} produto(s) abaixo do mínimo`,
       texto: "Confira os produtos que precisam de reposição.",
-      para: "/estoque/alertas",
+      para: "/estoque",
     });
-  if (!painel.meu_caixa_aberto)
+  if (!painel.meu_caixa_aberto && podeReceber(sessao))
     avisos.push({
       icone: "caixa",
       titulo: "Prepare seu caixa",
       texto: "Abra o caixa para iniciar os recebimentos.",
-      para: "/pdv",
+      para: "/caixas",
     });
 
   if (avisos.length === 0) return <p className="vazio">Tudo em ordem por aqui.</p>;

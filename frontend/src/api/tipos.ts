@@ -1,7 +1,7 @@
 // Tipos espelhando as respostas da API. Valores em dinheiro e quantidades
 // chegam como string ("8.90") para não perder precisão.
 
-export type Papel = "admin" | "gerente" | "caixa";
+export type Papel = "admin" | "gerente" | "farmaceutico" | "caixa" | "atendente" | "estoque";
 
 export interface Sessao {
   access_token: string;
@@ -44,6 +44,8 @@ export interface PaginaProdutos {
 export interface Caixa {
   id: string;
   usuario_id: string;
+  terminal_id: string | null;
+  loja_id: string | null;
   status: "aberto" | "fechado";
   valor_abertura: string;
   aberto_em: string;
@@ -53,6 +55,9 @@ export interface Caixa {
 
 export interface ResumoCaixa {
   caixa: Caixa;
+  operador: string;
+  terminal: string | null;
+  loja: string | null;
   quantidade_vendas: number;
   total_vendido: string;
   por_forma: Record<string, string>;
@@ -65,6 +70,7 @@ export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix";
 export interface Venda {
   id: string;
   numero: number;
+  caixa_id: string;
   status: "finalizada" | "cancelada";
   subtotal: string;
   desconto: string;
@@ -72,6 +78,8 @@ export interface Venda {
   troco: string;
   itens: { id: string; descricao: string; quantidade: string; preco_unitario: string; total: string }[];
   pagamentos: { forma: FormaPagamento; valor: string }[];
+  finalizada_em: string;
+  motivo_cancelamento: string | null;
 }
 
 export interface Lote {
@@ -107,5 +115,77 @@ export interface Painel {
   produtos_ativos: number;
   lotes_vencidos: number;
   lotes_vencendo: number;
+  dias_alerta_vencimento: number;
+  clientes: number;
   abaixo_do_minimo: number;
+}
+
+export type ModoCaixa = "mono" | "multi";
+
+export interface Loja {
+  id: string;
+  nome: string;
+  matriz: boolean;
+  razao_social: string;
+  nome_fantasia: string;
+  cnpj: string;
+  inscricao_estadual: string | null;
+  telefone: string | null;
+  email: string | null;
+  cep: string | null;
+  endereco: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string;
+  responsavel_tecnico: string | null;
+  crf: string | null;
+  modo_caixa: ModoCaixa;
+  terminal_central_id: string | null;
+  ativo: boolean;
+}
+
+export interface Terminal {
+  id: string;
+  loja_id: string;
+  nome: string;
+  ativo: boolean;
+  vinculado: boolean;
+  vinculado_em: string | null;
+  ultimo_uso_em: string | null;
+  pode_receber: boolean;
+  central: boolean;
+  caixa_aberto_id: string | null;
+}
+
+export interface EsteTerminal {
+  terminal: Terminal;
+  loja: Loja;
+  pode_receber: boolean;
+  motivo: string | null;
+}
+
+export interface Configuracoes {
+  desconto_maximo_caixa: string;
+  dias_alerta_vencimento: number;
+}
+
+export interface ItemPreVenda {
+  produto_id: string;
+  ean: string | null;
+  descricao: string;
+  quantidade: string;
+  preco_unitario: string;
+  total: string;
+}
+
+export interface PreVenda {
+  id: string;
+  numero: number;
+  loja_id: string;
+  vendedor: string;
+  status: "aberta" | "recebida" | "cancelada";
+  itens: ItemPreVenda[];
+  total: string;
+  cliente_cpf: string | null;
+  criado_em: string;
 }

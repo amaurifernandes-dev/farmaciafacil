@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api, mensagem } from "../../api/cliente";
 import type { PaginaProdutos, Produto } from "../../api/tipos";
 import { reais } from "../../formato";
-import { ehGerente, useSessao } from "../../sessao";
+import { cuidaDoEstoque, useSessao } from "../../sessao";
 
 type Formulario = {
   ean: string;
@@ -65,7 +65,7 @@ function paraApi(f: Formulario) {
 
 export default function Produtos() {
   const { sessao } = useSessao();
-  const podeEditar = ehGerente(sessao);
+  const podeEditar = cuidaDoEstoque(sessao);
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState<PaginaProdutos | null>(null);
   const [editando, setEditando] = useState<Produto | "novo" | null>(null);
@@ -109,7 +109,9 @@ export default function Produtos() {
 
   return (
     <div className="pagina">
+      <p className="sobretitulo">Cadastros</p>
       <h1>Produtos</h1>
+      <p className="vazio">Preços, códigos de barras e dados fiscais dos produtos.</p>
       <form
         className="barra"
         onSubmit={(e) => {
