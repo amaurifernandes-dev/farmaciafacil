@@ -25,6 +25,7 @@ const MENU: ItemMenu[] = [
   { para: "/financeiro", rotulo: "Financeiro", icone: "dinheiro", agrupa: true, pode: ehGerente },
   { para: "/promocoes", rotulo: "Promoções", icone: "etiqueta", pode: ehGerente },
   { para: "/relatorios", rotulo: "Relatórios", icone: "grafico", pode: ehGerente },
+  { para: "/fiscal", rotulo: "Fechamento fiscal", icone: "recibo", pode: ehGerente },
   { para: "/configuracoes", rotulo: "Configurações", icone: "engrenagem", agrupa: true },
 ];
 

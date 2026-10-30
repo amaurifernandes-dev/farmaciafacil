@@ -60,6 +60,9 @@ O Vite repassa as chamadas `/api` para o backend. Telas:
   (vale a de maior desconto) e cada promoção mostra quanto vendeu.
 - **/relatorios**: vendas do período (com lucro bruto e comparação com o período anterior), lucro por
   produto com curva ABC e produtos parados no estoque; as tabelas baixam como planilha.
+- **/fiscal**: fechamento fiscal do mês por loja, com o que falta acertar (vendas sem NFC-e, produto sem NCM,
+  nota de compra não conferida), o resumo por CFOP, a receita separada para o PGDAS (ICMS-ST e PIS/COFINS
+  monofásico) e o pacote para o contador. Ali também ficam o regime tributário e os dados do contador.
 - **/configuracoes**: fornecedores, produtos, usuários, minha farmácia (matriz e filiais) e configurações gerais.
 
 Cada lote pertence a uma loja. A venda baixa do estoque da loja do PDV, a entrada escolhe a loja
@@ -125,6 +128,21 @@ mesmo se a nota falhar; nesse caso `POST /api/v1/vendas/{id}/nfce` reenvia (a re
 venda, então não duplica) e `GET /api/v1/vendas/{id}/nfce?atualizar=true` consulta uma nota que ficou
 em processamento. Cancelar a venda cancela a NFC-e antes; a SEFAZ exige motivo com 15 caracteres ou
 mais e, em geral, até 30 minutos após a emissão. Se ela recusar, a venda não é cancelada.
+
+## Fechamento fiscal e SPED
+
+`GET /api/v1/fiscal/fechamento?mes=AAAA-MM&loja_id=` traz o resumo do mês; a loja vazia é a matriz.
+As compras do mês são as notas confirmadas no mês, com os impostos lidos do XML guardado.
+
+- `GET /api/v1/fiscal/pacote` baixa um ZIP para o contador: resumo por CFOP, receita para o PGDAS, lista das
+  NFC-e (com o link do XML na Focus), os XMLs das compras, as pendências e, no regime normal, o SPED.
+- `GET /api/v1/fiscal/sped` baixa o SPED Fiscal (EFD ICMS/IPI) para lucro presumido ou real: compras
+  (C100/C170/C190), NFC-e (C100/C190), apuração do ICMS (E110) e os totais do bloco 9. Precisa da inscrição
+  estadual e do código IBGE do município da loja e do contador (nome, CPF e CRC). O contador valida no PVA
+  e transmite. No Simples Nacional não há SPED Fiscal.
+
+Ainda não fazemos: a EFD Contribuições (PIS/COFINS), o inventário do bloco H e a alíquota de ICMS na venda
+(o débito de produto com CST 00/20 sai zerado e aparece nas pendências para o contador lançar).
 
 ## Testes
 

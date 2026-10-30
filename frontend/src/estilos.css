@@ -455,3 +455,11 @@ button.vitrine-tirar { border: 0; color: var(--suave); font-size: 12px; padding:
   .vitrine-produto { padding: 12px; }
   .vitrine-marca small { display: none; }
 }
+
+/* Fechamento fiscal */
+.indicador > span { color: var(--suave); font-size: 13px; }
+.tabela .linha-total td { font-weight: 700; border-top: 2px solid var(--borda); }
+.fechamento-ok { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; background: var(--ok-fundo); border-color: transparent; }
+.fechamento-ok svg { flex-shrink: 0; width: 28px; height: 28px; color: var(--ok); }
+.fechamento-ok p { margin: 4px 0 0; color: var(--suave); font-size: 14px; }
+.avisos .texto-pendencia { margin: 0; color: var(--texto); }
