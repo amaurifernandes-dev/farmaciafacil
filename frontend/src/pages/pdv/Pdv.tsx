@@ -18,6 +18,7 @@ import {
   adicionarProduto,
   alterarQuantidade,
   descontoPontos,
+  descontoPromocoes,
   falta,
   interpretarEntrada,
   itensSemSaldo,
@@ -27,12 +28,14 @@ import {
   novoCarrinho,
   paraCentavos,
   problemaParaFinalizar,
+  promocaoDoItem,
   removerItem,
   subtotal,
   total,
   totalItem,
   troco,
   type Carrinho,
+  type ItemCarrinho,
 } from "./carrinho";
 import type { Cliente as ClienteCadastro, CreditoCliente, Pontos } from "../../api/tipos";
 import { lerEsteTerminal } from "../caixas/Caixas";
@@ -511,7 +514,10 @@ export default function Pdv() {
                 onClick={() => setSelecionado(i)}
               >
                 <td>{i + 1}</td>
-                <td>{item.descricao}</td>
+                <td>
+                  {item.descricao}
+                  <PromocaoDoItem item={item} comCliente={!!carrinho.cliente} />
+                </td>
                 <td className="num">{fmtQtd(item.quantidade)}</td>
                 <td className="num">{reais(item.precoCentavos)}</td>
                 <td className="num">{reais(totalItem(item))}</td>
@@ -525,6 +531,11 @@ export default function Pdv() {
       <aside className="pdv-lateral">
         <div className="totais">
           <div>Subtotal <span>{reais(subtotal(carrinho))}</span></div>
+          {descontoPromocoes(carrinho) > 0 && (
+            <div className="linha-promocao">
+              Promoções <span>-{reais(descontoPromocoes(carrinho))}</span>
+            </div>
+          )}
           {carrinho.descontoCentavos > 0 && <div>Desconto <span>-{reais(carrinho.descontoCentavos)}</span></div>}
           {descontoPontos(carrinho) > 0 && (
             <div>
@@ -649,6 +660,28 @@ export default function Pdv() {
       </footer>
     </div>
   );
+}
+
+/** Mostra a promoção que vale no item ou, se for do clube, avisa que precisa identificar o cliente. */
+function PromocaoDoItem({ item, comCliente }: { item: ItemCarrinho; comCliente: boolean }) {
+  const valendo = promocaoDoItem(item, comCliente);
+  if (valendo) {
+    return (
+      <small className="pdv-promocao">
+        {valendo.promocao.nome}: {valendo.promocao.resumo} (−{reais(valendo.centavos)})
+      </small>
+    );
+  }
+  const doClube = !comCliente && promocaoDoItem(item, true);
+  if (doClube) {
+    return (
+      <small className="pdv-promocao clube">
+        {doClube.promocao.resumo} para cliente identificado: F8 (−{reais(doClube.centavos)})
+      </small>
+    );
+  }
+  const leve = (item.promocoes ?? []).find((p) => p.tipo === "leve_pague" && (!p.so_clientes || comCliente));
+  return leve ? <small className="pdv-promocao clube">{leve.resumo}: leve mais para ganhar</small> : null;
 }
 
 function AbrirCaixa({ aoAbrir }: { aoAbrir: () => void }) {

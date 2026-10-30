@@ -21,6 +21,8 @@ const MENU: ItemMenu[] = [
   { para: "/estoque", rotulo: "Estoque", icone: "pacote", agrupa: true },
   { para: "/compras", rotulo: "Compras", icone: "caminhao", agrupa: true, pode: cuidaDoEstoque },
   { para: "/financeiro", rotulo: "Financeiro", icone: "dinheiro", agrupa: true, pode: ehGerente },
+  { para: "/promocoes", rotulo: "Promoções", icone: "etiqueta", pode: ehGerente },
+  { para: "/relatorios", rotulo: "Relatórios", icone: "grafico", pode: ehGerente },
   { para: "/configuracoes", rotulo: "Configurações", icone: "engrenagem", agrupa: true },
 ];
 

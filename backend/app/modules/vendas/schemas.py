@@ -96,6 +96,8 @@ class ItemVendaSaida(BaseModel):
     preco_unitario: Decimal
     desconto: Decimal
     total: Decimal
+    promocao_id: UUID | None = None
+    desconto_promocao: Decimal = Decimal(0)
 
 
 class PagamentoSaida(BaseModel):

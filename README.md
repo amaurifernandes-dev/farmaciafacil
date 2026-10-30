@@ -46,6 +46,10 @@ O Vite repassa as chamadas `/api` para o backend. Telas:
 - **/financeiro**: contas a pagar e a receber, fiado e fluxo de caixa.
 - **/clientes**: cadastro com aniversariantes do mês e clientes que não voltam, e a ficha de cada cliente
   (total comprado, o que leva sempre, últimas compras, pontos e fiado).
+- **/promocoes**: % de desconto, preço especial ou leve e pague, por período e loja; o PDV aplica sozinho
+  (vale a de maior desconto) e cada promoção mostra quanto vendeu.
+- **/relatorios**: vendas do período (com lucro bruto e comparação com o período anterior), lucro por
+  produto com curva ABC e produtos parados no estoque; as tabelas baixam como planilha.
 - **/configuracoes**: fornecedores, produtos, usuários, minha farmácia (matriz e filiais) e configurações gerais.
 
 Cada lote pertence a uma loja. A venda baixa do estoque da loja do PDV, a entrada escolhe a loja

@@ -7,6 +7,7 @@ from app.core.deps import DB, Estoquista
 from app.modules.estoque.service import saldo_vendavel
 from app.modules.lojas.deps import TerminalAtual
 from app.modules.produtos import service
+from app.modules.promocoes.service import para_pdv, vigentes_por_produto
 from app.modules.produtos.schemas import (
     CodigoCriar,
     PaginaProdutos,
@@ -45,7 +46,10 @@ def obter_por_ean(db: DB, terminal: TerminalAtual, ean: str, loja_id: UUID | Non
     produto = service.obter_por_ean(db, ean)
     if loja_id is None and terminal is not None:
         loja_id = terminal.loja_id
-    return ProdutoPDV.model_validate(produto).model_copy(update={"saldo": saldo_vendavel(db, produto.id, loja_id)})
+    promocoes = vigentes_por_produto(db, [produto.id], loja_id).get(produto.id, [])
+    return ProdutoPDV.model_validate(produto).model_copy(
+        update={"saldo": saldo_vendavel(db, produto.id, loja_id), "promocoes": para_pdv(promocoes)}
+    )
 
 
 @router.get("/{produto_id}")

@@ -36,6 +36,22 @@ export interface Produto {
 
 export interface ProdutoPDV extends Produto {
   saldo: string;
+  /** Promoções que valem hoje nesta loja; o carrinho escolhe a melhor. */
+  promocoes?: PromocaoPDV[];
+}
+
+export type TipoPromocao = "percentual" | "preco_fixo" | "leve_pague";
+
+export interface PromocaoPDV {
+  id: string;
+  nome: string;
+  tipo: TipoPromocao;
+  percentual: string | null;
+  preco: string | null;
+  leve: number | null;
+  pague: number | null;
+  so_clientes: boolean;
+  resumo: string;
 }
 
 export interface PaginaProdutos {
@@ -468,5 +484,75 @@ export interface FichaCliente {
     formas: FormaPagamento[];
     pontos_ganhos: number;
     pontos_resgatados: number;
+  }[];
+}
+
+export interface Promocao extends PromocaoPDV {
+  inicio: string;
+  fim: string | null;
+  loja_id: string | null;
+  ativa: boolean;
+  situacao: "vigente" | "agendada" | "encerrada" | "pausada";
+  produtos: { id: string; nome: string; preco_venda: string; preco_promocional: string | null }[];
+  resultado: { vendas: number; unidades: string; faturado: string; desconto: string };
+  criado_em: string;
+}
+
+export interface ResumoVendas {
+  quantidade: number;
+  faturamento: string;
+  descontos: string;
+  descontos_promocao: string;
+  ticket_medio: string;
+  custo: string;
+  lucro_bruto: string;
+  margem: string;
+  itens_sem_custo: number;
+  canceladas: number;
+  valor_cancelado: string;
+}
+
+export interface RelatorioVendas {
+  inicio: string;
+  fim: string;
+  resumo: ResumoVendas;
+  anterior: ResumoVendas;
+  por_dia: { data: string; quantidade: number; total: string }[];
+  por_forma: { forma: FormaPagamento; valor: string }[];
+  por_operador: { nome: string; quantidade: number; total: string }[];
+}
+
+export interface RelatorioProdutos {
+  inicio: string;
+  fim: string;
+  faturamento: string;
+  produtos: {
+    produto_id: string;
+    nome: string;
+    quantidade: string;
+    faturamento: string;
+    custo: string | null;
+    lucro: string | null;
+    margem: string | null;
+    participacao: string;
+    curva: "A" | "B" | "C";
+  }[];
+  curva_a: number;
+  curva_b: number;
+  curva_c: number;
+}
+
+export interface RelatorioParados {
+  dias: number;
+  valor_total: string;
+  produtos: {
+    produto_id: string;
+    nome: string;
+    saldo: string;
+    custo_unitario: string | null;
+    valor_parado: string | null;
+    ultima_venda: string | null;
+    dias_parado: number | null;
+    validade_mais_proxima: string | null;
   }[];
 }

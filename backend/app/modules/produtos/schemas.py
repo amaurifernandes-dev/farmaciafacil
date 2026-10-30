@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.promocoes.schemas import PromocaoPDV
+
 Ean = Annotated[str, Field(pattern=r"^\d{8,14}$", description="Somente dígitos, 8 a 14")]
 Preco = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
 Quantidade = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=3)]
@@ -81,6 +83,7 @@ class ProdutoSaida(ProdutoBase):
 
 class ProdutoPDV(ProdutoSaida):
     saldo: Decimal = Decimal(0)
+    promocoes: list[PromocaoPDV] = Field(default=[], description="Promoções que valem hoje nesta loja")
 
 
 class CodigoCriar(BaseModel):

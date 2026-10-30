@@ -18,6 +18,7 @@ from app.modules.financeiro.service import cancelar_fiado_da_venda, lancar_fiado
 from app.modules.lojas.models import Loja, Terminal
 from app.modules.lojas.service import matriz, obter_loja, pode_receber
 from app.modules.produtos.models import Produto
+from app.modules.promocoes.service import melhor, vigentes_por_produto
 from app.modules.vendas.models import Caixa, PreVenda, Venda, VendaItem, VendaPagamento
 from app.modules.vendas.schemas import CaixaSaida, PreVendaCriar, PreVendaSaida, ResumoCaixa, VendaCriar
 from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado, SemPermissao
@@ -191,15 +192,24 @@ def registrar_venda(
         finalizada_em=_agora(),
     )
 
+    # Caixas antigos, de antes das lojas, vendem do estoque da matriz.
+    loja_id = caixa.loja_id or matriz(db).id
+    promocoes = vigentes_por_produto(db, [i.produto_id for i in dados.itens], loja_id)
+
     subtotal = Decimal(0)
     descontos = dados.desconto
+    manuais = dados.desconto  # só o desconto dado pelo operador conta no limite do caixa
     for ordem, entrada in enumerate(dados.itens, start=1):
         produto = db.get(Produto, entrada.produto_id)
         if produto is None or not produto.ativo:
             raise NaoEncontrado("Produto não encontrado")
         bruto = (produto.preco_venda * entrada.quantidade).quantize(CENTAVO)
-        if entrada.desconto > bruto:
+        promocao, desconto_promocao = melhor(
+            promocoes.get(produto.id, []), produto.preco_venda, entrada.quantidade, dados.cliente_id is not None
+        )
+        if entrada.desconto + desconto_promocao > bruto:
             raise ErroDeNegocio(f"Desconto maior que o valor de {produto.nome}")
+        desconto_item = entrada.desconto + desconto_promocao
         venda.itens.append(
             VendaItem(
                 ordem=ordem,
@@ -207,18 +217,22 @@ def registrar_venda(
                 descricao=produto.nome if not produto.apresentacao else f"{produto.nome} {produto.apresentacao}",
                 quantidade=entrada.quantidade,
                 preco_unitario=produto.preco_venda,
-                desconto=entrada.desconto,
-                total=bruto - entrada.desconto,
+                desconto=desconto_item,
+                total=bruto - desconto_item,
+                custo_unitario=produto.preco_custo,
+                promocao_id=promocao.id if promocao else None,
+                desconto_promocao=desconto_promocao,
             )
         )
         subtotal += bruto
-        descontos += entrada.desconto
+        descontos += desconto_item
+        manuais += entrada.desconto
 
     if descontos > subtotal:
         raise ErroDeNegocio("Desconto maior que o valor da venda")
     farmacia = db.get(Farmacia, usuario.farmacia_id)
     maximo = farmacia.desconto_maximo_caixa
-    if usuario.papel not in GERENTES and subtotal > 0 and descontos * 100 / subtotal > maximo:
+    if usuario.papel not in GERENTES and subtotal > 0 and manuais * 100 / subtotal > maximo:
         raise SemPermissao(f"Desconto acima de {maximo:g}% precisa de um gerente")
 
     # A troca de pontos vira desconto, mas não conta no limite de desconto do caixa.
@@ -248,8 +262,6 @@ def registrar_venda(
     db.add(venda)
     db.flush()  # gera os ids dos itens para referenciar nos movimentos
 
-    # Caixas antigos, de antes das lojas, vendem do estoque da matriz.
-    loja_id = caixa.loja_id or matriz(db).id
     for item in venda.itens:
         produto = db.get(Produto, item.produto_id)
         baixar_fefo(db, loja_id, produto, item.quantidade, usuario.usuario_id, Referencia("venda_item", item.id))
