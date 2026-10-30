@@ -29,10 +29,11 @@ def _configurar(client, farmacia, **dados):
     return resposta.json()
 
 
-def _produto(client, farmacia, nome="Dipirona 500mg", preco="10.00", **fiscal) -> dict:
+def _produto(client, farmacia, nome="Dipirona 500mg", preco="10.00", loja_id=None, **fiscal) -> dict:
     dados = {"nome": nome, "preco_venda": preco, "ncm": "30049099", "ean": "7891234567895", **fiscal}
     produto = client.post(f"{API}/produtos", json=dados, headers=farmacia["headers"]).json()
     entrada = {
+        "loja_id": loja_id,
         "itens": [{
             "produto_id": produto["id"],
             "numero_lote": "L1",
@@ -308,7 +309,8 @@ def test_nfce_da_filial_sai_com_o_cnpj_da_filial(client, farmacia_a, sefaz):
     farmacia_a["headers"]["X-Terminal"] = chave
     _abrir_caixa(client, farmacia_a)
     _configurar(client, farmacia_a)
-    produto = _produto(client, farmacia_a)
+    # A filial vende do próprio estoque.
+    produto = _produto(client, farmacia_a, loja_id=loja.json()["id"])
 
     venda = _vender(client, farmacia_a, [{"produto_id": produto["id"], "quantidade": "1"}],
                     [{"forma": "pix", "valor": "10.00"}])

@@ -6,7 +6,7 @@ from app.shared.models import Base, TabelaDaFarmacia
 
 class Fornecedor(TabelaDaFarmacia, Base):
     __tablename__ = "fornecedores"
-    __table_args__ = (UniqueConstraint("farmacia_id", "cnpj"),)
+    __table_args__ = (UniqueConstraint("farmacia_id", "cnpj"), UniqueConstraint("farmacia_id", "id"))
 
     razao_social: Mapped[str] = mapped_column(String(200))
     nome_fantasia: Mapped[str | None] = mapped_column(String(200))

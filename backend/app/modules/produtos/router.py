@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query, status
 
 from app.core.deps import DB, Estoquista
 from app.modules.estoque.service import saldo_vendavel
+from app.modules.lojas.deps import TerminalAtual
 from app.modules.produtos import service
 from app.modules.produtos.schemas import (
     CodigoCriar,
@@ -36,10 +37,15 @@ def listar(
 
 
 @router.get("/ean/{ean}")
-def obter_por_ean(db: DB, ean: str) -> ProdutoPDV:
-    """Usado pelo PDV a cada bipada: devolve o produto com o saldo vendável."""
+def obter_por_ean(db: DB, terminal: TerminalAtual, ean: str, loja_id: UUID | None = None) -> ProdutoPDV:
+    """Usado pelo PDV a cada bipada: devolve o produto com o saldo vendável.
+
+    O saldo é o da loja informada; se nenhuma vier, o da loja deste PDV; fora de um PDV, o de todas.
+    """
     produto = service.obter_por_ean(db, ean)
-    return ProdutoPDV.model_validate(produto).model_copy(update={"saldo": saldo_vendavel(db, produto.id)})
+    if loja_id is None and terminal is not None:
+        loja_id = terminal.loja_id
+    return ProdutoPDV.model_validate(produto).model_copy(update={"saldo": saldo_vendavel(db, produto.id, loja_id)})
 
 
 @router.get("/{produto_id}")

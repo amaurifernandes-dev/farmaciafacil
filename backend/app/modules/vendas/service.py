@@ -229,9 +229,11 @@ def registrar_venda(
     db.add(venda)
     db.flush()  # gera os ids dos itens para referenciar nos movimentos
 
+    # Caixas antigos, de antes das lojas, vendem do estoque da matriz.
+    loja_id = caixa.loja_id or matriz(db).id
     for item in venda.itens:
         produto = db.get(Produto, item.produto_id)
-        baixar_fefo(db, produto, item.quantidade, usuario.usuario_id, Referencia("venda_item", item.id))
+        baixar_fefo(db, loja_id, produto, item.quantidade, usuario.usuario_id, Referencia("venda_item", item.id))
 
     if pre_venda is not None:
         pre_venda.status = "recebida"

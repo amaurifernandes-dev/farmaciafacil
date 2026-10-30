@@ -99,6 +99,7 @@ export interface NotaFiscal {
 
 export interface Lote {
   id: string;
+  loja_id: string;
   produto_id: string;
   numero_lote: string;
   validade: string | null;
@@ -107,13 +108,115 @@ export interface Lote {
 
 export interface LoteComProduto extends Lote {
   produto_nome: string;
+  loja_nome: string;
   dias_para_vencer: number | null;
 }
 
 export interface Alertas {
   vencidos: LoteComProduto[];
   vencendo: LoteComProduto[];
-  abaixo_do_minimo: { produto_id: string; nome: string; saldo: string; estoque_minimo: string }[];
+  abaixo_do_minimo: {
+    produto_id: string;
+    nome: string;
+    loja_id: string;
+    loja_nome: string;
+    saldo: string;
+    estoque_minimo: string;
+  }[];
+}
+
+export interface SaldoProduto {
+  produto_id: string;
+  nome: string;
+  apresentacao: string | null;
+  ean: string | null;
+  estoque_minimo: string;
+  total: string;
+  /** Saldo vendável por id da loja. */
+  por_loja: Record<string, string>;
+  vencido: string;
+}
+
+export interface PaginaSaldos {
+  itens: SaldoProduto[];
+  total: number;
+  pagina: number;
+  por_pagina: number;
+}
+
+export type StatusNotaEntrada = "pendente" | "confirmada" | "cancelada";
+
+export interface NotaEntradaResumo {
+  id: string;
+  loja_id: string;
+  fornecedor_id: string;
+  fornecedor_nome: string;
+  chave: string;
+  numero: number;
+  serie: number;
+  emitida_em: string;
+  valor_produtos: string;
+  valor_total: string;
+  status: StatusNotaEntrada;
+  criado_em: string;
+  confirmada_em: string | null;
+  quantidade_itens: number;
+  itens_sem_produto: number;
+}
+
+export interface ItemNotaEntrada {
+  id: string;
+  ordem: number;
+  codigo_fornecedor: string;
+  ean: string | null;
+  descricao: string;
+  ncm: string | null;
+  cest: string | null;
+  registro_ms: string | null;
+  unidade: string;
+  quantidade: string;
+  valor_unitario: string;
+  valor_total: string;
+  numero_lote: string | null;
+  validade: string | null;
+  produto_id: string | null;
+  produto_nome: string | null;
+  produto_controla_lote: boolean | null;
+  fator: number;
+}
+
+export interface NotaEntrada extends NotaEntradaResumo {
+  itens: ItemNotaEntrada[];
+}
+
+export interface PrecoFornecedor {
+  fornecedor_id: string;
+  fornecedor_nome: string;
+  custo_unitario: string;
+  comprado_em: string;
+}
+
+export interface ItemSugestao {
+  produto_id: string;
+  nome: string;
+  apresentacao: string | null;
+  ean: string | null;
+  saldo: string;
+  estoque_minimo: string;
+  vendido_no_periodo: string;
+  media_diaria: string;
+  dias_de_estoque: string | null;
+  sugerido: string;
+  ultimo_custo: string | null;
+  fornecedores: PrecoFornecedor[];
+}
+
+export interface SugestaoCompras {
+  loja_id: string;
+  dias_historico: number;
+  dias_cobertura: number;
+  itens: ItemSugestao[];
+  total_estimado: string;
 }
 
 export interface Painel {

@@ -1,34 +1,36 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { api, mensagem } from "../../api/cliente";
-import type { ProdutoPDV } from "../../api/tipos";
-import { quantidade as fmtQtd } from "../../formato";
+import type { Produto } from "../../api/tipos";
+import BuscaProduto from "../../components/BuscaProduto";
+import Icone from "../../components/Icone";
+import SeletorLoja from "../../components/SeletorLoja";
+import { useLojas } from "../../lojas";
 
 interface Linha {
-  produto: ProdutoPDV;
+  produto: Produto;
   numero_lote: string;
   validade: string;
   quantidade: string;
   custo_unitario: string;
 }
 
+/** Entrada sem nota fiscal eletrônica (ou quando o XML não está à mão). */
 export default function Entrada() {
-  const [codigo, setCodigo] = useState("");
+  const lojas = useLojas();
+  const [lojaId, setLojaId] = useState("");
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [observacao, setObservacao] = useState("");
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
 
-  async function adicionar(evento: FormEvent) {
-    evento.preventDefault();
-    if (!codigo.trim()) return;
-    try {
-      const produto = await api<ProdutoPDV>(`/produtos/ean/${codigo.trim()}`);
-      setLinhas([...linhas, { produto, numero_lote: "", validade: "", quantidade: "1", custo_unitario: "" }]);
-      setCodigo("");
-      setAviso(null);
-    } catch (e) {
-      setAviso({ tipo: "erro", texto: mensagem(e) });
-    }
+  useEffect(() => {
+    if (!lojaId && lojas.length > 0) setLojaId(lojas[0].id);
+  }, [lojas, lojaId]);
+
+  function adicionar(produto: Produto) {
+    setLinhas([...linhas, { produto, numero_lote: "", validade: "", quantidade: "1", custo_unitario: "" }]);
+    setAviso(null);
   }
 
   function alterar(indice: number, campo: keyof Omit<Linha, "produto">, valor: string) {
@@ -39,6 +41,7 @@ export default function Entrada() {
     try {
       await api("/estoque/entradas", {
         corpo: {
+          loja_id: lojaId || null,
           observacao: observacao || null,
           itens: linhas.map((l) => ({
             produto_id: l.produto.id,
@@ -59,62 +62,76 @@ export default function Entrada() {
 
   return (
     <div className="pagina">
-      <h1>Entrada de estoque</h1>
-      <form className="barra" onSubmit={adicionar}>
-        <input placeholder="Bipe ou digite o código de barras" value={codigo} onChange={(e) => setCodigo(e.target.value)} autoFocus />
-        <button type="submit">Adicionar</button>
-      </form>
-
-      <table className="tabela">
-        <thead>
-          <tr>
-            <th>Produto</th>
-            <th>Saldo atual</th>
-            <th>Lote</th>
-            <th>Validade</th>
-            <th>Quantidade</th>
-            <th>Custo unit. (R$)</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((l, i) => (
-            <tr key={i}>
-              <td>{l.produto.nome}</td>
-              <td>{fmtQtd(l.produto.saldo)}</td>
-              <td>
-                {l.produto.controla_lote ? (
-                  <input value={l.numero_lote} onChange={(e) => alterar(i, "numero_lote", e.target.value)} required />
-                ) : (
-                  "sem lote"
-                )}
-              </td>
-              <td>
-                {l.produto.controla_lote && (
-                  <input type="date" value={l.validade} onChange={(e) => alterar(i, "validade", e.target.value)} required />
-                )}
-              </td>
-              <td>
-                <input value={l.quantidade} onChange={(e) => alterar(i, "quantidade", e.target.value)} size={6} />
-              </td>
-              <td>
-                <input value={l.custo_unitario} onChange={(e) => alterar(i, "custo_unitario", e.target.value)} size={8} />
-              </td>
-              <td>
-                <button onClick={() => setLinhas(linhas.filter((_, j) => j !== i))}>Remover</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {linhas.length > 0 && (
-        <div className="barra">
-          <input placeholder="Observação (ex.: NF 1234, fornecedor)" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-          <button onClick={registrar}>Registrar entrada</button>
+      <div className="pagina-titulo">
+        <div>
+          <h1>Entrada manual</h1>
+          <p className="vazio">
+            Tem o XML da nota? Use <Link to="/compras">Compras</Link>: os itens entram sozinhos.
+          </p>
         </div>
-      )}
-      {aviso && <p className={aviso.tipo}>{aviso.texto}</p>}
+        <SeletorLoja lojas={lojas} valor={lojaId} aoMudar={setLojaId} rotulo="Loja que recebe" />
+      </div>
+
+      <section className="cartao espaco-acima">
+        <BuscaProduto aoEscolher={adicionar} autoFocus />
+
+        {linhas.length > 0 && (
+          <div className="tabela-rolagem espaco-acima">
+            <table className="tabela">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Lote</th>
+                  <th>Validade</th>
+                  <th className="num">Quantidade</th>
+                  <th className="num">Custo unit. (R$)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {linhas.map((l, i) => (
+                  <tr key={i}>
+                    <td>{l.produto.nome}</td>
+                    <td>
+                      {l.produto.controla_lote ? (
+                        <input value={l.numero_lote} onChange={(e) => alterar(i, "numero_lote", e.target.value)} required />
+                      ) : (
+                        <small>sem lote</small>
+                      )}
+                    </td>
+                    <td>
+                      {l.produto.controla_lote && (
+                        <input type="date" value={l.validade} onChange={(e) => alterar(i, "validade", e.target.value)} required />
+                      )}
+                    </td>
+                    <td className="num">
+                      <input className="quantidade" value={l.quantidade} onChange={(e) => alterar(i, "quantidade", e.target.value)} />
+                    </td>
+                    <td className="num">
+                      <input className="quantidade" value={l.custo_unitario} onChange={(e) => alterar(i, "custo_unitario", e.target.value)} />
+                    </td>
+                    <td>
+                      <button type="button" className="botao-icone" title="Remover" onClick={() => setLinhas(linhas.filter((_, j) => j !== i))}>
+                        <Icone nome="lixo" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {linhas.length > 0 && (
+          <div className="barra espaco-acima">
+            <input placeholder="Observação (ex.: NF 1234, fornecedor)" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+            <button className="botao" onClick={registrar}>
+              Registrar entrada
+            </button>
+          </div>
+        )}
+        {aviso && <p className={aviso.tipo}>{aviso.texto}</p>}
+      </section>
     </div>
   );
 }

@@ -3,6 +3,10 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import Layout from "./components/Layout";
 import Caixas from "./pages/caixas/Caixas";
+import Compras from "./pages/compras/Compras";
+import Nota from "./pages/compras/Nota";
+import Notas from "./pages/compras/Notas";
+import Sugestao from "./pages/compras/Sugestao";
 import Clientes from "./pages/configuracoes/Clientes";
 import Fornecedores from "./pages/configuracoes/Fornecedores";
 import Gerais from "./pages/configuracoes/Gerais";
@@ -13,12 +17,14 @@ import Usuarios from "./pages/configuracoes/Usuarios";
 import Alertas from "./pages/gestao/Alertas";
 import Entrada from "./pages/gestao/Entrada";
 import Estoque from "./pages/gestao/Estoque";
+import Saldos from "./pages/gestao/Saldos";
+import Transferencia from "./pages/gestao/Transferencia";
 import Inicio from "./pages/Inicio";
 import Login from "./pages/Login";
 import Pdv from "./pages/pdv/Pdv";
 import PreVenda from "./pages/vendas/PreVenda";
 import Vendas from "./pages/vendas/Vendas";
-import { ehAdmin, useSessao } from "./sessao";
+import { cuidaDoEstoque, ehAdmin, useSessao } from "./sessao";
 
 function Protegido({ children }: { children: ReactNode }) {
   const { sessao } = useSessao();
@@ -28,6 +34,11 @@ function Protegido({ children }: { children: ReactNode }) {
 function SoAdmin({ children }: { children: ReactNode }) {
   const { sessao } = useSessao();
   return ehAdmin(sessao) ? children : <Navigate to="/configuracoes" replace />;
+}
+
+function SoEstoque({ children }: { children: ReactNode }) {
+  const { sessao } = useSessao();
+  return cuidaDoEstoque(sessao) ? children : <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -42,7 +53,14 @@ export default function App() {
         <Route path="/caixas" element={<Caixas />} />
         <Route path="/estoque" element={<Estoque />}>
           <Route index element={<Alertas />} />
+          <Route path="saldos" element={<Saldos />} />
           <Route path="entrada" element={<Entrada />} />
+          <Route path="transferencia" element={<Transferencia />} />
+        </Route>
+        <Route path="/compras" element={<SoEstoque><Compras /></SoEstoque>}>
+          <Route index element={<Notas />} />
+          <Route path="sugestao" element={<Sugestao />} />
+          <Route path="notas/:id" element={<Nota />} />
         </Route>
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />
         <Route path="/configuracoes/clientes" element={<Clientes />} />

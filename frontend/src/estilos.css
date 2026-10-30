@@ -258,3 +258,37 @@ fieldset { border: none; padding: 0; margin: 0; min-width: 0; }
   .pdv { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
   .pdv-lateral { border-left: none; border-top: 1px solid var(--borda); }
 }
+
+/* Estoque por loja e compras */
+.seletor-loja { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--suave); }
+.seletor-loja select { min-width: 200px; }
+.tabela td.abaixo { color: var(--erro); font-weight: 600; }
+.busca-produto { position: relative; }
+.busca-produto input { width: 100%; padding: 10px 12px; }
+.busca-produto .resultados { margin-top: 6px; border: 1px solid var(--borda); border-radius: 8px; background: var(--superficie); }
+.busca-produto .resultados li:hover { background: var(--primaria-suave); }
+.busca-produto .resultados small { color: var(--suave); }
+.busca-produto .vazio { margin: 8px 0 0; }
+.lojas-transferencia { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.seta-transferencia { display: grid; place-items: center; width: 36px; height: 36px; color: var(--primaria); }
+.importar-xml { display: flex; gap: 16px; align-items: flex-start; border-style: dashed; border-width: 2px; }
+.importar-xml h2 { margin: 2px 0 6px; }
+.importar-xml p { margin: 0; }
+.importar-xml .acoes { align-items: flex-end; flex-wrap: wrap; }
+.aviso-conferencia { margin: 12px 0 0; padding: 12px 14px; border-radius: 8px; background: #fef3e2; color: #8a5300; }
+.tabela-nota tr.sem-produto td { background: #fffaf2; }
+.tabela-nota input[type="date"] { width: 150px; }
+.tabela-nota .acoes { flex-wrap: wrap; }
+.chave { font-family: ui-monospace, monospace; font-size: 13px; word-break: break-all; }
+.filtros-sugestao { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
+.motivo { color: #b26a00 !important; }
+.outros-fornecedores { color: var(--suave); }
+.so-imprimir { display: none; }
+
+@media print {
+  .lateral, .topo, .abas, .nao-imprimir { display: none !important; }
+  .so-imprimir { display: block; font-weight: 600; }
+  .conteudo { padding: 0; max-width: none; }
+  .cartao { border: none; padding: 0; }
+  .tabela input { border: none; padding: 0; width: auto; }
+}
