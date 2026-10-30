@@ -76,6 +76,7 @@ class VendaItem(TabelaDaFarmacia, Base):
     __table_args__ = (
         ForeignKeyConstraint(["farmacia_id", "venda_id"], ["vendas.farmacia_id", "vendas.id"], ondelete="CASCADE"),
         ForeignKeyConstraint(["farmacia_id", "produto_id"], ["produtos.farmacia_id", "produtos.id"]),
+        ForeignKeyConstraint(["farmacia_id", "promocao_id"], ["promocoes.farmacia_id", "promocoes.id"]),
     )
 
     venda_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
@@ -85,8 +86,12 @@ class VendaItem(TabelaDaFarmacia, Base):
     descricao: Mapped[str] = mapped_column(String(200))
     quantidade: Mapped[Decimal] = mapped_column(Numeric(12, 3))
     preco_unitario: Mapped[Decimal] = mapped_column(Numeric(12, 2))
-    desconto: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    desconto: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)  # inclui o da promoção
     total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    # Copiados na hora da venda, para os relatórios de lucro e de promoções.
+    custo_unitario: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    promocao_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    desconto_promocao: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
 
 
 class VendaPagamento(TabelaDaFarmacia, Base):

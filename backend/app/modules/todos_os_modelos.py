@@ -12,3 +12,4 @@ from app.modules.fiscal.models import ConfiguracaoFiscal, NotaFiscal  # noqa: F4
 from app.modules.compras.models import NotaEntrada, NotaEntradaItem, ProdutoFornecedor  # noqa: F401
 from app.modules.financeiro.models import Conta  # noqa: F401
 from app.modules.fidelidade.models import MovimentoPontos  # noqa: F401
+from app.modules.promocoes.models import Promocao, PromocaoProduto  # noqa: F401

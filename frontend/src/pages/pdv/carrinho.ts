@@ -1,7 +1,7 @@
 // Regras do carrinho do PDV, sem React, para poder testar isoladamente.
 // Valores em dinheiro ficam em centavos (inteiros) para não ter erro de arredondamento.
 
-import type { FormaPagamento, ProdutoPDV } from "../../api/tipos";
+import type { FormaPagamento, ProdutoPDV, PromocaoPDV } from "../../api/tipos";
 
 export interface ItemCarrinho {
   produtoId: string;
@@ -9,6 +9,8 @@ export interface ItemCarrinho {
   precoCentavos: number;
   quantidade: number;
   saldo: number;
+  /** Promoções do produto hoje; vale a que der mais desconto. */
+  promocoes?: PromocaoPDV[];
 }
 
 export interface Pagamento {
@@ -96,6 +98,7 @@ export function adicionarProduto(carrinho: Carrinho, produto: ProdutoPDV, quanti
     precoCentavos: paraCentavos(produto.preco_venda) ?? 0,
     quantidade,
     saldo: Number(produto.saldo),
+    promocoes: produto.promocoes ?? [],
   };
   return { ...carrinho, itens: [...carrinho.itens, novo] };
 }
@@ -111,6 +114,41 @@ export function removerItem(carrinho: Carrinho, indice: number): Carrinho {
 
 export function totalItem(item: ItemCarrinho): number {
   return Math.round(item.precoCentavos * item.quantidade);
+}
+
+/** Desconto de uma promoção no item, em centavos. Mesma conta do servidor (promocoes/service.py). */
+export function descontoDaPromocao(promocao: PromocaoPDV, item: ItemCarrinho): number {
+  const bruto = totalItem(item);
+  let valor = 0;
+  if (promocao.tipo === "percentual") {
+    valor = Math.round((bruto * Number(promocao.percentual)) / 100);
+  } else if (promocao.tipo === "preco_fixo") {
+    const promocional = paraCentavos(promocao.preco ?? "") ?? item.precoCentavos;
+    valor = Math.round(Math.max(item.precoCentavos - promocional, 0) * item.quantidade);
+  } else if (promocao.leve && promocao.pague) {
+    // Leve 3, pague 2: a cada 3 unidades inteiras, uma sai de graça.
+    const gratis = Math.floor(item.quantidade / promocao.leve) * (promocao.leve - promocao.pague);
+    valor = item.precoCentavos * gratis;
+  }
+  return Math.min(valor, bruto);
+}
+
+/** A promoção que vale no item (a de maior desconto), ou null. */
+export function promocaoDoItem(
+  item: ItemCarrinho,
+  comCliente: boolean,
+): { promocao: PromocaoPDV; centavos: number } | null {
+  let melhor: { promocao: PromocaoPDV; centavos: number } | null = null;
+  for (const promocao of item.promocoes ?? []) {
+    if (promocao.so_clientes && !comCliente) continue;
+    const centavos = descontoDaPromocao(promocao, item);
+    if (centavos > (melhor?.centavos ?? 0)) melhor = { promocao, centavos };
+  }
+  return melhor;
+}
+
+export function descontoPromocoes(carrinho: Carrinho): number {
+  return carrinho.itens.reduce((soma, item) => soma + (promocaoDoItem(item, !!carrinho.cliente)?.centavos ?? 0), 0);
 }
 
 export function subtotal(carrinho: Carrinho): number {
@@ -132,13 +170,16 @@ export function descontoPontos(carrinho: Carrinho): number {
 export function maximoDePontos(carrinho: Carrinho): number {
   const pontos = carrinho.cliente?.pontos;
   if (!pontos) return 0;
-  const restante = Math.max(subtotal(carrinho) - carrinho.descontoCentavos, 0);
+  const restante = Math.max(subtotal(carrinho) - descontoPromocoes(carrinho) - carrinho.descontoCentavos, 0);
   const porValor = Math.floor((restante / 100 + 1e-9) / Number(pontos.valorPonto));
   return Math.max(Math.min(pontos.saldo, porValor), 0);
 }
 
 export function total(carrinho: Carrinho): number {
-  return Math.max(subtotal(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho), 0);
+  return Math.max(
+    subtotal(carrinho) - descontoPromocoes(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho),
+    0,
+  );
 }
 
 export function pago(carrinho: Carrinho): number {
@@ -173,7 +214,7 @@ export function problemaParaFinalizar(carrinho: Carrinho): string | null {
     if (!carrinho.cliente?.pontos) return "Escolha o cliente para usar os pontos (F8)";
     if (pontos > carrinho.cliente.pontos.saldo) return `${carrinho.cliente.nome} tem só ${carrinho.cliente.pontos.saldo} pontos`;
     if (pontos < carrinho.cliente.pontos.minimo) return `O mínimo para trocar é ${carrinho.cliente.pontos.minimo} pontos`;
-    if (subtotal(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho) < 0) {
+    if (subtotal(carrinho) - descontoPromocoes(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho) < 0) {
       return "Os pontos valem mais que a compra. Use menos pontos (F9).";
     }
   }

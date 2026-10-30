@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { ProdutoPDV } from "../../api/tipos";
+import type { ProdutoPDV, PromocaoPDV } from "../../api/tipos";
 import {
   adicionarProduto,
+  descontoPromocoes,
   falta,
   interpretarEntrada,
   maximoDePontos,
@@ -158,5 +159,33 @@ describe("pontos", () => {
     let carrinho = adicionarProduto(novoCarrinho(), produto(), 1);
     carrinho = { ...carrinho, pontosResgatados: 100, pagamentos: [{ forma: "dinheiro", centavos: 890 }] };
     expect(problemaParaFinalizar(carrinho)).toMatch(/Escolha o cliente/);
+  });
+});
+
+describe("promoções", () => {
+  const promo = (campos: Partial<PromocaoPDV>): PromocaoPDV => ({
+    id: "pr1", nome: "Promo", tipo: "percentual", percentual: null, preco: null, leve: null, pague: null,
+    so_clientes: false, resumo: "", ...campos,
+  });
+
+  it("calcula como o servidor e vale a melhor", () => {
+    const fralda = produto({ preco_venda: "10.00", promocoes: [promo({ tipo: "leve_pague", leve: 3, pague: 2 })] });
+    const sabonete = produto({
+      id: "p2",
+      preco_venda: "4.00",
+      promocoes: [promo({ tipo: "preco_fixo", preco: "2.99" }), promo({ id: "pr3", percentual: "10" })],
+    });
+    let carrinho = adicionarProduto(novoCarrinho(), fralda, 7);
+    carrinho = adicionarProduto(carrinho, sabonete, 2);
+    expect(descontoPromocoes(carrinho)).toBe(2000 + 202);
+    expect(total(carrinho)).toBe(7800 - 2202);
+  });
+
+  it("promoção do clube só com cliente identificado", () => {
+    const vitamina = produto({ preco_venda: "30.00", promocoes: [promo({ percentual: "25", so_clientes: true })] });
+    let carrinho = adicionarProduto(novoCarrinho(), vitamina, 1);
+    expect(total(carrinho)).toBe(3000);
+    carrinho = { ...carrinho, cliente: { id: "c1", nome: "Maria", disponivelCentavos: 0 } };
+    expect(total(carrinho)).toBe(2250);
   });
 });

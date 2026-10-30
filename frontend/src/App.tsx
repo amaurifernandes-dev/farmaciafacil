@@ -26,6 +26,8 @@ import Transferencia from "./pages/gestao/Transferencia";
 import Inicio from "./pages/Inicio";
 import Login from "./pages/Login";
 import Pdv from "./pages/pdv/Pdv";
+import Promocoes from "./pages/promocoes/Promocoes";
+import Relatorios from "./pages/relatorios/Relatorios";
 import PreVenda from "./pages/vendas/PreVenda";
 import Vendas from "./pages/vendas/Vendas";
 import { cuidaDoEstoque, ehAdmin, ehGerente, useSessao } from "./sessao";
@@ -78,6 +80,8 @@ export default function App() {
           <Route path="receber" element={<Contas key="receber" tipo="receber" />} />
           <Route path="fluxo" element={<Fluxo />} />
         </Route>
+        <Route path="/promocoes" element={<SoGerente><Promocoes /></SoGerente>} />
+        <Route path="/relatorios" element={<SoGerente><Relatorios /></SoGerente>} />
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />
         <Route path="/configuracoes/fornecedores" element={<Fornecedores />} />
         <Route path="/configuracoes/produtos" element={<Produtos />} />

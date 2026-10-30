@@ -332,3 +332,36 @@ a.botao-pequeno { padding: 5px 10px; border: 1px solid var(--borda); border-radi
 .pdv-cliente .pontos { display: block; color: var(--primaria); font-weight: 600; }
 .ficha-colunas .cartao-cabecalho, .ficha-extrato .cartao-cabecalho { margin-bottom: 12px; }
 .cartao-separado { margin-top: 16px; }
+
+/* Promoções */
+.pdv-promocao { display: block; color: var(--ok); font-size: 13px; font-weight: 600; }
+.pdv-promocao.clube { color: var(--suave); font-weight: 500; }
+.totais .linha-promocao { color: var(--ok); }
+.etiqueta-neutra { background: #eceff2; color: var(--suave); }
+.etiqueta-promocao { background: #fff4e5; color: #b54708; }
+.linha-produto { display: block; font-size: 13px; }
+.linha-produto s { color: var(--suave); }
+.opcoes-tipo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.opcoes-tipo .opcao { margin: 0; }
+.leve-pague { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sugestoes, .escolhidos { list-style: none; margin: 6px 0 0; padding: 0; border: 1px solid var(--borda); border-radius: 8px; }
+.sugestoes li + li, .escolhidos li + li { border-top: 1px solid var(--borda); }
+.sugestoes button { width: 100%; display: flex; justify-content: space-between; border: none; border-radius: 0; padding: 8px 12px; text-align: left; color: var(--texto); }
+.sugestoes button:hover { background: var(--primaria-suave); }
+.escolhidos li { display: flex; justify-content: space-between; align-items: center; padding: 6px 6px 6px 12px; }
+.escolhidos li span { display: flex; flex-direction: column; }
+.escolhidos small { color: var(--suave); }
+@media (max-width: 700px) {
+  .opcoes-tipo { grid-template-columns: 1fr; }
+}
+.abas-botoes button { padding: 10px 0; border: none; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--suave); font-size: inherit; }
+.abas-botoes button.active { color: var(--primaria); border-bottom-color: var(--primaria); font-weight: 600; }
+.filtros-relatorio { align-items: flex-end; }
+.grafico-relatorio { gap: 4px; }
+.grafico-relatorio .grafico-area { height: 170px; }
+button.indicador.indicador-marcado { border-color: var(--primaria); background: var(--primaria-suave); }
+.aviso-custo { background: #fff8eb; border: 1px solid #fde4b8; border-radius: 8px; padding: 10px 14px; color: #8a5300; margin: -6px 0 16px; }
+.etiqueta.curva-A { background: var(--ok-fundo); color: var(--ok); }
+.etiqueta.curva-B { background: #fff4e5; color: #b54708; }
+.etiqueta.curva-C { background: #eceff2; color: var(--suave); }
+.ficha-colunas .grafico-saldo { width: 40%; }

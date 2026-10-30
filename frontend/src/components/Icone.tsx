@@ -7,6 +7,8 @@ const CAMINHOS = {
   entrada: "M12 3v12M7 10l5 5 5-5M4 21h16",
   alerta: "M12 3 2 20h20zM12 10v4M12 17h.01",
   mais: "M12 5v14M5 12h14",
+  etiqueta: "M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01",
+  grafico: "M3 3v18h18M7 16v-5M12 16V8M17 16v-8",
   dinheiro: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
   recibo: "M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2zM9 7h6M9 11h6M9 15h4",
   relogio: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2",
