@@ -1,0 +1,29 @@
+from datetime import date
+from decimal import Decimal
+
+from pydantic import BaseModel
+
+
+class DiaDeVendas(BaseModel):
+    data: date
+    total: Decimal
+    quantidade: int
+
+
+class Painel(BaseModel):
+    """Números da tela inicial, já calculados no fuso de Brasília."""
+
+    farmacia: str
+    uf: str
+    hoje: date
+    vendas_hoje: Decimal
+    quantidade_vendas_hoje: int
+    ticket_medio_hoje: Decimal
+    vendas_ontem: Decimal
+    semana: list[DiaDeVendas]  # últimos 7 dias, do mais antigo até hoje
+    caixas_abertos: int
+    meu_caixa_aberto: bool
+    produtos_ativos: int
+    lotes_vencidos: int
+    lotes_vencendo: int  # nos próximos DIAS_VENCENDO dias
+    abaixo_do_minimo: int

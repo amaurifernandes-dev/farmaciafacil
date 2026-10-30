@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.modules.auth.router import router as auth_router
 from app.modules.estoque.router import router as estoque_router
+from app.modules.painel.router import router as painel_router
 from app.modules.produtos.router import router as produtos_router
 from app.modules.vendas.router import caixas as caixas_router
 from app.modules.vendas.router import vendas as vendas_router
@@ -15,6 +16,7 @@ app.include_router(produtos_router, prefix="/api/v1")
 app.include_router(estoque_router, prefix="/api/v1")
 app.include_router(caixas_router, prefix="/api/v1")
 app.include_router(vendas_router, prefix="/api/v1")
+app.include_router(painel_router, prefix="/api/v1")
 
 
 @app.get("/api/saude", tags=["infra"])
