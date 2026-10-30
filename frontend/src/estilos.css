@@ -162,7 +162,7 @@ a { color: var(--primaria); }
 .tabela tr.inativo td { color: var(--suave); }
 .acoes-tabela { white-space: nowrap; }
 .acoes-tabela button + button { margin-left: 6px; }
-.etiqueta { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 6px; background: var(--primaria-suave); color: var(--primaria); font-size: 12px; font-weight: 600; }
+.etiqueta { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 6px; background: var(--primaria-suave); color: var(--primaria); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .etiqueta:first-child { margin-left: 0; }
 .etiqueta.ok { background: var(--ok-fundo); color: var(--ok); padding: 2px 8px; }
 .erro-etiqueta { background: var(--erro-fundo); color: var(--erro); }
@@ -292,3 +292,23 @@ fieldset { border: none; padding: 0; margin: 0; min-width: 0; }
   .cartao { border: none; padding: 0; }
   .tabela input { border: none; padding: 0; width: auto; }
 }
+
+/* Financeiro */
+.indicadores-financeiro { margin-top: 20px; }
+.indicadores-financeiro .indicador { gap: 6px; text-align: left; font: inherit; color: inherit; }
+.indicadores-financeiro .indicador > strong { font-size: 24px; }
+button.indicador { border: 1px solid var(--borda); background: var(--superficie); cursor: pointer; padding: 20px; }
+button.indicador:hover { border-color: var(--primaria); }
+.indicador-alerta { border-color: #f4c7c3 !important; background: var(--erro-fundo) !important; }
+.indicador-alerta > strong { color: var(--erro); }
+.filtros-contas select { min-width: 150px; }
+.tabela-fluxo tr.hoje td { background: var(--primaria-suave); }
+.tabela-fluxo td.previsto { color: var(--suave); font-style: italic; }
+.tabela-fluxo td.vazio { color: #c0c7cf; }
+.grafico-saldo { width: 120px; }
+.grafico-saldo span { display: block; height: 8px; border-radius: 4px; min-width: 2px; }
+.barra-entrada { background: var(--primaria); }
+.barra-saida { background: var(--erro); }
+.pdv-cliente { padding: 10px 12px; border-radius: 8px; background: var(--primaria-suave); font-size: 14px; }
+.pdv-cliente strong { display: block; font-size: 16px; }
+.pdv-cliente .abaixo { color: var(--erro); }

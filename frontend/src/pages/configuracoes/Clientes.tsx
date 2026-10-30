@@ -1,4 +1,5 @@
 import Cadastro, { type Campo } from "../../components/Cadastro";
+import { reais } from "../../formato";
 import { CAMPOS_ENDERECO, documento, telefone } from "./campos";
 
 interface Cliente {
@@ -8,6 +9,7 @@ interface Cliente {
   telefone: string | null;
   email: string | null;
   aceita_ofertas: boolean;
+  limite_credito: string | null;
   ativo: boolean;
 }
 
@@ -18,6 +20,12 @@ const CAMPOS: Campo[] = [
   { nome: "telefone", rotulo: "Telefone / WhatsApp", inputMode: "tel" },
   { nome: "email", rotulo: "E-mail", tipo: "email" },
   ...CAMPOS_ENDERECO,
+  {
+    nome: "limite_credito",
+    rotulo: "Limite para comprar a prazo (R$)",
+    inputMode: "numeric",
+    dica: "Deixe vazio se o cliente não compra fiado.",
+  },
   { nome: "observacoes", rotulo: "Observações", tipo: "area" },
   {
     nome: "aceita_ofertas",
@@ -43,6 +51,10 @@ export default function Clientes() {
         { titulo: "Nome", valor: (c) => <strong>{c.nome}</strong> },
         { titulo: "Telefone", valor: (c) => telefone(c.telefone) },
         { titulo: "CPF", valor: (c) => documento(c.cpf) },
+        {
+          titulo: "Fiado",
+          valor: (c) => (Number(c.limite_credito) > 0 ? `até ${reais(c.limite_credito!)}` : "-"),
+        },
         { titulo: "Ofertas", valor: (c) => (c.aceita_ofertas ? <span className="etiqueta ok">Autorizou</span> : "-") },
       ]}
     />

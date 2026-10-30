@@ -168,6 +168,7 @@ function RegrasGerais({ podeEditar }: { podeEditar: boolean }) {
           corpo: {
             desconto_maximo_caixa: String(config.desconto_maximo_caixa).replace(",", "."),
             dias_alerta_vencimento: Number(config.dias_alerta_vencimento),
+            dias_prazo_padrao: Number(config.dias_prazo_padrao),
           },
         }),
       );
@@ -202,6 +203,17 @@ function RegrasGerais({ podeEditar }: { podeEditar: boolean }) {
             onChange={(e) => setConfig({ ...config, dias_alerta_vencimento: Number(e.target.value) })}
           />
           <small>Usado no aviso da Visão geral.</small>
+        </label>
+        <label>
+          Prazo da venda a prazo (dias)
+          <input
+            type="number"
+            min={1}
+            max={180}
+            value={config.dias_prazo_padrao}
+            onChange={(e) => setConfig({ ...config, dias_prazo_padrao: Number(e.target.value) })}
+          />
+          <small>Vencimento do fiado quando o caixa não escolhe outra data.</small>
         </label>
         {podeEditar && (
           <div className="acoes largo">

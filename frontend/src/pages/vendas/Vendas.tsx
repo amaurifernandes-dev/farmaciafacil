@@ -14,6 +14,7 @@ const FORMAS: Record<string, string> = {
   debito: "Débito",
   credito: "Crédito",
   pix: "Pix",
+  prazo: "A prazo",
 };
 
 function dataHora(iso: string): string {

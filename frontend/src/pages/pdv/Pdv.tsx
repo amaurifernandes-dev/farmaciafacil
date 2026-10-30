@@ -32,16 +32,18 @@ import {
   troco,
   type Carrinho,
 } from "./carrinho";
+import type { Cliente as ClienteCadastro, CreditoCliente } from "../../api/tipos";
 import { lerEsteTerminal } from "../caixas/Caixas";
 import FecharCaixa from "./FecharCaixa";
 
-type Modo = "venda" | "busca" | "quantidade" | "desconto" | "pagamento" | "preVenda" | "fechar";
+type Modo = "venda" | "busca" | "quantidade" | "desconto" | "pagamento" | "cliente" | "preVenda" | "fechar";
 
 const FORMAS: { tecla: string; forma: FormaPagamento; nome: string }[] = [
   { tecla: "1", forma: "dinheiro", nome: "Dinheiro" },
   { tecla: "2", forma: "debito", nome: "Débito" },
   { tecla: "3", forma: "credito", nome: "Crédito" },
   { tecla: "4", forma: "pix", nome: "Pix" },
+  { tecla: "5", forma: "prazo", nome: "A prazo" },
 ];
 
 const CHAVE_VENDA = "ff.venda-em-andamento";
@@ -69,6 +71,7 @@ export default function Pdv() {
   const [forma, setForma] = useState<FormaPagamento>("dinheiro");
   const [resultados, setResultados] = useState<ProdutoPDV[]>([]);
   const [indiceBusca, setIndiceBusca] = useState(0);
+  const [clientes, setClientes] = useState<ClienteCadastro[]>([]);
   const [confirmarCancelar, setConfirmarCancelar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const campo = useRef<HTMLInputElement>(null);
@@ -107,6 +110,52 @@ export default function Pdv() {
 
   function erro(textoErro: string) {
     setAviso({ tipo: "erro", texto: textoErro });
+  }
+
+  /** A prazo precisa de um cliente com limite: escolhe antes de lançar o valor. */
+  function escolherForma(nova: FormaPagamento) {
+    setForma(nova);
+    if (nova === "prazo" && !carrinho.cliente) {
+      setClientes([]);
+      setIndiceBusca(0);
+      mudarModo("cliente");
+    }
+  }
+
+  async function buscarCliente(termo: string) {
+    if (!termo.trim()) return;
+    try {
+      const pagina = await api<{ itens: ClienteCadastro[] }>(`/clientes?busca=${encodeURIComponent(termo.trim())}&por_pagina=8`);
+      if (pagina.itens.length === 0) return erro("Cliente não encontrado. Cadastre em Configurações › Clientes.");
+      if (pagina.itens.length === 1) return escolherCliente(pagina.itens[0]);
+      setClientes(pagina.itens);
+      setIndiceBusca(0);
+      setAviso(null);
+    } catch (e) {
+      erro(mensagem(e));
+    }
+  }
+
+  async function escolherCliente(cliente: ClienteCadastro) {
+    try {
+      const credito = await api<CreditoCliente>(`/financeiro/clientes/${cliente.id}/credito`);
+      const disponivel = paraCentavos(credito.disponivel) ?? 0;
+      if (Number(credito.limite) <= 0) return erro(`${cliente.nome} não tem limite para comprar a prazo.`);
+      if (disponivel <= 0) return erro(`${cliente.nome} já usou todo o limite (deve ${reais(credito.em_aberto)}).`);
+      const atualizado = { ...carrinho, cliente: { id: cliente.id, nome: cliente.nome, disponivelCentavos: disponivel } };
+      setCarrinho(atualizado);
+      setClientes([]);
+      setForma("prazo");
+      setModo("pagamento");
+      setTexto((Math.min(falta(atualizado), disponivel) / 100).toFixed(2).replace(".", ","));
+      setAviso(
+        Number(credito.vencido) > 0
+          ? { tipo: "erro", texto: `Atenção: ${cliente.nome} tem ${reais(credito.vencido)} vencido.` }
+          : { tipo: "ok", texto: `${cliente.nome} pode comprar até ${reais(disponivel)} a prazo.` },
+      );
+    } catch (e) {
+      erro(mensagem(e));
+    }
   }
 
   async function adicionarPorCodigo(entrada: string) {
@@ -224,6 +273,10 @@ export default function Pdv() {
       case "preVenda":
         receberPreVenda(valor);
         break;
+      case "cliente":
+        if (clientes.length > 0 && clientes[indiceBusca]) escolherCliente(clientes[indiceBusca]);
+        else buscarCliente(valor);
+        break;
       case "desconto": {
         const centavos = paraCentavos(valor || "0");
         if (centavos === null || centavos > subtotal(carrinho)) return erro("Desconto inválido");
@@ -257,6 +310,10 @@ export default function Pdv() {
         F7: () => mudarModo("preVenda"),
         F10: () => carrinho.itens.length === 0 ? mudarModo("fechar") : erro("Finalize ou cancele a venda antes de fechar o caixa"),
         Escape: () => {
+          if (modo === "cliente") {
+            setForma("dinheiro");
+            return mudarModo("pagamento");
+          }
           if (modo !== "venda") return mudarModo("venda");
           if (carrinho.itens.length === 0) return;
           if (!confirmarCancelar) {
@@ -265,15 +322,17 @@ export default function Pdv() {
           }
           setCarrinho(novoCarrinho());
           setSelecionado(-1);
+          setForma("dinheiro");
           setConfirmarCancelar(false);
           setAviso({ tipo: "ok", texto: "Venda cancelada" });
         },
         ArrowUp: () => {
-          if (modo === "busca") setIndiceBusca((i) => Math.max(i - 1, 0));
+          if (modo === "busca" || modo === "cliente") setIndiceBusca((i) => Math.max(i - 1, 0));
           else if (modo === "venda") setSelecionado((i) => Math.max(i - 1, 0));
         },
         ArrowDown: () => {
           if (modo === "busca") setIndiceBusca((i) => Math.min(i + 1, resultados.length - 1));
+          else if (modo === "cliente") setIndiceBusca((i) => Math.min(i + 1, clientes.length - 1));
           else if (modo === "venda") setSelecionado((i) => Math.min(i + 1, carrinho.itens.length - 1));
         },
         Delete: () => {
@@ -282,12 +341,12 @@ export default function Pdv() {
           setSelecionado((i) => Math.min(i, carrinho.itens.length - 2));
         },
       };
-      // No pagamento, Alt+1 a Alt+4 escolhem a forma sem atrapalhar a digitação do valor.
+      // No pagamento, Alt+1 a Alt+5 escolhem a forma sem atrapalhar a digitação do valor.
       if (modo === "pagamento" && evento.altKey) {
         const escolhida = FORMAS.find((f) => f.tecla === evento.key);
         if (escolhida) {
           evento.preventDefault();
-          return setForma(escolhida.forma);
+          return escolherForma(escolhida.forma);
         }
       }
       const acao = atalhos[evento.key];
@@ -323,6 +382,7 @@ export default function Pdv() {
     quantidade: "Nova quantidade do item selecionado",
     desconto: "Desconto na venda (R$)",
     pagamento: `Valor em ${FORMAS.find((f) => f.forma === forma)?.nome} (Enter vazio finaliza)`,
+    cliente: "Cliente da venda a prazo: CPF, telefone ou nome (Enter busca; Esc volta)",
     preVenda: "Número da pré-venda",
     fechar: "",
   };
@@ -390,11 +450,42 @@ export default function Pdv() {
         {modo === "pagamento" && (
           <div className="formas">
             {FORMAS.map((f) => (
-              <button key={f.forma} className={f.forma === forma ? "ativa" : ""} onClick={() => setForma(f.forma)}>
+              <button key={f.forma} className={f.forma === forma ? "ativa" : ""} onClick={() => escolherForma(f.forma)}>
                 Alt+{f.tecla} {f.nome}
               </button>
             ))}
           </div>
+        )}
+
+        {carrinho.cliente && (
+          <div className="pdv-cliente">
+            <small>Venda a prazo para</small>
+            <strong>{carrinho.cliente.nome}</strong>
+            <small>Pode comprar até {reais(carrinho.cliente.disponivelCentavos)}</small>{" "}
+            <button
+              type="button"
+              className="botao-pequeno"
+              onClick={() =>
+                setCarrinho({
+                  ...carrinho,
+                  cliente: undefined,
+                  pagamentos: carrinho.pagamentos.filter((p) => p.forma !== "prazo"),
+                })
+              }
+            >
+              Tirar
+            </button>
+          </div>
+        )}
+
+        {modo === "cliente" && clientes.length > 0 && (
+          <ul className="resultados">
+            {clientes.map((c, i) => (
+              <li key={c.id} className={i === indiceBusca ? "selecionado" : ""} onClick={() => escolherCliente(c)}>
+                {c.nome} <span>{c.telefone ?? ""}</span>
+              </li>
+            ))}
+          </ul>
         )}
 
         {modo === "busca" && (
@@ -439,7 +530,7 @@ export default function Pdv() {
       <footer className="pdv-atalhos">
         <span>F2 Buscar</span>
         <span>F3 Quantidade</span>
-        <span>F4 Pagamento</span>
+        <span>F4 Pagamento (Alt+5 a prazo)</span>
         <span>F6 Desconto</span>
         <span>F7 Receber pré-venda</span>
         <span>Del Remover item</span>

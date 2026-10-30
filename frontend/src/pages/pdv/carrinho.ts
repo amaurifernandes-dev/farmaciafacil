@@ -24,6 +24,14 @@ export interface Carrinho {
   pagamentos: Pagamento[];
   /** Pré-venda que está sendo recebida neste carrinho, se houver. */
   preVenda?: { id: string; numero: number };
+  /** Cliente da venda a prazo, com quanto ainda pode comprar. */
+  cliente?: ClienteFiado;
+}
+
+export interface ClienteFiado {
+  id: string;
+  nome: string;
+  disponivelCentavos: number;
 }
 
 export function novoCarrinho(): Carrinho {
@@ -127,6 +135,11 @@ export function problemaParaFinalizar(carrinho: Carrinho): string | null {
     .filter((p) => p.forma === "dinheiro")
     .reduce((soma, p) => soma + p.centavos, 0);
   if (troco(carrinho) > emDinheiro) return "Troco só pode sair de pagamento em dinheiro";
+  const aPrazo = carrinho.pagamentos.filter((p) => p.forma === "prazo").reduce((soma, p) => soma + p.centavos, 0);
+  if (aPrazo > 0 && !carrinho.cliente) return "Escolha o cliente da venda a prazo (Alt+5)";
+  if (carrinho.cliente && aPrazo > carrinho.cliente.disponivelCentavos) {
+    return `${carrinho.cliente.nome} só pode comprar mais ${(carrinho.cliente.disponivelCentavos / 100).toFixed(2).replace(".", ",")} a prazo`;
+  }
   return null;
 }
 
@@ -137,6 +150,7 @@ export function montarVenda(carrinho: Carrinho, cpf?: string) {
     pagamentos: carrinho.pagamentos.map((p) => ({ forma: p.forma, valor: centavosParaApi(p.centavos) })),
     desconto: centavosParaApi(carrinho.descontoCentavos),
     cliente_cpf: cpf || null,
+    cliente_id: carrinho.cliente?.id ?? null,
     pre_venda_id: carrinho.preVenda?.id ?? null,
   };
 }
