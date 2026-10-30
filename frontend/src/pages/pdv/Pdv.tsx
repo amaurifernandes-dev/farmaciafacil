@@ -289,7 +289,7 @@ export default function Pdv() {
         <span>
           {sessao?.nome} · Caixa aberto · {caixa.quantidade_vendas} vendas · {reais(caixa.total_vendido)}
         </span>
-        <Link to="/produtos">Gestão</Link>
+        <Link to="/">Início</Link>
       </header>
 
       <section className="pdv-itens">
@@ -414,7 +414,7 @@ function AbrirCaixa({ aoAbrir }: { aoAbrir: () => void }) {
       </label>
       {erro && <p className="erro">{erro}</p>}
       <button type="submit">Abrir (Enter)</button>
-      <Link to="/produtos">Ir para a gestão</Link>
+      <Link to="/">Ir para o início</Link>
     </form>
   );
 }

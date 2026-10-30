@@ -11,7 +11,7 @@ export default function Login() {
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  if (sessao) return <Navigate to="/pdv" replace />;
+  if (sessao) return <Navigate to="/" replace />;
 
   async function enviar(evento: FormEvent) {
     evento.preventDefault();

@@ -37,6 +37,7 @@ npm run dev                     # http://localhost:5173
 
 O Vite repassa as chamadas `/api` para o backend. Telas:
 
+- **/**: tela inicial com vendas do dia, gráfico da semana, acesso rápido e avisos de estoque e caixa.
 - **/pdv**: frente de caixa em tela cheia, operada pelo teclado e pelo leitor de código de barras.
 - **/produtos**, **/estoque/entrada** e **/estoque/alertas**: gestão.
 

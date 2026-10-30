@@ -92,3 +92,20 @@ export interface Alertas {
   vencendo: LoteComProduto[];
   abaixo_do_minimo: { produto_id: string; nome: string; saldo: string; estoque_minimo: string }[];
 }
+
+export interface Painel {
+  farmacia: string;
+  uf: string;
+  hoje: string;
+  vendas_hoje: string;
+  quantidade_vendas_hoje: number;
+  ticket_medio_hoje: string;
+  vendas_ontem: string;
+  semana: { data: string; total: string; quantidade: number }[];
+  caixas_abertos: number;
+  meu_caixa_aberto: boolean;
+  produtos_ativos: number;
+  lotes_vencidos: number;
+  lotes_vencendo: number;
+  abaixo_do_minimo: number;
+}
