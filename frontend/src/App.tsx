@@ -32,6 +32,7 @@ import LojaOnline from "./pages/loja/LojaOnline";
 import Pedidos from "./pages/pedidos/Pedidos";
 import Promocoes from "./pages/promocoes/Promocoes";
 import Relatorios from "./pages/relatorios/Relatorios";
+import FechamentoFiscal from "./pages/fiscal/FechamentoFiscal";
 import PreVenda from "./pages/vendas/PreVenda";
 import Vendas from "./pages/vendas/Vendas";
 import { cuidaDoEstoque, ehAdmin, ehGerente, useSessao } from "./sessao";
@@ -91,6 +92,7 @@ export default function App() {
         <Route path="/pedidos" element={<Pedidos />} />
         <Route path="/promocoes" element={<SoGerente><Promocoes /></SoGerente>} />
         <Route path="/relatorios" element={<SoGerente><Relatorios /></SoGerente>} />
+        <Route path="/fiscal" element={<SoGerente><FechamentoFiscal /></SoGerente>} />
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />
         <Route path="/configuracoes/fornecedores" element={<Fornecedores />} />
         <Route path="/configuracoes/produtos" element={<Produtos />} />

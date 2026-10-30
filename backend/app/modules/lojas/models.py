@@ -37,6 +37,7 @@ class Loja(TabelaDaFarmacia, Base):
     endereco: Mapped[str | None] = mapped_column(String(200))
     bairro: Mapped[str | None] = mapped_column(String(100))
     cidade: Mapped[str | None] = mapped_column(String(100))
+    codigo_municipio: Mapped[str | None] = mapped_column(String(7))  # IBGE, para o SPED
     uf: Mapped[str] = mapped_column(String(2))
     responsavel_tecnico: Mapped[str | None] = mapped_column(String(120))
     crf: Mapped[str | None] = mapped_column(String(20))

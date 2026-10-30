@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.shared.models import Base, TabelaDaFarmacia
 
 AMBIENTES = ("homologacao", "producao")
+REGIMES = ("simples", "presumido", "real")
 # processando: enviada sem resposta definitiva (ex.: timeout), precisa ser consultada de novo.
 # erro: não chegou à SEFAZ (dados faltando, provedor fora do ar); pode ser reenviada.
 STATUS_NOTA = ("processando", "autorizada", "rejeitada", "cancelada", "erro")
@@ -25,6 +26,14 @@ class ConfiguracaoFiscal(TabelaDaFarmacia, Base):
     cfop_padrao: Mapped[str] = mapped_column(String(4), default="5102")
     icms_situacao_tributaria_padrao: Mapped[str] = mapped_column(String(3), default="102")
     pis_cofins_situacao_tributaria_padrao: Mapped[str] = mapped_column(String(2), default="49")
+    # simples: Simples Nacional (não entrega SPED Fiscal); presumido e real: regime normal.
+    regime: Mapped[str] = mapped_column(String(10), default="simples")
+    perfil_efd: Mapped[str] = mapped_column(String(1), default="A")
+    # O contador vai no registro 0100 do SPED.
+    contador_nome: Mapped[str | None] = mapped_column(String(120))
+    contador_cpf: Mapped[str | None] = mapped_column(String(11))
+    contador_crc: Mapped[str | None] = mapped_column(String(15))
+    contador_email: Mapped[str | None] = mapped_column(String(254))
 
 
 class NotaFiscal(TabelaDaFarmacia, Base):
