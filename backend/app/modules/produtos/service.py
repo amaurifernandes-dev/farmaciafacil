@@ -67,7 +67,10 @@ def obter_por_ean(db: Session, ean: str) -> Produto:
 def criar(db: Session, dados: ProdutoCriar) -> Produto:
     if dados.ean and _ean_em_uso(db, dados.ean):
         raise Conflito("Já existe produto com este código de barras")
-    produto = Produto(**dados.model_dump())
+    valores = dados.model_dump()
+    if valores["vende_online"] is None:
+        valores["vende_online"] = dados.tipo != "medicamento"  # remédio só vai para o site se a farmácia marcar
+    produto = Produto(**valores)
     db.add(produto)
     db.commit()
     return produto

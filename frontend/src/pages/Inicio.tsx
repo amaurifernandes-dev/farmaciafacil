@@ -179,6 +179,13 @@ function Atencao({ painel }: { painel: Painel }) {
       texto: "Confira os produtos que precisam de reposição.",
       para: "/estoque",
     });
+  if (painel.pedidos_novos > 0)
+    avisos.push({
+      icone: "recibo",
+      titulo: `${painel.pedidos_novos} pedido(s) novo(s)`,
+      texto: "Chegaram pela loja online ou foram anotados. Aceite para separar.",
+      para: "/pedidos",
+    });
   if (painel.encomendas_chegaram > 0)
     avisos.push({
       icone: "sino",

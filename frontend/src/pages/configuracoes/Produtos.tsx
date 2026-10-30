@@ -14,6 +14,7 @@ type Formulario = {
   estoque_minimo: string;
   tipo: Produto["tipo"];
   controla_lote: boolean;
+  vende_online: boolean;
   ncm: string;
   cest: string;
   cfop: string;
@@ -30,6 +31,7 @@ const VAZIO: Formulario = {
   estoque_minimo: "0",
   tipo: "medicamento",
   controla_lote: true,
+  vende_online: false,
   ncm: "",
   cest: "",
   cfop: "",
@@ -47,6 +49,7 @@ function paraFormulario(p: Produto): Formulario {
     estoque_minimo: p.estoque_minimo,
     tipo: p.tipo,
     controla_lote: p.controla_lote,
+    vende_online: p.vende_online,
     ncm: p.ncm ?? "",
     cest: p.cest ?? "",
     cfop: p.cfop ?? "",
@@ -67,6 +70,7 @@ function paraApi(f: Formulario) {
     estoque_minimo: f.estoque_minimo.replace(",", ".") || "0",
     tipo: f.tipo,
     controla_lote: f.controla_lote,
+    vende_online: f.vende_online,
     ncm: ouNulo(f.ncm),
     cest: ouNulo(f.cest),
     cfop: ouNulo(f.cfop),
@@ -169,7 +173,14 @@ export default function Produtos() {
           </label>
           <label>
             Tipo
-            <select value={form.tipo} onChange={(e) => campo("tipo", e.target.value as Produto["tipo"])}>
+            <select
+              value={form.tipo}
+              onChange={(e) => {
+                const tipo = e.target.value as Produto["tipo"];
+                // Remédio não vai para a loja online sem a farmácia marcar.
+                setForm((f) => ({ ...f, tipo, vende_online: tipo !== "medicamento" }));
+              }}
+            >
               <option value="medicamento">Medicamento</option>
               <option value="perfumaria">Perfumaria</option>
               <option value="outros">Outros</option>
@@ -202,6 +213,10 @@ export default function Produtos() {
           <label className="checkbox">
             <input type="checkbox" checked={form.controla_lote} onChange={(e) => campo("controla_lote", e.target.checked)} />
             Controla lote e validade
+          </label>
+          <label className="checkbox">
+            <input type="checkbox" checked={form.vende_online} onChange={(e) => campo("vende_online", e.target.checked)} />
+            Aparece na loja online <small>(remédio só se não precisar de receita)</small>
           </label>
           {erro && <p className="erro">{erro}</p>}
           <div className="acoes">

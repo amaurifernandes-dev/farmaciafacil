@@ -28,6 +28,7 @@ function produto(campos: Partial<ProdutoPDV> = {}): ProdutoPDV {
     cest: null,
     cfop: null,
     icms_origem: "0",
+    vende_online: false,
     icms_situacao_tributaria: null,
     pis_cofins_situacao_tributaria: null,
     unidade: "UN",

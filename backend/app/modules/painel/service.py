@@ -9,6 +9,7 @@ from app.modules.clientes.models import Cliente
 from app.modules.estoque.service import alertas
 from app.modules.farmacias.models import Farmacia
 from app.modules.faltas.service import quantas_chegaram
+from app.modules.pedidos.service import quantos_novos
 from app.modules.produtos.models import Produto
 from app.modules.vendas.models import Caixa, Venda
 from app.shared.datas import FUSO, hoje
@@ -67,4 +68,5 @@ def painel(db: Session, usuario: TokenDados) -> dict:
         "clientes": db.scalar(select(func.count()).select_from(Cliente).where(Cliente.ativo.is_(True))),
         "abaixo_do_minimo": len(do_estoque.abaixo_do_minimo),
         "encomendas_chegaram": quantas_chegaram(db),
+        "pedidos_novos": quantos_novos(db),
     }

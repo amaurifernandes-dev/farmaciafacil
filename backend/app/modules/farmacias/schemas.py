@@ -1,5 +1,6 @@
 from decimal import Decimal
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -10,6 +11,8 @@ PontosPorReal = Annotated[Decimal, Field(ge=0, le=1000, max_digits=6, decimal_pl
 ValorPonto = Annotated[Decimal, Field(gt=0, le=100, max_digits=8, decimal_places=4)]
 MinimoResgate = Annotated[int, Field(ge=1, le=1_000_000)]
 ValidadeMeses = Annotated[int, Field(ge=1, le=60)]
+EnderecoLoja = Annotated[str, Field(min_length=3, max_length=40, pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")]
+Valor = Annotated[Decimal, Field(ge=0, le=100_000, max_digits=12, decimal_places=2)]
 
 
 class Configuracoes(BaseModel):
@@ -23,6 +26,14 @@ class Configuracoes(BaseModel):
     valor_ponto: ValorPonto
     pontos_minimo_resgate: MinimoResgate
     pontos_validade_meses: ValidadeMeses | None
+    loja_online_ativa: bool
+    loja_online_endereco: str | None
+    loja_online_loja_id: UUID | None
+    loja_online_mensagem: str | None
+    whatsapp: str | None
+    entrega_ativa: bool
+    entrega_minimo: Decimal
+    entrega_area: str | None
 
 
 class ConfiguracoesAtualizar(BaseModel):
@@ -34,3 +45,20 @@ class ConfiguracoesAtualizar(BaseModel):
     valor_ponto: ValorPonto | None = None
     pontos_minimo_resgate: MinimoResgate | None = None
     pontos_validade_meses: ValidadeMeses | None = Field(default=None, description="Envie null para não expirar")
+    loja_online_ativa: bool | None = None
+    loja_online_endereco: EnderecoLoja | None = Field(
+        default=None, description="Vai no endereço da loja: /loja/<endereço>. Letras minúsculas, números e hífen"
+    )
+    loja_online_loja_id: UUID | None = Field(default=None, description="De qual loja sai o estoque. Vazio: a matriz")
+    loja_online_mensagem: str | None = Field(default=None, max_length=300)
+    whatsapp: str | None = Field(default=None, max_length=20)
+    entrega_ativa: bool | None = None
+    entrega_minimo: Valor | None = None
+    entrega_area: str | None = Field(default=None, max_length=200)
+
+
+# Campos que aceitam vazio (null apaga o valor).
+PODEM_FICAR_VAZIOS = {
+    "pontos_validade_meses", "loja_online_endereco", "loja_online_loja_id", "loja_online_mensagem", "whatsapp",
+    "entrega_area",
+}

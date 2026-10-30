@@ -46,6 +46,13 @@ O Vite repassa as chamadas `/api` para o backend. Telas:
 - **/financeiro**: contas a pagar e a receber, fiado e fluxo de caixa.
 - **/clientes**: cadastro com aniversariantes do mês e clientes que não voltam, e a ficha de cada cliente
   (total comprado, o que leva sempre, últimas compras, pontos e fiado).
+- **/pedidos**: pedidos da loja online, do WhatsApp e do telefone. Aceitar cria a pré-venda (o caixa recebe com
+  F7); cada etapa tem o botão com a mensagem pronta para avisar o cliente no WhatsApp, e o pedido fica
+  entregue sozinho quando o caixa recebe.
+- **/loja/&lt;endereço&gt;** (pública, sem login): a loja online da farmácia, ligada em Configurações gerais.
+  Mostra só os produtos marcados "Aparece na loja online" com estoque (remédio com receita fica de fora),
+  com o preço da promoção; o cliente escolhe retirar ou receber em casa e acompanha o pedido por um link.
+  O pagamento é feito na retirada ou na entrega.
 - **/faltas**: faltas e encomendas. O balcão (ou o caixa, com F1) anota o que o cliente pediu e não tinha;
   com nome ou telefone vira encomenda, e quando o produto entra no estoque ela aparece em "Chegaram" com o
   botão para avisar no WhatsApp. A venda para o cliente da encomenda dá baixa nela sozinha.

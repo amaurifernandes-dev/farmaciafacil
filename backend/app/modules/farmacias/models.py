@@ -32,3 +32,13 @@ class Farmacia(ComDatas, Base):
     pontos_minimo_resgate: Mapped[int] = mapped_column(Integer, default=100)
     # Vazio: não expiram. Senão, expiram se o cliente ficar esse tempo sem comprar.
     pontos_validade_meses: Mapped[int | None] = mapped_column(Integer, default=12)
+
+    # Loja online: página pública da farmácia em /loja/<endereco>.
+    loja_online_ativa: Mapped[bool] = mapped_column(Boolean, default=False)
+    loja_online_endereco: Mapped[str | None] = mapped_column(String(40), unique=True)
+    loja_online_loja_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # vazio: a matriz
+    loja_online_mensagem: Mapped[str | None] = mapped_column(String(300))
+    whatsapp: Mapped[str | None] = mapped_column(String(20))
+    entrega_ativa: Mapped[bool] = mapped_column(Boolean, default=False)
+    entrega_minimo: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal(0))
+    entrega_area: Mapped[str | None] = mapped_column(String(200))

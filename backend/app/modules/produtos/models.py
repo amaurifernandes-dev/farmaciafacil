@@ -42,6 +42,8 @@ class Produto(TabelaDaFarmacia, Base):
     tipo: Mapped[str] = mapped_column(String(20), default="outros")
     registro_ms: Mapped[str | None] = mapped_column(String(20))
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Aparece na loja online. Remédio com receita fica de fora.
+    vende_online: Mapped[bool] = mapped_column(Boolean, default=True)
 
     codigos: Mapped[list["ProdutoCodigo"]] = relationship(
         back_populates="produto", cascade="all, delete-orphan", lazy="selectin"

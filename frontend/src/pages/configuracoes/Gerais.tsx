@@ -60,6 +60,7 @@ export default function Gerais() {
 
       <RegrasGerais podeEditar={podeEditar} />
       <ProgramaDePontos podeEditar={podeEditar} />
+      <LojaOnline podeEditar={podeEditar} lojas={lojas} />
     </div>
   );
 }
@@ -338,6 +339,182 @@ function ProgramaDePontos({ podeEditar }: { podeEditar: boolean }) {
         {podeEditar && (
           <div className="acoes largo">
             <button type="submit">Salvar</button>
+            {aviso && <span className={aviso.tipo}>{aviso.texto}</span>}
+          </div>
+        )}
+      </fieldset>
+    </form>
+  );
+}
+
+/** Sugere o endereço da loja a partir do nome: "Farmácia Bem Estar" -> "farmacia-bem-estar". */
+function sugerirEndereco(nome: string): string {
+  return nome
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+function LojaOnline({ podeEditar, lojas }: { podeEditar: boolean; lojas: Loja[] }) {
+  const [config, setConfig] = useState<Configuracoes | null>(null);
+  const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+
+  function receber(dados: Configuracoes) {
+    const matriz = lojas.find((l) => l.matriz);
+    setConfig({
+      ...dados,
+      loja_online_endereco: dados.loja_online_endereco ?? (matriz ? sugerirEndereco(matriz.nome_fantasia) : ""),
+      entrega_minimo: String(Number(dados.entrega_minimo)).replace(".", ","),
+    });
+  }
+
+  useEffect(() => {
+    api<Configuracoes>("/configuracoes")
+      .then(receber)
+      .catch((e) => setAviso({ tipo: "erro", texto: mensagem(e) }));
+    // Recarrega quando as lojas chegam, para sugerir o endereço pelo nome da matriz.
+  }, [lojas.length]);
+
+  async function salvar(evento: FormEvent) {
+    evento.preventDefault();
+    if (!config) return;
+    const ouNulo = (valor: string | null) => (valor ?? "").trim() || null;
+    try {
+      receber(
+        await api<Configuracoes>("/configuracoes", {
+          metodo: "PATCH",
+          corpo: {
+            loja_online_ativa: config.loja_online_ativa,
+            loja_online_endereco: ouNulo(config.loja_online_endereco),
+            loja_online_loja_id: config.loja_online_loja_id || null,
+            loja_online_mensagem: ouNulo(config.loja_online_mensagem),
+            whatsapp: ouNulo(config.whatsapp),
+            entrega_ativa: config.entrega_ativa,
+            entrega_minimo: config.entrega_minimo.replace(".", "").replace(",", ".") || "0",
+            entrega_area: ouNulo(config.entrega_area),
+          },
+        }),
+      );
+      setAviso({ tipo: "ok", texto: "Loja online salva." });
+    } catch (e) {
+      setAviso({ tipo: "erro", texto: mensagem(e) });
+    }
+  }
+
+  if (!config) return null;
+  const link = `${window.location.origin}/loja/${config.loja_online_endereco}`;
+
+  return (
+    <form className="cartao cartao-separado" onSubmit={salvar}>
+      <h2>Loja online e WhatsApp</h2>
+      <p className="vazio">
+        Uma página da farmácia na internet: o cliente vê os produtos com preço e promoção, monta o pedido e escolhe
+        retirar ou receber em casa. O pedido chega na tela Pedidos e, aceito, vira pré-venda para o caixa.
+      </p>
+      <fieldset disabled={!podeEditar} className="campos">
+        <label className="checkbox caixa-marcacao largo">
+          <input
+            type="checkbox"
+            checked={config.loja_online_ativa}
+            onChange={(e) => setConfig({ ...config, loja_online_ativa: e.target.checked })}
+          />
+          <span>
+            Loja online ligada
+            <small>
+              Só aparecem os produtos marcados "Aparece na loja online" que têm estoque. Remédio com receita fica de
+              fora.
+            </small>
+          </span>
+        </label>
+        <label>
+          Endereço da loja
+          <input
+            value={config.loja_online_endereco ?? ""}
+            onChange={(e) => setConfig({ ...config, loja_online_endereco: e.target.value.toLowerCase() })}
+            placeholder="farmacia-bem-estar"
+          />
+          <small>Letras, números e hífen. Fica assim: {link}</small>
+        </label>
+        <label>
+          WhatsApp da farmácia
+          <input
+            value={config.whatsapp ?? ""}
+            onChange={(e) => setConfig({ ...config, whatsapp: e.target.value })}
+            inputMode="tel"
+            placeholder="(11) 99999-8888"
+          />
+          <small>Aparece na loja com o botão "Falar no WhatsApp".</small>
+        </label>
+        {lojas.length > 1 && (
+          <label>
+            Estoque e pedidos da loja
+            <select
+              value={config.loja_online_loja_id ?? ""}
+              onChange={(e) => setConfig({ ...config, loja_online_loja_id: e.target.value || null })}
+            >
+              <option value="">Matriz</option>
+              {lojas
+                .filter((l) => !l.matriz)
+                .map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.nome}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
+        <label className="largo">
+          Recado no topo da loja
+          <input
+            value={config.loja_online_mensagem ?? ""}
+            onChange={(e) => setConfig({ ...config, loja_online_mensagem: e.target.value })}
+            maxLength={300}
+            placeholder="ex.: Aberto de segunda a sábado, das 8h às 22h"
+          />
+        </label>
+        <label className="checkbox caixa-marcacao largo">
+          <input
+            type="checkbox"
+            checked={config.entrega_ativa}
+            onChange={(e) => setConfig({ ...config, entrega_ativa: e.target.checked })}
+          />
+          <span>
+            Fazer entrega
+            <small>Desligado, o cliente só pode retirar na loja.</small>
+          </span>
+        </label>
+        {config.entrega_ativa && (
+          <>
+            <label>
+              Pedido mínimo para entrega (R$)
+              <input
+                value={config.entrega_minimo}
+                onChange={(e) => setConfig({ ...config, entrega_minimo: e.target.value })}
+                inputMode="decimal"
+              />
+            </label>
+            <label>
+              Onde entrega
+              <input
+                value={config.entrega_area ?? ""}
+                onChange={(e) => setConfig({ ...config, entrega_area: e.target.value })}
+                maxLength={200}
+                placeholder="ex.: Centro, Jardim América e Vila Nova"
+              />
+            </label>
+          </>
+        )}
+        {podeEditar && (
+          <div className="acoes largo">
+            <button type="submit">Salvar</button>
+            {config.loja_online_ativa && config.loja_online_endereco && (
+              <a href={`/loja/${config.loja_online_endereco}`} target="_blank" rel="noreferrer" className="botao-pequeno">
+                Abrir a loja
+              </a>
+            )}
             {aviso && <span className={aviso.tipo}>{aviso.texto}</span>}
           </div>
         )}
