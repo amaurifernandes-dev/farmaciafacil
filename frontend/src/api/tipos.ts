@@ -19,6 +19,10 @@ export interface Produto {
   fabricante: string | null;
   ncm: string | null;
   cest: string | null;
+  cfop: string | null;
+  icms_origem: string;
+  icms_situacao_tributaria: string | null;
+  pis_cofins_situacao_tributaria: string | null;
   unidade: string;
   preco_venda: string;
   preco_custo: string | null;
@@ -80,6 +84,17 @@ export interface Venda {
   pagamentos: { forma: FormaPagamento; valor: string }[];
   finalizada_em: string;
   motivo_cancelamento: string | null;
+  nota: NotaFiscal | null;
+}
+
+export interface NotaFiscal {
+  id: string;
+  status: "processando" | "autorizada" | "rejeitada" | "cancelada" | "erro";
+  numero: string | null;
+  serie: string | null;
+  chave: string | null;
+  mensagem: string | null;
+  url_danfe: string | null;
 }
 
 export interface Lote {

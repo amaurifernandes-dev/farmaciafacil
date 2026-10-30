@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.fiscal.schemas import NotaFiscalSaida
 from app.shared.campos import Cpf
 
 Dinheiro = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
@@ -116,6 +117,7 @@ class VendaSaida(BaseModel):
     motivo_cancelamento: str | None
     itens: list[ItemVendaSaida]
     pagamentos: list[PagamentoSaida]
+    nota: NotaFiscalSaida | None = None
 
 
 # --- Pré-venda ---

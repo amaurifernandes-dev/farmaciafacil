@@ -29,6 +29,11 @@ class Produto(TabelaDaFarmacia, Base):
     fabricante: Mapped[str | None] = mapped_column(String(120))
     ncm: Mapped[str | None] = mapped_column(String(8))
     cest: Mapped[str | None] = mapped_column(String(7))
+    # Tributação para a NFC-e. Vazio usa o padrão da configuração fiscal da farmácia.
+    cfop: Mapped[str | None] = mapped_column(String(4))
+    icms_origem: Mapped[str] = mapped_column(String(1), default="0")
+    icms_situacao_tributaria: Mapped[str | None] = mapped_column(String(3))
+    pis_cofins_situacao_tributaria: Mapped[str | None] = mapped_column(String(2))
     unidade: Mapped[str] = mapped_column(String(6), default="UN")
     preco_venda: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     preco_custo: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))

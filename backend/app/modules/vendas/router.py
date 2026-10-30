@@ -5,6 +5,8 @@ from fastapi import APIRouter, Query, Response, status
 
 from app.core.deps import DB, Atendimento, Gerente, UsuarioAtual
 from app.modules.lojas.deps import TerminalAtual
+from app.modules.fiscal import service as fiscal
+from app.modules.fiscal.router import Provedor
 from app.modules.vendas import service
 from app.modules.vendas.schemas import (
     CaixaAbrir,
@@ -62,10 +64,13 @@ def fechar(db: DB, usuario: UsuarioAtual, caixa_id: UUID, dados: CaixaFechar) ->
 
 @vendas.post("", status_code=status.HTTP_201_CREATED)
 def registrar(
-    db: DB, usuario: UsuarioAtual, terminal: TerminalAtual, dados: VendaCriar, response: Response
+    db: DB, usuario: UsuarioAtual, terminal: TerminalAtual, provedor: Provedor, dados: VendaCriar, response: Response
 ) -> VendaSaida:
     venda, criada = service.registrar_venda(db, usuario, terminal, dados)
-    if not criada:
+    if criada:
+        # A venda já está gravada. Se a NFC-e falhar, o PDV mostra o aviso e dá para reenviar.
+        fiscal.emitir_apos_venda(db, provedor, venda)
+    else:
         response.status_code = status.HTTP_200_OK
     return venda
 
@@ -86,7 +91,10 @@ def obter(db: DB, venda_id: UUID) -> VendaSaida:
 
 
 @vendas.post("/{venda_id}/cancelar")
-def cancelar(db: DB, usuario: Gerente, venda_id: UUID, dados: VendaCancelar) -> VendaSaida:
+def cancelar(db: DB, usuario: Gerente, provedor: Provedor, venda_id: UUID, dados: VendaCancelar) -> VendaSaida:
+    venda = service.obter_venda(db, venda_id)
+    if venda.status != "cancelada":
+        fiscal.cancelar_nfce(db, provedor, venda, dados.motivo)
     return service.cancelar_venda(db, usuario, venda_id, dados.motivo)
 
 

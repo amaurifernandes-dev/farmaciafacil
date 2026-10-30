@@ -60,6 +60,8 @@ class Venda(TabelaDaFarmacia, Base):
         cascade="all, delete-orphan", lazy="selectin", order_by="VendaItem.ordem"
     )
     pagamentos: Mapped[list["VendaPagamento"]] = relationship(cascade="all, delete-orphan", lazy="selectin")
+    # Escrita só pelo módulo fiscal.
+    nota: Mapped["NotaFiscal | None"] = relationship(lazy="selectin", viewonly=True)  # noqa: F821
 
 
 class VendaItem(TabelaDaFarmacia, Base):
