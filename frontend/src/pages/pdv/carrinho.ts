@@ -22,6 +22,8 @@ export interface Carrinho {
   itens: ItemCarrinho[];
   descontoCentavos: number;
   pagamentos: Pagamento[];
+  /** Pré-venda que está sendo recebida neste carrinho, se houver. */
+  preVenda?: { id: string; numero: number };
 }
 
 export function novoCarrinho(): Carrinho {
@@ -135,5 +137,6 @@ export function montarVenda(carrinho: Carrinho, cpf?: string) {
     pagamentos: carrinho.pagamentos.map((p) => ({ forma: p.forma, valor: centavosParaApi(p.centavos) })),
     desconto: centavosParaApi(carrinho.descontoCentavos),
     cliente_cpf: cpf || null,
+    pre_venda_id: carrinho.preVenda?.id ?? null,
   };
 }

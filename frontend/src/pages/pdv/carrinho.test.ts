@@ -106,6 +106,8 @@ describe("carrinho", () => {
       pagamentos: [{ forma: "dinheiro", valor: "20.00" }],
       desconto: "0.00",
       cliente_cpf: "52998224725",
+      pre_venda_id: null,
     });
+    expect(montarVenda({ ...c, preVenda: { id: "pv1", numero: 7 } }).pre_venda_id).toBe("pv1");
   });
 });

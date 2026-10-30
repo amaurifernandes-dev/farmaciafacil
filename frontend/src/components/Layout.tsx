@@ -1,35 +1,52 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
-import { ehGerente, useSessao } from "../sessao";
+import type { Sessao } from "../api/tipos";
+import { ehAdmin, NOMES_PAPEIS, useSessao } from "../sessao";
 import Icone, { type NomeIcone } from "./Icone";
 
 interface ItemMenu {
   para: string;
   rotulo: string;
   icone: NomeIcone;
-  soGerente?: boolean;
+  pode?: (sessao: Sessao | null) => boolean;
+  /** Fica marcado também nas páginas abaixo deste caminho. */
+  agrupa?: boolean;
 }
 
 const MENU: ItemMenu[] = [
   { para: "/", rotulo: "Visão geral", icone: "painel" },
-  { para: "/pdv", rotulo: "Vendas / PDV", icone: "carrinho" },
-  { para: "/produtos", rotulo: "Produtos", icone: "pacote" },
-  { para: "/estoque/entrada", rotulo: "Entrada de estoque", icone: "entrada", soGerente: true },
-  { para: "/estoque/alertas", rotulo: "Alertas", icone: "alerta" },
+  { para: "/vendas", rotulo: "Vendas / PDV", icone: "carrinho", agrupa: true },
+  { para: "/caixas", rotulo: "Caixas", icone: "caixa" },
+  { para: "/estoque", rotulo: "Estoque", icone: "pacote", agrupa: true },
+  { para: "/configuracoes", rotulo: "Configurações", icone: "engrenagem", agrupa: true },
 ];
 
-const PAPEIS = { admin: "Administrador", gerente: "Gerente", caixa: "Operador de caixa" };
+export const CONFIGURACOES: (ItemMenu & { descricao: string })[] = [
+  { para: "/configuracoes/clientes", rotulo: "Clientes", icone: "pessoa", descricao: "Cadastro opcional e autorização de ofertas" },
+  { para: "/configuracoes/fornecedores", rotulo: "Fornecedores", icone: "caminhao", descricao: "Distribuidoras e contatos de compra" },
+  { para: "/configuracoes/produtos", rotulo: "Produtos", icone: "pacote", descricao: "Preços, códigos de barras e dados fiscais" },
+  { para: "/configuracoes/usuarios", rotulo: "Usuários", icone: "pessoas", descricao: "Quem acessa o sistema e o que pode fazer", pode: ehAdmin },
+  { para: "/configuracoes/farmacia", rotulo: "Minha farmácia", icone: "loja", descricao: "Dados da farmácia, matriz e filiais" },
+  { para: "/configuracoes/gerais", rotulo: "Configurações gerais", icone: "ajustes", descricao: "Monocaixa ou multicaixa, descontos e alertas" },
+];
 
 function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/);
   return ((partes[0]?.[0] ?? "") + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase();
 }
 
+function ativo(item: ItemMenu, pathname: string): boolean {
+  return item.agrupa ? pathname === item.para || pathname.startsWith(`${item.para}/`) : pathname === item.para;
+}
+
 export default function Layout() {
   const { sessao, sair } = useSessao();
   const { pathname } = useLocation();
-  const itens = MENU.filter((item) => !item.soGerente || ehGerente(sessao));
-  const atual = itens.find((item) => item.para === pathname) ?? itens[0];
+  const itens = MENU.filter((item) => !item.pode || item.pode(sessao));
+  const subitens = CONFIGURACOES.filter((item) => !item.pode || item.pode(sessao));
+  const atual =
+    subitens.find((item) => pathname.startsWith(item.para)) ?? itens.find((item) => ativo(item, pathname)) ?? itens[0];
+  const emConfiguracoes = pathname.startsWith("/configuracoes");
 
   return (
     <div className="layout">
@@ -45,25 +62,37 @@ export default function Layout() {
         <p className="lateral-titulo">Principal</p>
         <nav>
           {itens.map((item) => (
-            <NavLink key={item.para} to={item.para} end>
-              <Icone nome={item.icone} />
-              {item.rotulo}
-            </NavLink>
+            <div key={item.para} className="menu-grupo">
+              <NavLink to={item.para} className={() => (ativo(item, pathname) ? "active" : "")}>
+                <Icone nome={item.icone} />
+                {item.rotulo}
+              </NavLink>
+              {item.para === "/configuracoes" && emConfiguracoes && (
+                <div className="submenu">
+                  {subitens.map((sub) => (
+                    <NavLink key={sub.para} to={sub.para}>
+                      {sub.rotulo}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </nav>
-        <p className="lateral-rodape">FarmáciaFácil v0.1</p>
+        <p className="lateral-rodape">FarmáciaFácil v0.2</p>
       </aside>
       <div className="principal">
         <header className="topo">
           <span className="trilha">
-            Workspace / <strong>{atual.rotulo}</strong>
+            Workspace / {emConfiguracoes && atual.para !== "/configuracoes" && "Configurações / "}
+            <strong>{atual.rotulo}</strong>
           </span>
           {sessao && (
             <span className="usuario">
               <span className="avatar">{iniciais(sessao.nome)}</span>
               <span>
                 <strong>{sessao.nome}</strong>
-                <small>{PAPEIS[sessao.papel]}</small>
+                <small>{NOMES_PAPEIS[sessao.papel]}</small>
               </span>
               <button type="button" className="botao-icone" onClick={sair} title="Sair">
                 <Icone nome="sair" />

@@ -25,5 +25,7 @@ class Painel(BaseModel):
     meu_caixa_aberto: bool
     produtos_ativos: int
     lotes_vencidos: int
-    lotes_vencendo: int  # nos próximos DIAS_VENCENDO dias
+    lotes_vencendo: int  # nos próximos dias_alerta_vencimento dias
+    dias_alerta_vencimento: int
+    clientes: int
     abaixo_do_minimo: int

@@ -47,4 +47,13 @@ def exigir_papel(*papeis: str):
     return _verificar
 
 
+Admin = Annotated[TokenDados, Depends(exigir_papel("admin"))]
 Gerente = Annotated[TokenDados, Depends(exigir_papel("admin", "gerente"))]
+# Cadastra produtos, fornecedores e dá entrada no estoque.
+Estoquista = Annotated[TokenDados, Depends(exigir_papel("admin", "gerente", "farmaceutico", "estoque"))]
+# Abre caixa e recebe pagamentos.
+Operador = Annotated[TokenDados, Depends(exigir_papel("admin", "gerente", "farmaceutico", "caixa"))]
+# Monta pré-vendas e atende clientes no balcão.
+Atendimento = Annotated[
+    TokenDados, Depends(exigir_papel("admin", "gerente", "farmaceutico", "caixa", "atendente"))
+]

@@ -37,9 +37,26 @@ npm run dev                     # http://localhost:5173
 
 O Vite repassa as chamadas `/api` para o backend. Telas:
 
-- **/**: tela inicial com vendas do dia, gráfico da semana, acesso rápido e avisos de estoque e caixa.
+- **/**: visão geral com vendas do dia, gráfico da semana, acesso rápido e avisos.
+- **/vendas**: pré-vendas aguardando o caixa, últimas vendas (cancelamento pelo gerente) e **/vendas/pre-venda** para montar um pedido no balcão.
 - **/pdv**: frente de caixa em tela cheia, operada pelo teclado e pelo leitor de código de barras.
-- **/produtos**, **/estoque/entrada** e **/estoque/alertas**: gestão.
+- **/caixas**: este computador, caixas abertos, PDVs cadastrados e últimos fechamentos.
+- **/estoque**: alertas e entrada de mercadoria.
+- **/configuracoes**: clientes, fornecedores, produtos, usuários, minha farmácia (matriz e filiais) e configurações gerais.
+
+## Caixas: monocaixa, multicaixa e PDVs registrados
+
+Cada loja escolhe, em Configurações gerais:
+
+- **Monocaixa**: qualquer computador faz pré-venda; só o PDV central da loja abre caixa, recebe e emite a NFC-e.
+- **Multicaixa**: cada PDV ativo da loja abre o próprio caixa e recebe direto.
+
+Um computador vira PDV quando um gerente clica em **Registrar este computador** na tela Caixas. A API gera uma
+chave secreta, o navegador guarda e manda no cabeçalho `X-Terminal` em toda chamada. Não usamos o IP porque o
+servidor está na internet: todos os computadores da loja chegariam com o IP do roteador, que ainda muda quando a
+conexão cai. Registrar outro computador no mesmo PDV revoga a chave do anterior.
+
+Perfis: administrador, gerente, farmacêutico, operador de caixa, atendente (só pré-venda) e estoque.
 
 ### Atalhos do PDV
 
@@ -50,6 +67,7 @@ O Vite repassa as chamadas `/api` para o backend. Telas:
 | F3 | Alterar a quantidade do item selecionado |
 | F4 | Pagamento (Alt+1 dinheiro, Alt+2 débito, Alt+3 crédito, Alt+4 pix; Enter vazio finaliza) |
 | F6 | Desconto na venda |
+| F7 | Receber uma pré-venda pelo número |
 | ↑ ↓ / Del | Selecionar / remover item |
 | Esc | Voltar; na venda, Esc duas vezes cancela |
 | F10 | Fechar caixa |

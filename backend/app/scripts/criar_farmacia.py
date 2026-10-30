@@ -17,7 +17,9 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.security import gerar_hash_senha
 from app.modules.auth.models import Usuario
+from app.modules import todos_os_modelos  # noqa: F401  (registra as tabelas)
 from app.modules.farmacias.models import Farmacia
+from app.modules.lojas.models import Loja
 
 
 def criar_farmacia(
@@ -34,6 +36,17 @@ def criar_farmacia(
     farmacia = Farmacia(cnpj=cnpj, razao_social=razao_social, nome_fantasia=nome_fantasia, uf=uf.upper())
     db.add(farmacia)
     db.flush()
+    db.add(
+        Loja(
+            farmacia_id=farmacia.id,
+            nome="Matriz",
+            matriz=True,
+            razao_social=razao_social,
+            nome_fantasia=nome_fantasia,
+            cnpj=cnpj,
+            uf=uf.upper(),
+        )
+    )
     admin = Usuario(
         farmacia_id=farmacia.id,
         nome=admin_nome,

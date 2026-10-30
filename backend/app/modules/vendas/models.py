@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import DateTime, ForeignKeyConstraint, Integer, Numeric, String, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.models import Base, TabelaDaFarmacia
@@ -12,12 +12,19 @@ FORMAS_PAGAMENTO = ("dinheiro", "debito", "credito", "pix")
 
 
 class Caixa(TabelaDaFarmacia, Base):
-    """Sessão de caixa de um operador: do valor de abertura até o fechamento."""
+    """Sessão de caixa de um operador num PDV: do valor de abertura até o fechamento."""
 
     __tablename__ = "caixas"
-    __table_args__ = (UniqueConstraint("farmacia_id", "id"),)
+    __table_args__ = (
+        UniqueConstraint("farmacia_id", "id"),
+        ForeignKeyConstraint(["farmacia_id", "terminal_id"], ["terminais.farmacia_id", "terminais.id"]),
+        ForeignKeyConstraint(["farmacia_id", "loja_id"], ["lojas.farmacia_id", "lojas.id"]),
+    )
 
     usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # Nulos só em caixas abertos antes de existirem PDVs registrados.
+    terminal_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    loja_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     status: Mapped[str] = mapped_column(String(10), default="aberto")
     valor_abertura: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     aberto_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -82,3 +89,28 @@ class VendaPagamento(TabelaDaFarmacia, Base):
     venda_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     forma: Mapped[str] = mapped_column(String(10))
     valor: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+
+
+class PreVenda(TabelaDaFarmacia, Base):
+    """Pedido montado no balcão e recebido no caixa (usado no monocaixa).
+
+    Os itens guardam descrição e preço só para exibir. Ao receber, o PDV
+    carrega os itens no carrinho e a venda usa sempre o preço do cadastro.
+    """
+
+    __tablename__ = "pre_vendas"
+    __table_args__ = (
+        UniqueConstraint("farmacia_id", "numero"),
+        ForeignKeyConstraint(["farmacia_id", "loja_id"], ["lojas.farmacia_id", "lojas.id"]),
+        ForeignKeyConstraint(["farmacia_id", "venda_id"], ["vendas.farmacia_id", "vendas.id"]),
+    )
+
+    loja_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    numero: Mapped[int] = mapped_column(Integer)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    status: Mapped[str] = mapped_column(String(10), default="aberta")
+    itens: Mapped[list[dict]] = mapped_column(JSONB)
+    total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    cliente_cpf: Mapped[str | None] = mapped_column(String(11))
+    venda_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    finalizada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
