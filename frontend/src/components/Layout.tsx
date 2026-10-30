@@ -18,6 +18,7 @@ const MENU: ItemMenu[] = [
   { para: "/vendas", rotulo: "Vendas / PDV", icone: "carrinho", agrupa: true },
   { para: "/caixas", rotulo: "Caixas", icone: "caixa" },
   { para: "/clientes", rotulo: "Clientes", icone: "pessoa", agrupa: true },
+  { para: "/faltas", rotulo: "Faltas e encomendas", icone: "sino" },
   { para: "/estoque", rotulo: "Estoque", icone: "pacote", agrupa: true },
   { para: "/compras", rotulo: "Compras", icone: "caminhao", agrupa: true, pode: cuidaDoEstoque },
   { para: "/financeiro", rotulo: "Financeiro", icone: "dinheiro", agrupa: true, pode: ehGerente },

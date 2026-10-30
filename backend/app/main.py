@@ -7,6 +7,7 @@ from app.modules.clientes.router import router as clientes_router
 from app.modules.compras.router import router as compras_router
 from app.modules.estoque.router import router as estoque_router
 from app.modules.farmacias.router import router as configuracoes_router
+from app.modules.faltas.router import router as faltas_router
 from app.modules.fornecedores.router import router as fornecedores_router
 from app.modules.lojas.router import lojas as lojas_router
 from app.modules.lojas.router import terminais as terminais_router
@@ -42,6 +43,7 @@ app.include_router(fiscal_router, prefix="/api/v1")
 app.include_router(financeiro_router, prefix="/api/v1")
 app.include_router(promocoes_router, prefix="/api/v1")
 app.include_router(relatorios_router, prefix="/api/v1")
+app.include_router(faltas_router, prefix="/api/v1")
 
 
 @app.get("/api/saude", tags=["infra"])

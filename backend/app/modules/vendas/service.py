@@ -13,6 +13,7 @@ from app.modules.estoque.models import MovimentoEstoque
 from app.modules.estoque.service import Referencia, baixar_fefo, devolver_movimento
 from app.modules.clientes.models import Cliente
 from app.modules.farmacias.models import Farmacia
+from app.modules.faltas.service import entregar_da_venda, estornar_da_venda as reabrir_encomendas
 from app.modules.fidelidade.service import desconto_do_resgate, estornar_da_venda, pontuar_venda
 from app.modules.financeiro.service import cancelar_fiado_da_venda, lancar_fiado, recebido_no_caixa
 from app.modules.lojas.models import Loja, Terminal
@@ -272,6 +273,7 @@ def registrar_venda(
         vencimento = next((p.vencimento for p in a_prazo if p.vencimento), None)
         lancar_fiado(db, usuario.usuario_id, venda, loja_id, valor, vencimento, farmacia.dias_prazo_padrao)
     pontuar_venda(db, farmacia, usuario.usuario_id, venda)
+    entregar_da_venda(db, venda)
 
     if pre_venda is not None:
         pre_venda.status = "recebida"
@@ -322,6 +324,7 @@ def cancelar_venda(db: Session, usuario: TokenDados, venda_id: UUID, motivo: str
     ).all()
     cancelar_fiado_da_venda(db, venda)
     estornar_da_venda(db, usuario.usuario_id, venda)
+    reabrir_encomendas(db, venda)
     for movimento in movimentos:
         devolver_movimento(db, movimento, usuario.usuario_id, motivo=f"Cancelamento da venda {venda.numero}")
 

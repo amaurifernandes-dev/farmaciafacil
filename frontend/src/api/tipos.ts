@@ -225,6 +225,8 @@ export interface ItemSugestao {
   saldo: string;
   estoque_minimo: string;
   vendido_no_periodo: string;
+  faltas_no_periodo: string;
+  encomendas_abertas: string;
   media_diaria: string;
   dias_de_estoque: string | null;
   sugerido: string;
@@ -257,6 +259,7 @@ export interface Painel {
   dias_alerta_vencimento: number;
   clientes: number;
   abaixo_do_minimo: number;
+  encomendas_chegaram: number;
 }
 
 export type ModoCaixa = "mono" | "multi";
@@ -555,4 +558,39 @@ export interface RelatorioParados {
     dias_parado: number | null;
     validade_mais_proxima: string | null;
   }[];
+}
+
+export type SituacaoFalta = "encomendas" | "chegaram" | "avisados" | "faltas" | "encerradas" | "todas";
+
+export interface Falta {
+  id: string;
+  loja_id: string;
+  loja_nome: string;
+  produto_id: string | null;
+  descricao: string;
+  quantidade: string;
+  cliente_id: string | null;
+  nome: string | null;
+  telefone: string | null;
+  observacao: string | null;
+  status: "registrada" | "aberta" | "avisado" | "entregue" | "cancelada";
+  origem: "balcao" | "pdv";
+  encomenda: boolean;
+  saldo: string | null;
+  chegou: boolean;
+  usuario_nome: string;
+  criado_em: string;
+  avisado_em: string | null;
+  finalizada_em: string | null;
+}
+
+export interface ListaFaltas {
+  resumo: {
+    encomendas: number;
+    chegaram: number;
+    avisados: number;
+    faltas_30_dias: number;
+    mais_pedidos: { produto_id: string | null; descricao: string; vezes: number; quantidade: string }[];
+  };
+  itens: Falta[];
 }

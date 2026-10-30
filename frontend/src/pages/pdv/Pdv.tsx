@@ -50,7 +50,15 @@ type Modo =
   | "cliente"
   | "pontos"
   | "preVenda"
+  | "falta"
   | "fechar";
+
+/** O que o cliente pediu e não tinha, para anotar com F1 na lista de faltas. */
+interface FaltaPendente {
+  produtoId?: string;
+  descricao: string;
+  quantidade: number;
+}
 
 const FORMAS: { tecla: string; forma: FormaPagamento; nome: string }[] = [
   { tecla: "1", forma: "dinheiro", nome: "Dinheiro" },
@@ -91,6 +99,7 @@ export default function Pdv() {
   const [voltarPara, setVoltarPara] = useState<Modo>("venda");
   const [confirmarCancelar, setConfirmarCancelar] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [faltaPendente, setFaltaPendente] = useState<FaltaPendente | null>(null);
   const campo = useRef<HTMLInputElement>(null);
 
   const atualizarCaixa = useCallback(async () => {
@@ -245,7 +254,8 @@ export default function Pdv() {
       const produto = await api<ProdutoPDV>(`/produtos/ean/${lido.codigo}`);
       incluir(produto, lido.quantidade);
     } catch (e) {
-      erro(`${lido.codigo}: ${mensagem(e)}`);
+      setFaltaPendente({ descricao: "", quantidade: lido.quantidade });
+      erro(`${lido.codigo}: ${mensagem(e)}. F1 anota na lista de faltas.`);
     }
   }
 
@@ -254,9 +264,13 @@ export default function Pdv() {
     setCarrinho(novo);
     setSelecionado(novo.itens.findIndex((item) => item.produtoId === produto.id));
     const semSaldo = itensSemSaldo(novo).find((item) => item.produtoId === produto.id);
+    setFaltaPendente(null);
     setAviso(
       semSaldo
-        ? { tipo: "erro", texto: `Atenção: só há ${fmtQtd(semSaldo.saldo)} de ${semSaldo.descricao} em estoque` }
+        ? {
+            tipo: "erro",
+            texto: `Atenção: só há ${fmtQtd(semSaldo.saldo)} de ${semSaldo.descricao} em estoque. F1 anota a falta.`,
+          }
         : null,
     );
   }
@@ -264,7 +278,10 @@ export default function Pdv() {
   async function buscar(termo: string) {
     try {
       const pagina = await api<PaginaProdutos>(`/produtos?busca=${encodeURIComponent(termo)}&por_pagina=20`);
-      if (pagina.itens.length === 0) return erro(`Nenhum produto encontrado para "${termo}"`);
+      if (pagina.itens.length === 0) {
+        setFaltaPendente({ descricao: termo.trim(), quantidade: 1 });
+        return erro(`Nenhum produto encontrado para "${termo}". F1 anota na lista de faltas.`);
+      }
       // A listagem não traz saldo; o PDV consulta pelo EAN ao escolher.
       setResultados(pagina.itens.map((p) => ({ ...p, saldo: "0" })));
       setIndiceBusca(0);
@@ -304,6 +321,48 @@ export default function Pdv() {
       setSelecionado(0);
       mudarModo("venda");
       setAviso({ tipo: "ok", texto: `Pré-venda nº ${numero} carregada (${pre.vendedor}). Confira e receba com F4.` });
+    } catch (e) {
+      erro(mensagem(e));
+    }
+  }
+
+  /** F1: o que faltou é o item sem estoque selecionado, o último não encontrado, ou o que o caixa digitar. */
+  function anotarFalta() {
+    const item = carrinho.itens[selecionado];
+    const pendente =
+      item && item.quantidade > item.saldo
+        ? { produtoId: item.produtoId, descricao: item.descricao, quantidade: item.quantidade - Math.max(item.saldo, 0) }
+        : (faltaPendente ?? { descricao: "", quantidade: 1 });
+    setFaltaPendente(pendente);
+    setModo("falta");
+    setTexto(pendente.descricao);
+    const quem = carrinho.cliente ? ` Fica como encomenda de ${carrinho.cliente.nome}.` : " Para virar encomenda, identifique o cliente (F8) antes.";
+    setAviso({ tipo: "ok", texto: `Confira o que faltou e aperte Enter.${quem}` });
+  }
+
+  async function registrarFalta(descricao: string) {
+    const pendente = faltaPendente;
+    // Se o caixa mudou o texto, não é mais o produto do carrinho.
+    const produtoId = pendente?.produtoId && descricao.trim() === pendente.descricao ? pendente.produtoId : undefined;
+    if (!produtoId && !descricao.trim()) return erro("Escreva o que o cliente pediu");
+    try {
+      await api("/faltas", {
+        corpo: {
+          produto_id: produtoId ?? null,
+          descricao: descricao.trim(),
+          quantidade: String(pendente?.quantidade ?? 1),
+          cliente_id: carrinho.cliente?.id ?? null,
+          origem: "pdv",
+        },
+      });
+      setFaltaPendente(null);
+      mudarModo("venda");
+      setAviso({
+        tipo: "ok",
+        texto: carrinho.cliente
+          ? `Encomenda anotada para ${carrinho.cliente.nome}. Quando chegar, aparece em Faltas e encomendas.`
+          : `Falta anotada: ${descricao.trim()}. Ela entra na sugestão de compras.`,
+      });
     } catch (e) {
       erro(mensagem(e));
     }
@@ -350,6 +409,9 @@ export default function Pdv() {
       case "preVenda":
         receberPreVenda(valor);
         break;
+      case "falta":
+        registrarFalta(valor);
+        break;
       case "cliente":
         if (clientes.length > 0 && clientes[indiceBusca]) escolherCliente(clientes[indiceBusca]);
         else buscarCliente(valor);
@@ -393,6 +455,7 @@ export default function Pdv() {
     function tecla(evento: KeyboardEvent) {
       if (!caixa || modo === "fechar") return;
       const atalhos: Record<string, () => void> = {
+        F1: () => modo === "venda" && anotarFalta(),
         F2: () => mudarModo("busca"),
         F3: () => selecionado >= 0 && mudarModo("quantidade"),
         F4: () => carrinho.itens.length > 0 && mudarModo("pagamento"),
@@ -479,6 +542,7 @@ export default function Pdv() {
     cliente: `${clienteParaPrazo ? "Cliente da venda a prazo" : "Cliente"}: CPF, telefone ou nome (Enter busca; Esc volta)`,
     pontos: "Quantos pontos usar como desconto (Enter confirma; 0 tira)",
     preVenda: "Número da pré-venda",
+    falta: "O que o cliente pediu e não tinha (Enter anota; Esc volta)",
     fechar: "",
   };
 
@@ -647,6 +711,7 @@ export default function Pdv() {
       </form>
 
       <footer className="pdv-atalhos">
+        <span>F1 Anotar falta</span>
         <span>F2 Buscar</span>
         <span>F3 Quantidade</span>
         <span>F4 Pagamento (Alt+5 a prazo)</span>

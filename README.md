@@ -46,6 +46,9 @@ O Vite repassa as chamadas `/api` para o backend. Telas:
 - **/financeiro**: contas a pagar e a receber, fiado e fluxo de caixa.
 - **/clientes**: cadastro com aniversariantes do mês e clientes que não voltam, e a ficha de cada cliente
   (total comprado, o que leva sempre, últimas compras, pontos e fiado).
+- **/faltas**: faltas e encomendas. O balcão (ou o caixa, com F1) anota o que o cliente pediu e não tinha;
+  com nome ou telefone vira encomenda, e quando o produto entra no estoque ela aparece em "Chegaram" com o
+  botão para avisar no WhatsApp. A venda para o cliente da encomenda dá baixa nela sozinha.
 - **/promocoes**: % de desconto, preço especial ou leve e pague, por período e loja; o PDV aplica sozinho
   (vale a de maior desconto) e cada promoção mostra quanto vendeu.
 - **/relatorios**: vendas do período (com lucro bruto e comparação com o período anterior), lucro por
@@ -57,6 +60,9 @@ Cada lote pertence a uma loja. A venda baixa do estoque da loja do PDV, a entrad
 Na nota pelo XML, o fornecedor é cadastrado pelo CNPJ, a loja é a do CNPJ de destino e cada item é
 reconhecido pelo código que o fornecedor já usou antes ou pelo código de barras. A nota só entra no
 estoque depois de conferida e confirmada.
+
+Na sugestão de compras, o que faltou no balcão conta como venda e as encomendas que estão esperando entram
+por cima do estoque normal.
 
 Programa de pontos (ligado em Configurações gerais): o cliente identificado no PDV (F8) ganha pontos
 por real gasto e troca por desconto numa próxima compra (F9). Os pontos podem expirar depois de alguns
@@ -81,11 +87,13 @@ Perfis: administrador, gerente, farmacêutico, operador de caixa, atendente (só
 | Tecla | Ação |
 | --- | --- |
 | Enter | Adiciona o código bipado/digitado (`3*789...` para 3 unidades). Texto sem número busca por nome |
+| F1 | Anotar falta: o item sem estoque, o produto não encontrado ou o que digitar (com cliente, vira encomenda) |
 | F2 | Buscar produto por nome (setas + Enter) |
 | F3 | Alterar a quantidade do item selecionado |
 | F4 | Pagamento (Alt+1 dinheiro, Alt+2 débito, Alt+3 crédito, Alt+4 pix; Enter vazio finaliza) |
 | F6 | Desconto na venda |
 | F7 | Receber uma pré-venda pelo número |
+| F8 / F9 | Identificar o cliente / usar os pontos dele |
 | ↑ ↓ / Del | Selecionar / remover item |
 | Esc | Voltar; na venda, Esc duas vezes cancela |
 | F10 | Fechar caixa |
