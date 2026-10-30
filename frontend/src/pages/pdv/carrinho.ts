@@ -24,14 +24,25 @@ export interface Carrinho {
   pagamentos: Pagamento[];
   /** Pré-venda que está sendo recebida neste carrinho, se houver. */
   preVenda?: { id: string; numero: number };
-  /** Cliente da venda a prazo, com quanto ainda pode comprar. */
-  cliente?: ClienteFiado;
+  /** Cliente identificado: ganha pontos e pode comprar a prazo. */
+  cliente?: ClienteVenda;
+  /** Pontos do cliente trocados por desconto nesta venda. */
+  pontosResgatados?: number;
 }
 
-export interface ClienteFiado {
+export interface ClienteVenda {
   id: string;
   nome: string;
+  /** Quanto ainda pode comprar a prazo (0 = não compra fiado). */
   disponivelCentavos: number;
+  pontos?: PontosCliente;
+}
+
+export interface PontosCliente {
+  saldo: number;
+  /** Quanto vale um ponto, em reais (ex.: "0.05"). */
+  valorPonto: string;
+  minimo: number;
 }
 
 export function novoCarrinho(): Carrinho {
@@ -106,8 +117,28 @@ export function subtotal(carrinho: Carrinho): number {
   return carrinho.itens.reduce((soma, item) => soma + totalItem(item), 0);
 }
 
+/** Desconto que os pontos dão, arredondado para baixo como no servidor. */
+export function valorDosPontos(pontos: number, valorPonto: string): number {
+  return Math.floor(Math.round(pontos * Number(valorPonto) * 1_000_000) / 10_000);
+}
+
+export function descontoPontos(carrinho: Carrinho): number {
+  const pontos = carrinho.pontosResgatados ?? 0;
+  if (!pontos || !carrinho.cliente?.pontos) return 0;
+  return valorDosPontos(pontos, carrinho.cliente.pontos.valorPonto);
+}
+
+/** Quantos pontos dá para usar sem passar do valor da compra. */
+export function maximoDePontos(carrinho: Carrinho): number {
+  const pontos = carrinho.cliente?.pontos;
+  if (!pontos) return 0;
+  const restante = Math.max(subtotal(carrinho) - carrinho.descontoCentavos, 0);
+  const porValor = Math.floor((restante / 100 + 1e-9) / Number(pontos.valorPonto));
+  return Math.max(Math.min(pontos.saldo, porValor), 0);
+}
+
 export function total(carrinho: Carrinho): number {
-  return Math.max(subtotal(carrinho) - carrinho.descontoCentavos, 0);
+  return Math.max(subtotal(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho), 0);
 }
 
 export function pago(carrinho: Carrinho): number {
@@ -137,6 +168,15 @@ export function problemaParaFinalizar(carrinho: Carrinho): string | null {
   if (troco(carrinho) > emDinheiro) return "Troco só pode sair de pagamento em dinheiro";
   const aPrazo = carrinho.pagamentos.filter((p) => p.forma === "prazo").reduce((soma, p) => soma + p.centavos, 0);
   if (aPrazo > 0 && !carrinho.cliente) return "Escolha o cliente da venda a prazo (Alt+5)";
+  const pontos = carrinho.pontosResgatados ?? 0;
+  if (pontos > 0) {
+    if (!carrinho.cliente?.pontos) return "Escolha o cliente para usar os pontos (F8)";
+    if (pontos > carrinho.cliente.pontos.saldo) return `${carrinho.cliente.nome} tem só ${carrinho.cliente.pontos.saldo} pontos`;
+    if (pontos < carrinho.cliente.pontos.minimo) return `O mínimo para trocar é ${carrinho.cliente.pontos.minimo} pontos`;
+    if (subtotal(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho) < 0) {
+      return "Os pontos valem mais que a compra. Use menos pontos (F9).";
+    }
+  }
   if (carrinho.cliente && aPrazo > carrinho.cliente.disponivelCentavos) {
     return `${carrinho.cliente.nome} só pode comprar mais ${(carrinho.cliente.disponivelCentavos / 100).toFixed(2).replace(".", ",")} a prazo`;
   }
@@ -151,6 +191,7 @@ export function montarVenda(carrinho: Carrinho, cpf?: string) {
     desconto: centavosParaApi(carrinho.descontoCentavos),
     cliente_cpf: cpf || null,
     cliente_id: carrinho.cliente?.id ?? null,
+    pontos_resgatados: carrinho.pontosResgatados ?? 0,
     pre_venda_id: carrinho.preVenda?.id ?? null,
   };
 }

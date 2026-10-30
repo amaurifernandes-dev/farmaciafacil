@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { api, mensagem } from "../../api/cliente";
 import type { Configuracoes, Loja, ModoCaixa, Terminal } from "../../api/tipos";
+import { reais } from "../../formato";
 import { ehAdmin, useSessao } from "../../sessao";
 
 export default function Gerais() {
@@ -58,6 +59,7 @@ export default function Gerais() {
       </div>
 
       <RegrasGerais podeEditar={podeEditar} />
+      <ProgramaDePontos podeEditar={podeEditar} />
     </div>
   );
 }
@@ -215,6 +217,124 @@ function RegrasGerais({ podeEditar }: { podeEditar: boolean }) {
           />
           <small>Vencimento do fiado quando o caixa não escolhe outra data.</small>
         </label>
+        {podeEditar && (
+          <div className="acoes largo">
+            <button type="submit">Salvar</button>
+            {aviso && <span className={aviso.tipo}>{aviso.texto}</span>}
+          </div>
+        )}
+      </fieldset>
+    </form>
+  );
+}
+
+function ProgramaDePontos({ podeEditar }: { podeEditar: boolean }) {
+  const [config, setConfig] = useState<Configuracoes | null>(null);
+  const [validade, setValidade] = useState("");
+  const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+
+  function receber(dados: Configuracoes) {
+    // "0.0500" -> "0,05": mais fácil de ler e de editar.
+    const limpo = (valor: string) => String(Number(valor)).replace(".", ",");
+    setConfig({ ...dados, pontos_por_real: limpo(dados.pontos_por_real), valor_ponto: limpo(dados.valor_ponto) });
+    setValidade(dados.pontos_validade_meses == null ? "" : String(dados.pontos_validade_meses));
+  }
+
+  useEffect(() => {
+    api<Configuracoes>("/configuracoes")
+      .then(receber)
+      .catch((e) => setAviso({ tipo: "erro", texto: mensagem(e) }));
+  }, []);
+
+  async function salvar(evento: FormEvent) {
+    evento.preventDefault();
+    if (!config) return;
+    try {
+      receber(
+        await api<Configuracoes>("/configuracoes", {
+          metodo: "PATCH",
+          corpo: {
+            fidelidade_ativa: config.fidelidade_ativa,
+            pontos_por_real: String(config.pontos_por_real).replace(",", "."),
+            valor_ponto: String(config.valor_ponto).replace(",", "."),
+            pontos_minimo_resgate: Number(config.pontos_minimo_resgate),
+            pontos_validade_meses: validade.trim() ? Number(validade) : null,
+          },
+        }),
+      );
+      setAviso({ tipo: "ok", texto: "Programa de pontos salvo." });
+    } catch (e) {
+      setAviso({ tipo: "erro", texto: mensagem(e) });
+    }
+  }
+
+  if (!config) return null;
+
+  // Exemplo em reais para o dono entender quanto devolve ao cliente.
+  const porReal = Number(String(config.pontos_por_real).replace(",", ".")) || 0;
+  const valorPonto = Number(String(config.valor_ponto).replace(",", ".")) || 0;
+  const volta = porReal * valorPonto * 100;
+
+  return (
+    <form className="cartao cartao-separado" onSubmit={salvar}>
+      <h2>Programa de pontos</h2>
+      <p className="vazio">
+        O cliente identificado no caixa ganha pontos a cada compra e troca por desconto numa próxima.
+      </p>
+      <fieldset disabled={!podeEditar} className="campos">
+        <label className="checkbox caixa-marcacao largo">
+          <input
+            type="checkbox"
+            checked={config.fidelidade_ativa}
+            onChange={(e) => setConfig({ ...config, fidelidade_ativa: e.target.checked })}
+          />
+          <span>
+            Usar o programa de pontos
+            <small>Desligado, ninguém ganha nem troca pontos. Os saldos ficam guardados.</small>
+          </span>
+        </label>
+        <label>
+          Pontos por R$ 1,00 gasto
+          <input
+            value={config.pontos_por_real}
+            onChange={(e) => setConfig({ ...config, pontos_por_real: e.target.value })}
+            inputMode="decimal"
+          />
+        </label>
+        <label>
+          Quanto vale cada ponto (R$)
+          <input
+            value={config.valor_ponto}
+            onChange={(e) => setConfig({ ...config, valor_ponto: e.target.value })}
+            inputMode="decimal"
+          />
+        </label>
+        <label>
+          Mínimo de pontos para trocar
+          <input
+            type="number"
+            min={1}
+            value={config.pontos_minimo_resgate}
+            onChange={(e) => setConfig({ ...config, pontos_minimo_resgate: Number(e.target.value) })}
+          />
+        </label>
+        <label>
+          Pontos expiram após (meses sem comprar)
+          <input
+            type="number"
+            min={1}
+            max={60}
+            value={validade}
+            onChange={(e) => setValidade(e.target.value)}
+            placeholder="Não expiram"
+          />
+          <small>Deixe vazio para os pontos nunca expirarem.</small>
+        </label>
+        <p className="nota largo">
+          Assim, uma compra de {reais(100, false)} dá {Math.floor(100 * porReal)} pontos, que valem{" "}
+          {reais(Math.floor(100 * porReal) * valorPonto, false)} de desconto: o cliente recebe de volta{" "}
+          {volta.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% do que gastou.
+        </p>
         {podeEditar && (
           <div className="acoes largo">
             <button type="submit">Salvar</button>

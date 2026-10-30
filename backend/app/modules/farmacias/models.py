@@ -24,3 +24,11 @@ class Farmacia(ComDatas, Base):
     dias_alerta_vencimento: Mapped[int] = mapped_column(Integer, default=30)
     # Vencimento padrão da venda a prazo (fiado), em dias.
     dias_prazo_padrao: Mapped[int] = mapped_column(Integer, default=30)
+
+    # Fidelidade: o cliente identificado ganha pontos por real gasto e troca por desconto.
+    fidelidade_ativa: Mapped[bool] = mapped_column(Boolean, default=False)
+    pontos_por_real: Mapped[Decimal] = mapped_column(Numeric(6, 2), default=Decimal(1))
+    valor_ponto: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=Decimal("0.05"))
+    pontos_minimo_resgate: Mapped[int] = mapped_column(Integer, default=100)
+    # Vazio: não expiram. Senão, expiram se o cliente ficar esse tempo sem comprar.
+    pontos_validade_meses: Mapped[int | None] = mapped_column(Integer, default=12)

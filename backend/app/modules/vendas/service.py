@@ -13,6 +13,7 @@ from app.modules.estoque.models import MovimentoEstoque
 from app.modules.estoque.service import Referencia, baixar_fefo, devolver_movimento
 from app.modules.clientes.models import Cliente
 from app.modules.farmacias.models import Farmacia
+from app.modules.fidelidade.service import desconto_do_resgate, estornar_da_venda, pontuar_venda
 from app.modules.financeiro.service import cancelar_fiado_da_venda, lancar_fiado, recebido_no_caixa
 from app.modules.lojas.models import Loja, Terminal
 from app.modules.lojas.service import matriz, obter_loja, pode_receber
@@ -220,6 +221,15 @@ def registrar_venda(
     if usuario.papel not in GERENTES and subtotal > 0 and descontos * 100 / subtotal > maximo:
         raise SemPermissao(f"Desconto acima de {maximo:g}% precisa de um gerente")
 
+    # A troca de pontos vira desconto, mas não conta no limite de desconto do caixa.
+    if dados.pontos_resgatados:
+        desconto_pontos = desconto_do_resgate(db, farmacia, dados.cliente_id, dados.pontos_resgatados)
+        if descontos + desconto_pontos > subtotal:
+            raise ErroDeNegocio("Os pontos valem mais que o restante da compra. Use menos pontos.")
+        venda.pontos_resgatados = dados.pontos_resgatados
+        venda.desconto_pontos = desconto_pontos
+        descontos += desconto_pontos
+
     venda.subtotal = subtotal
     venda.desconto = descontos
     venda.total = subtotal - descontos
@@ -249,6 +259,7 @@ def registrar_venda(
         valor = sum((p.valor for p in a_prazo), Decimal(0))
         vencimento = next((p.vencimento for p in a_prazo if p.vencimento), None)
         lancar_fiado(db, usuario.usuario_id, venda, loja_id, valor, vencimento, farmacia.dias_prazo_padrao)
+    pontuar_venda(db, farmacia, usuario.usuario_id, venda)
 
     if pre_venda is not None:
         pre_venda.status = "recebida"
@@ -298,6 +309,7 @@ def cancelar_venda(db: Session, usuario: TokenDados, venda_id: UUID, motivo: str
         )
     ).all()
     cancelar_fiado_da_venda(db, venda)
+    estornar_da_venda(db, usuario.usuario_id, venda)
     for movimento in movimentos:
         devolver_movimento(db, movimento, usuario.usuario_id, motivo=f"Cancelamento da venda {venda.numero}")
 

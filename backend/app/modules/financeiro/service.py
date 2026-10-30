@@ -1,6 +1,5 @@
 """Financeiro: contas a pagar e a receber, crédito do cliente (fiado) e fluxo de caixa."""
 
-import calendar
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import ROUND_DOWN, Decimal
@@ -27,18 +26,11 @@ from app.modules.financeiro.schemas import (
 from app.modules.fornecedores.models import Fornecedor
 from app.modules.lojas.service import matriz, obter_loja
 from app.modules.vendas.models import Caixa, Venda, VendaPagamento
-from app.shared.datas import FUSO, hoje
+from app.shared.datas import FUSO, hoje, mais_meses
 from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado
 
 CENTAVO = Decimal("0.01")
 ZERO = Decimal(0)
-
-
-def _mais_meses(dia: date, meses: int) -> date:
-    """Mesmo dia `meses` depois; se o mês for mais curto, o último dia dele (31/01 + 1 mês = 28/02)."""
-    mes = dia.month - 1 + meses
-    ano, mes = dia.year + mes // 12, mes % 12 + 1
-    return date(ano, mes, min(dia.day, calendar.monthrange(ano, mes)[1]))
 
 
 def _dividir(total: Decimal, partes: int) -> list[Decimal]:
@@ -74,7 +66,7 @@ def criar(db: Session, usuario: TokenDados, dados: ContaCriar) -> list[Conta]:
             parcela=numero,
             parcelas=dados.parcelas,
             valor=valor,
-            vencimento=_mais_meses(dados.primeiro_vencimento, numero - 1),
+            vencimento=mais_meses(dados.primeiro_vencimento, numero - 1),
             observacao=dados.observacao,
             usuario_id=usuario.usuario_id,
         )

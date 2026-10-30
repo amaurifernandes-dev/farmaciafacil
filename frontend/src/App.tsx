@@ -7,7 +7,8 @@ import Compras from "./pages/compras/Compras";
 import Nota from "./pages/compras/Nota";
 import Notas from "./pages/compras/Notas";
 import Sugestao from "./pages/compras/Sugestao";
-import Clientes from "./pages/configuracoes/Clientes";
+import Clientes from "./pages/clientes/Clientes";
+import FichaCliente from "./pages/clientes/Ficha";
 import Fornecedores from "./pages/configuracoes/Fornecedores";
 import Gerais from "./pages/configuracoes/Gerais";
 import ConfiguracoesInicio from "./pages/configuracoes/Inicio";
@@ -59,6 +60,8 @@ export default function App() {
         <Route path="/vendas" element={<Vendas />} />
         <Route path="/vendas/pre-venda" element={<PreVenda />} />
         <Route path="/caixas" element={<Caixas />} />
+        <Route path="/clientes" element={<Clientes />} />
+        <Route path="/clientes/:id" element={<FichaCliente />} />
         <Route path="/estoque" element={<Estoque />}>
           <Route index element={<Alertas />} />
           <Route path="saldos" element={<Saldos />} />
@@ -76,7 +79,6 @@ export default function App() {
           <Route path="fluxo" element={<Fluxo />} />
         </Route>
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />
-        <Route path="/configuracoes/clientes" element={<Clientes />} />
         <Route path="/configuracoes/fornecedores" element={<Fornecedores />} />
         <Route path="/configuracoes/produtos" element={<Produtos />} />
         <Route path="/configuracoes/usuarios" element={<SoAdmin><Usuarios /></SoAdmin>} />
@@ -85,6 +87,7 @@ export default function App() {
         {/* Endereços antigos */}
         <Route path="/produtos" element={<Navigate to="/configuracoes/produtos" replace />} />
         <Route path="/estoque/alertas" element={<Navigate to="/estoque" replace />} />
+        <Route path="/configuracoes/clientes" element={<Navigate to="/clientes" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
