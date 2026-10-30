@@ -126,6 +126,12 @@ export default function Sugestao() {
                       <td>
                         {item.nome} {item.apresentacao && <small>{item.apresentacao}</small>}
                         {item.dias_de_estoque === null && <small className="motivo"> · abaixo do mínimo</small>}
+                        {Number(item.encomendas_abertas) > 0 && (
+                          <small className="motivo"> · {quantidade(item.encomendas_abertas)} encomendada(s) por clientes</small>
+                        )}
+                        {Number(item.faltas_no_periodo) > 0 && (
+                          <small className="motivo"> · faltou {quantidade(item.faltas_no_periodo)} no balcão</small>
+                        )}
                       </td>
                       <td className="num">{quantidade(item.saldo)}</td>
                       <td className="num">{quantidade(item.media_diaria)}</td>
@@ -169,7 +175,8 @@ export default function Sugestao() {
       </section>
       <p className="nota nao-imprimir">
         O preço de cada fornecedor é o da última nota dele que entrou no sistema. Importe as notas pelo XML para a
-        comparação ficar completa.
+        comparação ficar completa. O que faltou no balcão conta como venda, e as encomendas dos clientes entram por
+        cima do estoque normal.
       </p>
     </div>
   );

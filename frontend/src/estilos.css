@@ -365,3 +365,13 @@ button.indicador.indicador-marcado { border-color: var(--primaria); background: 
 .etiqueta.curva-B { background: #fff4e5; color: #b54708; }
 .etiqueta.curva-C { background: #eceff2; color: var(--suave); }
 .ficha-colunas .grafico-saldo { width: 40%; }
+
+/* Faltas e encomendas */
+.mais-pedidos { margin-bottom: 20px; }
+.mais-pedidos h2 { font-size: 15px; margin: 0 0 10px; }
+.mais-pedidos ol { margin: 0; padding-left: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 24px; }
+.mais-pedidos li small { display: block; color: var(--suave); }
+.linha-chegou td { background: var(--ok-fundo); }
+a.botao-pequeno.botao-whatsapp { background: #1fa855; border-color: #1fa855; color: #fff; }
+.escolhido-unico { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; background: var(--primaria-suave); font-weight: 600; }
+.escolhido-unico small { color: var(--suave); font-weight: 400; margin-left: 6px; }

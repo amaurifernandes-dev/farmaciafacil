@@ -29,3 +29,4 @@ class Painel(BaseModel):
     dias_alerta_vencimento: int
     clientes: int
     abaixo_do_minimo: int
+    encomendas_chegaram: int  # encomendas que já têm estoque: avisar o cliente

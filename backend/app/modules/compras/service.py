@@ -25,6 +25,7 @@ from app.modules.compras.schemas import (
 )
 from app.modules.estoque.models import MovimentoEstoque
 from app.modules.estoque.service import Referencia, _lotes_vendaveis, entrar, loja_ou_matriz
+from app.modules.faltas.models import PENDENTES, Falta
 from app.modules.financeiro.service import contas_da_nota
 from app.modules.fornecedores.models import Fornecedor
 from app.modules.lojas.models import Loja
@@ -353,6 +354,23 @@ def sugestao(db: Session, loja_id: UUID | None, dias_historico: int, dias_cobert
             .group_by(MovimentoEstoque.produto_id)
         ).all()
     )
+    # Faltas anotadas no balcão são venda que não aconteceu: entram como procura.
+    faltas = dict(
+        db.execute(
+            select(Falta.produto_id, func.sum(Falta.quantidade))
+            .where(Falta.loja_id == loja.id, Falta.status == "registrada", Falta.criado_em >= desde,
+                   Falta.produto_id.isnot(None))
+            .group_by(Falta.produto_id)
+        ).all()
+    )
+    # Encomendas esperando: o cliente já pediu, então precisa ter além do estoque normal.
+    encomendas = dict(
+        db.execute(
+            select(Falta.produto_id, func.sum(Falta.quantidade))
+            .where(Falta.loja_id == loja.id, Falta.status.in_(PENDENTES), Falta.produto_id.isnot(None))
+            .group_by(Falta.produto_id)
+        ).all()
+    )
     vendaveis = _lotes_vendaveis(loja.id).subquery()
     saldos = dict(
         db.execute(
@@ -363,24 +381,26 @@ def sugestao(db: Session, loja_id: UUID | None, dias_historico: int, dias_cobert
     produtos = db.scalars(
         select(Produto)
         .where(Produto.ativo.is_(True))
-        .where(Produto.id.in_(list(vendido)) | (Produto.estoque_minimo > 0))
+        .where(Produto.id.in_([*vendido, *faltas, *encomendas]) | (Produto.estoque_minimo > 0))
     ).all()
 
     candidatos = []
     for produto in produtos:
         saida = max(Decimal(vendido.get(produto.id, 0)), Decimal(0))
+        faltou = Decimal(faltas.get(produto.id, 0))
+        encomendado = Decimal(encomendas.get(produto.id, 0))
         saldo = Decimal(saldos.get(produto.id, 0))
-        media = saida / dias_historico
-        alvo = max(produto.estoque_minimo, media * dias_cobertura)
+        media = (saida + faltou) / dias_historico
+        alvo = max(produto.estoque_minimo, media * dias_cobertura) + encomendado
         falta = (alvo - saldo).to_integral_value(rounding=ROUND_CEILING)
         if falta <= 0:
             continue
-        candidatos.append((produto, saldo, saida, media, falta))
+        candidatos.append((produto, saldo, saida, media, falta, faltou, encomendado))
 
     precos = precos_por_fornecedor(db, [c[0].id for c in candidatos])
     itens = []
     total = Decimal(0)
-    for produto, saldo, saida, media, falta in candidatos:
+    for produto, saldo, saida, media, falta, faltou, encomendado in candidatos:
         fornecedores = precos.get(produto.id, [])
         custo = fornecedores[0].custo_unitario if fornecedores else produto.preco_custo
         if custo is not None:
@@ -394,6 +414,8 @@ def sugestao(db: Session, loja_id: UUID | None, dias_historico: int, dias_cobert
                 saldo=saldo,
                 estoque_minimo=produto.estoque_minimo,
                 vendido_no_periodo=saida,
+                faltas_no_periodo=faltou,
+                encomendas_abertas=encomendado,
                 media_diaria=media.quantize(Decimal("0.001")),
                 dias_de_estoque=(saldo / media).quantize(Decimal("0.1")) if media > 0 else None,
                 sugerido=falta,

@@ -84,6 +84,8 @@ class ItemSugestao(BaseModel):
     saldo: Decimal
     estoque_minimo: Decimal
     vendido_no_periodo: Decimal
+    faltas_no_periodo: Decimal = Field(description="Quanto pediram e não tinha (anotado na lista de faltas)")
+    encomendas_abertas: Decimal = Field(description="Quanto os clientes encomendaram e estão esperando")
     media_diaria: Decimal
     dias_de_estoque: Decimal | None = Field(description="Quantos dias o saldo dura no ritmo atual. Vazio = sem vendas")
     sugerido: Decimal
