@@ -29,6 +29,7 @@ export interface Produto {
   estoque_minimo: string;
   controla_lote: boolean;
   tipo: "medicamento" | "perfumaria" | "outros";
+  vende_online: boolean;
   registro_ms: string | null;
   ativo: boolean;
   codigos: { id: string; ean: string }[];
@@ -260,6 +261,7 @@ export interface Painel {
   clientes: number;
   abaixo_do_minimo: number;
   encomendas_chegaram: number;
+  pedidos_novos: number;
 }
 
 export type ModoCaixa = "mono" | "multi";
@@ -315,6 +317,14 @@ export interface Configuracoes {
   valor_ponto: string;
   pontos_minimo_resgate: number;
   pontos_validade_meses: number | null;
+  loja_online_ativa: boolean;
+  loja_online_endereco: string | null;
+  loja_online_loja_id: string | null;
+  loja_online_mensagem: string | null;
+  whatsapp: string | null;
+  entrega_ativa: boolean;
+  entrega_minimo: string;
+  entrega_area: string | null;
 }
 
 export interface ItemPreVenda {
@@ -593,4 +603,83 @@ export interface ListaFaltas {
     mais_pedidos: { produto_id: string | null; descricao: string; vezes: number; quantidade: string }[];
   };
   itens: Falta[];
+}
+
+export type StatusPedido = "novo" | "separando" | "pronto" | "saiu" | "entregue" | "cancelado";
+export type FormaPedido = "dinheiro" | "cartao" | "pix";
+
+export interface ItemPedido {
+  produto_id: string;
+  descricao: string;
+  quantidade: string;
+  preco_unitario: string;
+  desconto: string;
+  total: string;
+}
+
+export interface Pedido {
+  id: string;
+  numero: number;
+  codigo: string;
+  canal: "site" | "whatsapp" | "telefone";
+  loja_id: string;
+  loja_nome: string;
+  cliente_id: string | null;
+  nome: string;
+  telefone: string;
+  entrega: boolean;
+  endereco: string | null;
+  forma_pagamento: FormaPedido;
+  troco_para: string | null;
+  observacao: string | null;
+  total: string;
+  status: StatusPedido;
+  motivo_cancelamento: string | null;
+  pre_venda_numero: number | null;
+  pago: boolean;
+  itens: ItemPedido[];
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export interface ListaPedidos {
+  resumo: { novo: number; separando: number; pronto: number; saiu: number; entregues_hoje: number; total_hoje: string };
+  pedidos: Pedido[];
+}
+
+export interface LojaPublica {
+  nome: string;
+  mensagem: string | null;
+  whatsapp: string | null;
+  telefone: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  uf: string;
+  entrega: boolean;
+  entrega_minimo: string;
+  entrega_area: string | null;
+}
+
+export interface ProdutoPublico {
+  id: string;
+  nome: string;
+  apresentacao: string | null;
+  fabricante: string | null;
+  preco: string;
+  preco_promocional: string | null;
+  promocao: string | null;
+  maximo: number;
+}
+
+export interface PedidoPublico {
+  numero: number;
+  codigo: string;
+  status: StatusPedido;
+  entrega: boolean;
+  forma_pagamento: FormaPedido;
+  troco_para: string | null;
+  total: string;
+  itens: ItemPedido[];
+  criado_em: string;
+  motivo_cancelamento: string | null;
 }

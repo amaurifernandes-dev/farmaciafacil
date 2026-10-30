@@ -16,6 +16,7 @@ interface ItemMenu {
 const MENU: ItemMenu[] = [
   { para: "/", rotulo: "Visão geral", icone: "painel" },
   { para: "/vendas", rotulo: "Vendas / PDV", icone: "carrinho", agrupa: true },
+  { para: "/pedidos", rotulo: "Pedidos", icone: "recibo" },
   { para: "/caixas", rotulo: "Caixas", icone: "caixa" },
   { para: "/clientes", rotulo: "Clientes", icone: "pessoa", agrupa: true },
   { para: "/faltas", rotulo: "Faltas e encomendas", icone: "sino" },

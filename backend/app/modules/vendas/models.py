@@ -115,6 +115,7 @@ class PreVenda(TabelaDaFarmacia, Base):
     __tablename__ = "pre_vendas"
     __table_args__ = (
         UniqueConstraint("farmacia_id", "numero"),
+        UniqueConstraint("farmacia_id", "id"),
         ForeignKeyConstraint(["farmacia_id", "loja_id"], ["lojas.farmacia_id", "lojas.id"]),
         ForeignKeyConstraint(["farmacia_id", "venda_id"], ["vendas.farmacia_id", "vendas.id"]),
     )

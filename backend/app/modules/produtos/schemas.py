@@ -35,6 +35,7 @@ class ProdutoBase(BaseModel):
     controla_lote: bool = True
     tipo: TipoProduto = "outros"
     registro_ms: str | None = Field(default=None, max_length=20)
+    vende_online: bool | None = Field(default=None, description="Vazio: sim, menos para medicamento")
 
 
 class ProdutoCriar(ProdutoBase):
@@ -61,6 +62,7 @@ class ProdutoAtualizar(BaseModel):
     controla_lote: bool | None = None
     tipo: TipoProduto | None = None
     registro_ms: str | None = Field(default=None, max_length=20)
+    vende_online: bool | None = None
     ativo: bool | None = None
 
 

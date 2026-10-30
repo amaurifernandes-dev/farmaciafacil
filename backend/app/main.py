@@ -12,6 +12,8 @@ from app.modules.fornecedores.router import router as fornecedores_router
 from app.modules.lojas.router import lojas as lojas_router
 from app.modules.lojas.router import terminais as terminais_router
 from app.modules.painel.router import router as painel_router
+from app.modules.pedidos.router import loja as loja_online_router
+from app.modules.pedidos.router import pedidos as pedidos_router
 from app.modules.fiscal.router import router as fiscal_router
 from app.modules.financeiro.router import router as financeiro_router
 from app.modules.produtos.router import router as produtos_router
@@ -44,6 +46,8 @@ app.include_router(financeiro_router, prefix="/api/v1")
 app.include_router(promocoes_router, prefix="/api/v1")
 app.include_router(relatorios_router, prefix="/api/v1")
 app.include_router(faltas_router, prefix="/api/v1")
+app.include_router(pedidos_router, prefix="/api/v1")
+app.include_router(loja_online_router, prefix="/api/v1")
 
 
 @app.get("/api/saude", tags=["infra"])

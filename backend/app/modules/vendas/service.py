@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,7 @@ from app.modules.fidelidade.service import desconto_do_resgate, estornar_da_vend
 from app.modules.financeiro.service import cancelar_fiado_da_venda, lancar_fiado, recebido_no_caixa
 from app.modules.lojas.models import Loja, Terminal
 from app.modules.lojas.service import matriz, obter_loja, pode_receber
+from app.modules.pedidos.models import EM_ANDAMENTO, Pedido
 from app.modules.produtos.models import Produto
 from app.modules.promocoes.service import melhor, vigentes_por_produto
 from app.modules.vendas.models import Caixa, PreVenda, Venda, VendaItem, VendaPagamento
@@ -277,6 +278,12 @@ def registrar_venda(
 
     if pre_venda is not None:
         pre_venda.status = "recebida"
+        # Pedido do site ou do WhatsApp: pago no caixa, está entregue.
+        db.execute(
+            update(Pedido)
+            .where(Pedido.pre_venda_id == pre_venda.id, Pedido.status.in_(EM_ANDAMENTO))
+            .values(status="entregue")
+        )
         pre_venda.venda_id = venda.id
         pre_venda.finalizada_em = venda.finalizada_em
 

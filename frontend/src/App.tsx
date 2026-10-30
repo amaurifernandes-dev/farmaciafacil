@@ -27,6 +27,9 @@ import Inicio from "./pages/Inicio";
 import Login from "./pages/Login";
 import Pdv from "./pages/pdv/Pdv";
 import Faltas from "./pages/faltas/Faltas";
+import AcompanharPedido from "./pages/loja/AcompanharPedido";
+import LojaOnline from "./pages/loja/LojaOnline";
+import Pedidos from "./pages/pedidos/Pedidos";
 import Promocoes from "./pages/promocoes/Promocoes";
 import Relatorios from "./pages/relatorios/Relatorios";
 import PreVenda from "./pages/vendas/PreVenda";
@@ -57,6 +60,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Loja online: pública, sem login */}
+      <Route path="/loja/:endereco" element={<LojaOnline />} />
+      <Route path="/loja/:endereco/pedido/:codigo" element={<AcompanharPedido />} />
       <Route path="/pdv" element={<Protegido><Pdv /></Protegido>} />
       <Route element={<Protegido><Layout /></Protegido>}>
         <Route path="/" element={<Inicio />} />
@@ -82,6 +88,7 @@ export default function App() {
           <Route path="fluxo" element={<Fluxo />} />
         </Route>
         <Route path="/faltas" element={<Faltas />} />
+        <Route path="/pedidos" element={<Pedidos />} />
         <Route path="/promocoes" element={<SoGerente><Promocoes /></SoGerente>} />
         <Route path="/relatorios" element={<SoGerente><Relatorios /></SoGerente>} />
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />

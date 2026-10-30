@@ -29,4 +29,5 @@ class Painel(BaseModel):
     dias_alerta_vencimento: int
     clientes: int
     abaixo_do_minimo: int
-    encomendas_chegaram: int  # encomendas que já têm estoque: avisar o cliente
+    encomendas_chegaram: int
+    pedidos_novos: int  # do site, WhatsApp ou telefone, esperando a farmácia aceitar  # encomendas que já têm estoque: avisar o cliente
