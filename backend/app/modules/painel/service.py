@@ -5,13 +5,13 @@ from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.core.security import TokenDados
+from app.modules.clientes.models import Cliente
 from app.modules.estoque.service import alertas
 from app.modules.farmacias.models import Farmacia
 from app.modules.produtos.models import Produto
 from app.modules.vendas.models import Caixa, Venda
 from app.shared.datas import FUSO, hoje
 
-DIAS_VENCENDO = 30
 CENTAVO = Decimal("0.01")
 
 
@@ -43,7 +43,7 @@ def painel(db: Session, usuario: TokenDados) -> dict:
 
     farmacia = db.get(Farmacia, usuario.farmacia_id)
     caixas_abertos = db.scalars(select(Caixa.usuario_id).where(Caixa.status == "aberto")).all()
-    do_estoque = alertas(db, DIAS_VENCENDO)
+    do_estoque = alertas(db, farmacia.dias_alerta_vencimento)
 
     return {
         "farmacia": farmacia.nome_fantasia,
@@ -62,5 +62,7 @@ def painel(db: Session, usuario: TokenDados) -> dict:
         "produtos_ativos": db.scalar(select(func.count()).select_from(Produto).where(Produto.ativo.is_(True))),
         "lotes_vencidos": len(do_estoque.vencidos),
         "lotes_vencendo": len(do_estoque.vencendo),
+        "dias_alerta_vencimento": farmacia.dias_alerta_vencimento,
+        "clientes": db.scalar(select(func.count()).select_from(Cliente).where(Cliente.ativo.is_(True))),
         "abaixo_do_minimo": len(do_estoque.abaixo_do_minimo),
     }

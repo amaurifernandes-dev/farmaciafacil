@@ -3,9 +3,9 @@ from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
-from app.shared.cpf import cpf_valido
+from app.shared.campos import Cpf
 
 Dinheiro = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
 DinheiroPositivo = Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=2)]
@@ -27,6 +27,8 @@ class CaixaSaida(BaseModel):
 
     id: UUID
     usuario_id: UUID
+    terminal_id: UUID | None
+    loja_id: UUID | None
     status: str
     valor_abertura: Decimal
     aberto_em: datetime
@@ -36,6 +38,9 @@ class CaixaSaida(BaseModel):
 
 class ResumoCaixa(BaseModel):
     caixa: CaixaSaida
+    operador: str
+    terminal: str | None
+    loja: str | None
     quantidade_vendas: int
     total_vendido: Decimal
     por_forma: dict[str, Decimal]
@@ -66,17 +71,8 @@ class VendaCriar(BaseModel):
     itens: Annotated[list[ItemVendaCriar], Field(min_length=1)]
     pagamentos: Annotated[list[PagamentoCriar], Field(min_length=1)]
     desconto: Dinheiro = Decimal(0)
-    cliente_cpf: str | None = None
-
-    @field_validator("cliente_cpf")
-    @classmethod
-    def _cpf(cls, valor: str | None) -> str | None:
-        if valor is None or valor == "":
-            return None
-        digitos = "".join(c for c in valor if c.isdigit())
-        if not cpf_valido(digitos):
-            raise ValueError("CPF inválido")
-        return digitos
+    cliente_cpf: Cpf
+    pre_venda_id: UUID | None = Field(default=None, description="Pré-venda que está sendo recebida")
 
 
 class VendaCancelar(BaseModel):
@@ -120,3 +116,42 @@ class VendaSaida(BaseModel):
     motivo_cancelamento: str | None
     itens: list[ItemVendaSaida]
     pagamentos: list[PagamentoSaida]
+
+
+# --- Pré-venda ---
+
+class ItemPreVendaCriar(BaseModel):
+    produto_id: UUID
+    quantidade: Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=3)]
+
+
+class PreVendaCriar(BaseModel):
+    itens: Annotated[list[ItemPreVendaCriar], Field(min_length=1)]
+    cliente_cpf: Cpf
+    loja_id: UUID | None = Field(default=None, description="Se vazio, usa a loja do PDV ou a matriz")
+
+
+class ItemPreVendaSaida(BaseModel):
+    produto_id: UUID
+    ean: str | None
+    descricao: str
+    quantidade: Decimal
+    preco_unitario: Decimal
+    total: Decimal
+
+
+class PreVendaSaida(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    numero: int
+    loja_id: UUID
+    usuario_id: UUID
+    vendedor: str
+    status: Literal["aberta", "recebida", "cancelada"]
+    itens: list[ItemPreVendaSaida]
+    total: Decimal
+    cliente_cpf: str | None
+    venda_id: UUID | None
+    criado_em: datetime
+    finalizada_em: datetime | None

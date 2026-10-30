@@ -29,7 +29,20 @@ def _produto_com_estoque(client, farmacia, nome="Dipirona 500mg", preco="8.90", 
     return produto
 
 
+def _registrar_pdv(client, headers, nome="PDV 01") -> str:
+    """Cria um PDV na matriz e devolve a chave que o navegador guardaria."""
+    matriz = client.get(f"{API}/lojas", headers=headers).json()[0]
+    terminal = client.post(f"{API}/terminais", json={"loja_id": matriz["id"], "nome": nome}, headers=headers)
+    assert terminal.status_code == 201, terminal.text
+    vinculo = client.post(f"{API}/terminais/{terminal.json()['id']}/vincular", headers=headers)
+    assert vinculo.status_code == 200, vinculo.text
+    return vinculo.json()["chave"]
+
+
 def _abrir_caixa(client, farmacia, valor="100.00") -> dict:
+    """Registra um PDV, passa a usá-lo nas próximas chamadas (X-Terminal) e abre o caixa."""
+    if "X-Terminal" not in farmacia["headers"]:
+        farmacia["headers"]["X-Terminal"] = _registrar_pdv(client, farmacia["headers"])
     resposta = client.post(f"{API}/caixas/abrir", json={"valor_abertura": valor}, headers=farmacia["headers"])
     assert resposta.status_code == 201, resposta.text
     return resposta.json()
@@ -94,9 +107,14 @@ def test_reenvio_com_mesma_chave_nao_duplica(client, farmacia_a):
 
 def test_sem_caixa_aberto(client, farmacia_a):
     produto = _produto_com_estoque(client, farmacia_a)
+    sem_pdv = client.post(f"{API}/vendas", json=_venda(produto["id"]), headers=farmacia_a["headers"])
+    assert sem_pdv.status_code == 400
+    assert "registrado como PDV" in sem_pdv.json()["detail"]
+
+    farmacia_a["headers"]["X-Terminal"] = _registrar_pdv(client, farmacia_a["headers"])
     resposta = client.post(f"{API}/vendas", json=_venda(produto["id"]), headers=farmacia_a["headers"])
     assert resposta.status_code == 400
-    assert "caixa" in resposta.json()["detail"]
+    assert "Abra o caixa" in resposta.json()["detail"]
 
 
 def test_estoque_insuficiente_nao_grava_nada(client, farmacia_a):
@@ -198,7 +216,8 @@ def _login_caixa(client, engine_dono, farmacia) -> dict:
 def test_operador_de_caixa_limites(client, engine_dono, farmacia_a):
     produto = _produto_com_estoque(client, farmacia_a, preco="100.00")
     headers = _login_caixa(client, engine_dono, farmacia_a)
-    client.post(f"{API}/caixas/abrir", json={"valor_abertura": "0"}, headers=headers)
+    headers["X-Terminal"] = _registrar_pdv(client, farmacia_a["headers"])
+    assert client.post(f"{API}/caixas/abrir", json={"valor_abertura": "0"}, headers=headers).status_code == 201
 
     ok = client.post(f"{API}/vendas", json=_venda(produto["id"], pagamentos=[{"forma": "pix", "valor": "90"}], desconto="10.00"), headers=headers)
     assert ok.status_code == 201, ok.text

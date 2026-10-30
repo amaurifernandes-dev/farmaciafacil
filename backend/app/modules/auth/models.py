@@ -3,7 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.shared.models import Base, TabelaDaFarmacia
 
-PAPEIS = ("admin", "gerente", "caixa")
+PAPEIS = ("admin", "gerente", "farmaceutico", "caixa", "atendente", "estoque")
 
 
 class Usuario(TabelaDaFarmacia, Base):
