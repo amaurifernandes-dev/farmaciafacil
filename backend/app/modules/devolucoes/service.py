@@ -30,6 +30,7 @@ from app.modules.devolucoes.schemas import (
 )
 from app.modules.estoque.models import Lote, MovimentoEstoque
 from app.modules.estoque.service import Referencia, devolver_ao_lote
+from app.modules.fidelidade.service import acertar_devolucao
 from app.modules.lojas.models import Loja, Terminal
 from app.modules.lojas.service import matriz
 from app.modules.produtos.models import Produto
@@ -167,7 +168,8 @@ def _saidas(db: Session, devolucoes: list[Devolucao]) -> list[DevolucaoSaida]:
         DevolucaoSaida(
             id=d.id, numero=d.numero, venda_id=d.venda_id, venda_numero=vendas[d.venda_id], loja_id=d.loja_id,
             loja=lojas[d.loja_id],
-            usuario=usuarios[d.usuario_id], destino=d.destino, valor_total=d.valor_total, motivo=d.motivo,
+            usuario=usuarios[d.usuario_id], destino=d.destino, valor_total=d.valor_total, pontos=d.pontos,
+            motivo=d.motivo,
             criado_em=d.criado_em, itens=[ItemDevolucaoSaida.model_validate(i) for i in d.itens],
             vale=saida_vale(db, d.vale, clientes) if d.vale else None,
         )
@@ -313,9 +315,11 @@ def registrar(db: Session, usuario: TokenDados, terminal: Terminal | None, dados
         db.flush()
         devolucao.vale_id = vale.id
 
+    motivo = f"Devolução {devolucao.numero} da venda {venda.numero}"
+    ja_devolvido = sum((valor for _, valor in devolvido.values()), ZERO)
+    devolucao.pontos = acertar_devolucao(db, usuario.usuario_id, venda, ja_devolvido + total, motivo)
     db.add(devolucao)
     db.flush()  # gera os ids dos itens para referenciar nos movimentos
-    motivo = f"Devolução {devolucao.numero} da venda {venda.numero}"
     for item, linha in para_estoque:
         _voltar_ao_estoque(db, usuario.usuario_id, item, linha, motivo)
     db.commit()

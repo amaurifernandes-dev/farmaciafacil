@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
+import { Link } from "react-router-dom";
+
 import { api, mensagem } from "../../api/cliente";
 import type { RelatorioParados, RelatorioProdutos, RelatorioVendas, ResumoVendas } from "../../api/tipos";
 import SeletorLoja from "../../components/SeletorLoja";
@@ -168,6 +170,7 @@ function Vendas({ opcao, lojaId }: { opcao: string; lojaId: string }) {
       <div className="indicadores indicadores-financeiro">
         <Indicador titulo="Faturamento" valor={r(resumo.faturamento)}>
           {variacao(resumo.faturamento, anterior.faturamento) ?? `${resumo.quantidade} venda(s)`}
+          {Number(resumo.valor_devolvido ?? 0) > 0 && <> · já sem {r(resumo.valor_devolvido ?? "0")} de trocas</>}
         </Indicador>
         <Indicador titulo="Vendas" valor={String(resumo.quantidade)}>
           Ticket médio {r(resumo.ticket_medio)}
@@ -249,6 +252,13 @@ function Vendas({ opcao, lojaId }: { opcao: string; lojaId: string }) {
           {resumo.canceladas > 0 && (
             <p className="nota">
               {resumo.canceladas} venda(s) cancelada(s) no período, somando {r(resumo.valor_cancelado)}.
+            </p>
+          )}
+          {(resumo.devolucoes ?? 0) > 0 && (
+            <p className="nota">
+              {resumo.devolucoes} devolução(ões) de itens vendidos no período, somando {r(resumo.valor_devolvido ?? "0")}. O
+              faturamento, o lucro e os totais por dia e por operador já estão sem elas.{" "}
+              <Link to="/devolucoes">Ver as trocas</Link>
             </p>
           )}
         </div>

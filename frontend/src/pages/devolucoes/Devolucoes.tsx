@@ -5,7 +5,7 @@ import { api, mensagem } from "../../api/cliente";
 import type { Devolucao, ListaDevolucoes, VendaParaDevolver } from "../../api/tipos";
 import Icone from "../../components/Icone";
 import { data, quantidade as fmtQtd, reais } from "../../formato";
-import { MOTIVOS, devolvidoPorItem, lerQuantidade, valorDoItem } from "./calculo";
+import { MOTIVOS, devolvidoPorItem, lerQuantidade, textoPontos, valorDoItem } from "./calculo";
 
 const FORMAS: Record<string, string> = {
   dinheiro: "Dinheiro",
@@ -159,6 +159,7 @@ function NovaDevolucao({ numeroInicial }: { numeroInicial: string }) {
             <p>O valor já saiu do dinheiro esperado no fechamento do caixa.</p>
           </>
         )}
+        {(feita.pontos ?? 0) !== 0 && <p className="vazio">{textoPontos(feita.pontos ?? 0)}</p>}
         <ul className="lista-simples">
           {feita.itens.map((i) => (
             <li key={i.venda_item_id}>
@@ -431,7 +432,15 @@ function Lista() {
                         <span className="etiqueta etiqueta-neutra">Dinheiro</span>
                       )}
                     </td>
-                    <td className="num">{reais(d.valor_total)}</td>
+                    <td className="num">
+                      {reais(d.valor_total)}
+                      {(d.pontos ?? 0) !== 0 && (
+                        <small className="vazio bloco">
+                          {(d.pontos ?? 0) > 0 ? "+" : ""}
+                          {d.pontos} pontos
+                        </small>
+                      )}
+                    </td>
                     <td className="num">
                       <button type="button" className="botao-pequeno" onClick={() => abrirComprovante(d.id)}>
                         Comprovante

@@ -60,6 +60,8 @@ class Devolucao(TabelaDaFarmacia, Base):
     vale_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     valor_total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     motivo: Mapped[str] = mapped_column(String(200))
+    # Quanto o saldo de pontos do cliente mudou (negativo: perdeu os pontos do que devolveu).
+    pontos: Mapped[int] = mapped_column(Integer, default=0)
 
     itens: Mapped[list["ItemDevolucao"]] = relationship(cascade="all, delete-orphan", lazy="selectin")
     vale: Mapped[ValeTroca | None] = relationship(lazy="joined")

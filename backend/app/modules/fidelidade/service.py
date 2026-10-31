@@ -144,6 +144,35 @@ def estornar_da_venda(db: Session, usuario_id: UUID, venda: Venda) -> None:
                                usuario_id=usuario_id, observacao=f"Cancelamento da venda nº {venda.numero}"))
 
 
+def acertar_devolucao(
+    db: Session, usuario_id: UUID, venda: Venda, devolvido_total: Decimal, observacao: str
+) -> int:
+    """Itens devolvidos: tira os pontos ganhos com eles e devolve os pontos trocados neles.
+
+    Proporcional ao valor pago: devolvendo metade do que o cliente pagou, perde metade dos pontos
+    ganhos e recebe de volta metade dos pontos que usou. A conta é sobre o total já devolvido da
+    venda, para várias devoluções somarem certo. Devolve a mudança no saldo (o saldo pode ficar
+    negativo se o cliente já gastou os pontos). Não faz commit.
+    """
+    pago = venda.total - venda.taxa_entrega
+    if venda.cliente_id is None or pago <= 0 or not (venda.pontos_ganhos or venda.pontos_resgatados):
+        return 0
+    fracao = min(devolvido_total / pago, Decimal(1))
+    perde = venda.pontos_ganhos - int((venda.pontos_ganhos * (1 - fracao)).to_integral_value(ROUND_DOWN))
+    recebe = int((venda.pontos_resgatados * fracao).to_integral_value(ROUND_DOWN))
+    # Cancelar não é possível depois de uma devolução: os estornos desta venda são das devoluções.
+    ja_acertado = db.scalar(
+        select(func.coalesce(func.sum(MovimentoPontos.pontos), 0))
+        .where(MovimentoPontos.venda_id == venda.id, MovimentoPontos.tipo == "estorno")
+    )
+    mudanca = recebe - perde - ja_acertado
+    if mudanca:
+        _travar_cliente(db, venda.cliente_id)
+        db.add(MovimentoPontos(cliente_id=venda.cliente_id, tipo="estorno", pontos=mudanca, venda_id=venda.id,
+                               usuario_id=usuario_id, observacao=observacao))
+    return mudanca
+
+
 def ajustar(db: Session, usuario: TokenDados, farmacia: Farmacia, cliente_id: UUID, quantidade: int,
             observacao: str) -> Pontos:
     if quantidade == 0:

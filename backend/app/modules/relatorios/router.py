@@ -6,7 +6,11 @@ from fastapi import APIRouter, Query
 
 from app.core.deps import DB, Gerente
 from app.modules.relatorios import service
-from app.modules.relatorios.schemas import RelatorioParados, RelatorioProdutos, RelatorioVendas
+from app.modules.relatorios.schemas import (
+    RelatorioParados,
+    RelatorioProdutos,
+    RelatorioVendas,
+)
 from app.shared.datas import hoje
 from app.shared.erros import ErroDeNegocio
 

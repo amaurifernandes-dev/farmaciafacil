@@ -190,3 +190,54 @@ def test_isolamento_das_devolucoes(client, farmacia_a, farmacia_b):
     assert client.get(f"{API}/devolucoes/{d['id']}", headers=hb).status_code == 404
     assert client.get(f"{API}/vales/{d['vale']['codigo']}", headers=hb).status_code == 404
     assert client.get(f"{API}/devolucoes", headers=hb).json()["quantidade"] == 0
+
+
+def test_devolucao_acerta_os_pontos_do_cliente(client, farmacia_a):
+    h = farmacia_a["headers"]
+    client.patch(f"{API}/configuracoes", headers=h, json={
+        "fidelidade_ativa": True, "pontos_por_real": "1", "valor_ponto": "0.10", "pontos_minimo_resgate": 50})
+    maria = _cliente(client, farmacia_a, nome="Maria")
+    client.post(f"{API}/clientes/{maria['id']}/pontos/ajuste", json={"pontos": 100, "observacao": "Bônus"}, headers=h)
+
+    def saldo():
+        return client.get(f"{API}/clientes/{maria['id']}/pontos", headers=h).json()["saldo"]
+
+    creme = _produto_com_estoque(client, farmacia_a, "Creme", "10.00", lotes=(("C", 300, 20),))
+    _abrir_caixa(client, farmacia_a)
+    # 100,00 com 50 pontos trocados (R$ 5,00): paga 95,00 e ganha 95 pontos.
+    venda = _vender(client, farmacia_a, creme, 10, [{"forma": "pix", "valor": "95.00"}],
+                    cliente_id=maria["id"], pontos_resgatados=50)
+    assert (venda["total"], venda["pontos_ganhos"], saldo()) == ("95.00", 95, 145)
+
+    # Metade de volta: perde metade dos ganhos (48) e recebe metade dos trocados (25).
+    d1 = _devolver(client, farmacia_a, venda, [_item(venda, 5)])
+    assert (d1["valor_total"], d1["pontos"], saldo()) == ("47.50", -23, 122)
+    # O resto: no fim, é como se a compra não tivesse acontecido.
+    d2 = _devolver(client, farmacia_a, venda, [_item(venda, 5)])
+    assert (d2["pontos"], saldo()) == (-22, 100)
+
+    # Sem cliente na venda, nada muda.
+    avulsa = _vender(client, farmacia_a, creme, 1, [{"forma": "pix", "valor": "10.00"}])
+    assert _devolver(client, farmacia_a, avulsa, [_item(avulsa, 1)])["pontos"] == 0
+
+
+def test_relatorios_e_painel_tiram_as_devolucoes(client, farmacia_a):
+    h = farmacia_a["headers"]
+    perfume = _produto_com_estoque(client, farmacia_a, "Perfume", "50.00", lotes=(("P", 300, 5),))
+    client.patch(f"{API}/produtos/{perfume['id']}", json={"preco_custo": "20.00"}, headers=h)
+    _abrir_caixa(client, farmacia_a)
+    venda = _vender(client, farmacia_a, perfume, 3, [{"forma": "pix", "valor": "150.00"}])
+    _devolver(client, farmacia_a, venda, [_item(venda, 1)])  # volta ao estoque: o custo sai
+    _devolver(client, farmacia_a, venda, [_item(venda, 1, volta_estoque=False)])  # descarte: o custo fica
+
+    resumo = client.get(f"{API}/relatorios/vendas", headers=h).json()
+    r = resumo["resumo"]
+    assert (r["quantidade"], r["faturamento"], r["devolucoes"], r["valor_devolvido"], r["custo"], r["lucro_bruto"]) == (
+        1, "50.00", 2, "100.00", "40.00", "10.00")
+    assert sum(Decimal(d["total"]) for d in resumo["por_dia"]) == 50
+    assert resumo["por_operador"][0]["total"] == "50.00"
+
+    produto = client.get(f"{API}/relatorios/produtos", headers=h).json()["produtos"][0]
+    assert (Decimal(produto["quantidade"]), produto["faturamento"], produto["custo"]) == (1, "50.00", "40.00")
+
+    assert client.get(f"{API}/painel", headers=h).json()["vendas_hoje"] == "50.00"

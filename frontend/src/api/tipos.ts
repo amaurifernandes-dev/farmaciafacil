@@ -562,6 +562,8 @@ export interface ResumoVendas {
   itens_sem_custo: number;
   canceladas: number;
   valor_cancelado: string;
+  devolucoes?: number;
+  valor_devolvido?: string;
 }
 
 export interface RelatorioVendas {
@@ -1171,6 +1173,7 @@ export interface Devolucao {
   usuario: string;
   destino: "dinheiro" | "vale";
   valor_total: string;
+  pontos?: number;
   motivo: string;
   criado_em: string;
   itens: ItemDevolucao[];

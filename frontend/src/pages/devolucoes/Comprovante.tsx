@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { api, mensagem } from "../../api/cliente";
 import type { Devolucao, Loja } from "../../api/tipos";
 import { data, quantidade as fmtQtd, reais } from "../../formato";
+import { textoPontos } from "./calculo";
 
 /** Comprovante da devolução, com o vale-troca destacado para o cliente guardar. */
 export default function ComprovanteDevolucao() {
@@ -97,6 +98,8 @@ export default function ComprovanteDevolucao() {
         <strong>Como recebeu:</strong>{" "}
         {d.vale ? "vale-troca para usar em outra compra nesta farmácia" : `${reais(d.valor_total)} em dinheiro`}
       </p>
+
+      {(d.pontos ?? 0) !== 0 && <p>{textoPontos(d.pontos ?? 0)}</p>}
 
       <p className="declaracao-legal">
         {d.vale
