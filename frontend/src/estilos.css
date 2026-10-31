@@ -592,3 +592,21 @@ button.vitrine-tirar { border: 0; color: var(--suave); font-size: 12px; padding:
   body { background: #fff; }
 }
 .tabela tr.selecionado td { background: var(--selecao); }
+
+/* Metas de vendas */
+.barra-meta { position: relative; height: 8px; min-width: 120px; border-radius: 999px; background: #eceff2; overflow: visible; }
+.barra-meta-grande { height: 14px; margin: 12px 0 8px; }
+.barra-meta-feito { height: 100%; border-radius: 999px; background: var(--primaria); transition: width 0.3s; }
+.barra-meta-abaixo .barra-meta-feito, .barra-meta-nao_batida .barra-meta-feito { background: #d97706; }
+.barra-meta-batida .barra-meta-feito { background: var(--ok); }
+.barra-meta-marca { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--texto); border-radius: 1px; opacity: 0.55; }
+.meta-resumo-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.meta-resumo p { margin: 0; }
+.campo-meta { width: 110px; text-align: right; }
+.celula-andamento { min-width: 180px; }
+.celula-andamento .livro-detalhe { margin-top: 6px; }
+.metas-inicio { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.metas-inicio .cartao-cabecalho { margin-bottom: 0; }
+.metas-inicio strong.valor-meta { font-size: 22px; }
+.metas-acoes { align-items: center; }
+.cartao label.meta-sugestao { flex-direction: row; align-items: center; gap: 8px; color: var(--suave); font-size: 14px; }

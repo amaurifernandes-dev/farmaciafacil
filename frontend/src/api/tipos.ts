@@ -272,6 +272,8 @@ export interface Painel {
   abaixo_do_minimo: number;
   encomendas_chegaram: number;
   pedidos_novos: number;
+  meta_farmacia: Andamento | null;
+  minha_meta: Andamento | null;
 }
 
 export type ModoCaixa = "mono" | "multi";
@@ -1014,4 +1016,33 @@ export interface DetalheVendedor {
   vendedor: VendedorComissao;
   vendas: { venda_id: string; numero: number; finalizada_em: string; vendido: string; comissao: string; pre_venda: boolean }[];
   produtos: { produto_id: string; descricao: string; quantidade: string; vendido: string; percentual: string; comissao: string }[];
+}
+
+export type SituacaoMeta = "batida" | "no_ritmo" | "abaixo" | "nao_batida" | "nao_comecou" | "sem_meta";
+
+export interface Andamento {
+  id: string | null;
+  nome: string;
+  detalhe: string | null;
+  meta: string | null;
+  vendido: string;
+  vendas: number;
+  vendido_hoje: string;
+  percentual: string | null;
+  esperado_ate_hoje: string | null;
+  projecao: string | null;
+  falta: string | null;
+  por_dia: string | null;
+  situacao: SituacaoMeta;
+  vendido_mes_passado: string;
+}
+
+export interface MetasDoMes {
+  mes: string;
+  dias_no_mes: number;
+  dias_passados: number;
+  dias_restantes: number;
+  total: Andamento;
+  lojas: Andamento[];
+  vendedores: Andamento[];
 }
