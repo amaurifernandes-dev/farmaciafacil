@@ -38,6 +38,7 @@ import Convenios from "./pages/convenios/Convenios";
 import ComprovantePopular from "./pages/popular/Comprovante";
 import Popular from "./pages/popular/Popular";
 import Etiquetas from "./pages/etiquetas/Etiquetas";
+import Comissoes from "./pages/comissoes/Comissoes";
 import ImprimirEtiquetas from "./pages/etiquetas/Imprimir";
 import PreVenda from "./pages/vendas/PreVenda";
 import Vendas from "./pages/vendas/Vendas";
@@ -109,6 +110,7 @@ export default function App() {
         <Route path="/convenios/:id" element={<SoGerente><Convenios /></SoGerente>} />
         <Route path="/popular" element={<SoGerente><Popular /></SoGerente>} />
         <Route path="/etiquetas" element={<Etiquetas />} />
+        <Route path="/comissoes" element={<Comissoes />} />
         <Route path="/controlados" element={<SoFarmaceutico><Controlados /></SoFarmaceutico>} />
         <Route path="/fiscal" element={<SoGerente><FechamentoFiscal /></SoGerente>} />
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />

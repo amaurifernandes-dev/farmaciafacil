@@ -25,6 +25,7 @@ class UsuarioCriar(BaseModel):
     email: EmailStr
     papel: Papel
     senha: Senha
+    recebe_comissao: bool = True
 
 
 class UsuarioAtualizar(BaseModel):
@@ -33,6 +34,7 @@ class UsuarioAtualizar(BaseModel):
     papel: Papel | None = None
     ativo: bool | None = None
     senha: Senha | None = None
+    recebe_comissao: bool | None = None
 
 
 class UsuarioSaida(BaseModel):
@@ -43,6 +45,7 @@ class UsuarioSaida(BaseModel):
     email: str
     papel: Papel
     ativo: bool
+    recebe_comissao: bool = True
     criado_em: datetime
 
 
@@ -77,6 +80,7 @@ def criar(db: DB, _: Admin, dados: UsuarioCriar) -> UsuarioSaida:
         email=dados.email.lower(),
         papel=dados.papel,
         senha_hash=gerar_hash_senha(dados.senha),
+        recebe_comissao=dados.recebe_comissao,
     )
     db.add(usuario)
     _salvar(db)

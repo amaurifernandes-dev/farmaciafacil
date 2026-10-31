@@ -50,6 +50,7 @@ class Configuracoes(BaseModel):
     pix_no_site: bool
     popular_validade_receita: ValidadeReceita = 180
     popular_intervalo_dias: IntervaloPopular = 30
+    comissao_padrao: PercentualDesconto = Decimal(0)
 
 
 class ConfiguracoesAtualizar(BaseModel):
@@ -84,6 +85,7 @@ class ConfiguracoesAtualizar(BaseModel):
     popular_intervalo_dias: IntervaloPopular | None = Field(
         default=None, description="Dias até o paciente levar o mesmo remédio de novo. 0 não confere"
     )
+    comissao_padrao: PercentualDesconto | None = Field(default=None, description="% de comissão dos vendedores")
 
 
 # Campos que aceitam vazio (null apaga o valor).

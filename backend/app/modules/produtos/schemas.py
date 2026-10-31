@@ -9,6 +9,7 @@ from app.modules.promocoes.schemas import PromocaoPDV
 
 Ean = Annotated[str, Field(pattern=r"^\d{8,14}$", description="Somente dígitos, 8 a 14")]
 Preco = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
+Percentual = Annotated[Decimal, Field(ge=0, le=100, max_digits=5, decimal_places=2)]
 Quantidade = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=3)]
 TipoProduto = Literal["medicamento", "perfumaria", "outros"]
 Cfop = Annotated[str, Field(pattern=r"^[5-7]\d{3}$", description="CFOP de saída, ex.: 5102 ou 5405")]
@@ -44,6 +45,7 @@ class ProdutoBase(BaseModel):
     popular_valor: Preco | None = Field(
         default=None, description="Farmácia Popular: quanto o governo paga por caixa. Vazio: fora do programa"
     )
+    comissao: Percentual | None = Field(default=None, description="% de comissão do vendedor. Vazio: a padrão")
 
 
 class ProdutoCriar(ProdutoBase):
@@ -74,6 +76,7 @@ class ProdutoAtualizar(BaseModel):
     controle: Controle | None = None
     embalagem_sngpc: EmbalagemSngpc | None = None
     popular_valor: Preco | None = None
+    comissao: Percentual | None = None
     ativo: bool | None = None
 
 

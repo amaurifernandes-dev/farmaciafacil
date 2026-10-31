@@ -56,7 +56,7 @@ function valoresIniciais(campos: Campo[], registro?: Record<string, unknown>): V
   return Object.fromEntries(
     campos.map((c) => {
       const atual = registro?.[c.nome];
-      if (c.tipo === "check") return [c.nome, Boolean(atual ?? (c.nome === "ativo" ? true : false))];
+      if (c.tipo === "check") return [c.nome, Boolean(atual ?? (c.nome === "ativo" || c.nome === "recebe_comissao"))];
       if (c.tipo === "select") return [c.nome, String(atual ?? c.opcoes?.[0]?.valor ?? "")];
       return [c.nome, atual == null ? "" : String(atual)];
     }),
