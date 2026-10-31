@@ -591,3 +591,4 @@ button.vitrine-tirar { border: 0; color: var(--suave); font-size: 12px; padding:
   .etq-folha { padding: 0; max-width: none; }
   body { background: #fff; }
 }
+.tabela tr.selecionado td { background: var(--selecao); }

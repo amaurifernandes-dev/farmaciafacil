@@ -43,7 +43,9 @@ class Venda(TabelaDaFarmacia, Base):
     )
 
     caixa_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))  # quem passou no caixa
+    # Quem vendeu (comissão): o balconista da pré-venda, ou o próprio caixa.
+    vendedor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     numero: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(12), default="finalizada")
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2))
@@ -97,6 +99,8 @@ class VendaItem(TabelaDaFarmacia, Base):
     custo_unitario: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
     promocao_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     desconto_promocao: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    # % de comissão no dia da venda. Vazio nas vendas antigas: vale a regra de hoje.
+    comissao: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
 
 
 class VendaPagamento(TabelaDaFarmacia, Base):

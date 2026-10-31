@@ -44,6 +44,7 @@ function produto(campos: Partial<ProdutoPDV> = {}): ProdutoPDV {
     controle: null,
     embalagem_sngpc: "caixa",
     popular_valor: null,
+    comissao: null,
     ativo: true,
     codigos: [],
     saldo: "10",

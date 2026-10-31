@@ -51,6 +51,8 @@ class Produto(TabelaDaFarmacia, Base):
     embalagem_sngpc: Mapped[str] = mapped_column(String(6), default="caixa")  # caixa ou frasco, como a Anvisa conta
     # Farmácia Popular: quanto o governo paga, no máximo, por unidade vendida. Vazio: fora do programa.
     popular_valor: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    # % de comissão do vendedor neste produto. Vazio: a comissão padrão da farmácia.
+    comissao: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
 
     codigos: Mapped[list["ProdutoCodigo"]] = relationship(
         back_populates="produto", cascade="all, delete-orphan", lazy="selectin"

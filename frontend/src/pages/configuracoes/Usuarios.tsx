@@ -8,6 +8,7 @@ interface Usuario {
   email: string;
   papel: Papel;
   ativo: boolean;
+  recebe_comissao: boolean;
 }
 
 const PERFIS: { papel: Papel; descricao: string }[] = [
@@ -37,6 +38,7 @@ const CAMPOS: Campo[] = [
     ignorarVazio: true,
     dica: "Deixe em branco para manter a atual",
   },
+  { nome: "recebe_comissao", rotulo: "Recebe comissão sobre o que vende", tipo: "check" },
   { nome: "ativo", rotulo: "Usuário ativo", tipo: "check", soNaEdicao: true },
 ];
 
@@ -54,6 +56,7 @@ export default function Usuarios() {
         { titulo: "Nome", valor: (u) => <strong>{u.nome}</strong> },
         { titulo: "E-mail", valor: (u) => u.email },
         { titulo: "Perfil", valor: (u) => NOMES_PAPEIS[u.papel] },
+        { titulo: "Comissão", valor: (u) => (u.recebe_comissao ? "Recebe" : "Não recebe") },
         { titulo: "Situação", valor: (u) => (u.ativo ? "Ativo" : "Inativo") },
       ]}
       rodape={

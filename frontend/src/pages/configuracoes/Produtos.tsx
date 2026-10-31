@@ -23,6 +23,7 @@ type Formulario = {
   controle: ListaControle | "";
   embalagem_sngpc: Produto["embalagem_sngpc"];
   popular_valor: string;
+  comissao: string;
 };
 
 /** As listas da Portaria 344/98 que a farmácia vende, e o antibiótico (RDC 20/2011). */
@@ -57,6 +58,7 @@ const VAZIO: Formulario = {
   controle: "",
   embalagem_sngpc: "caixa",
   popular_valor: "",
+  comissao: "",
 };
 
 function paraFormulario(p: Produto): Formulario {
@@ -78,6 +80,7 @@ function paraFormulario(p: Produto): Formulario {
     controle: p.controle ?? "",
     embalagem_sngpc: p.embalagem_sngpc,
     popular_valor: p.popular_valor ? p.popular_valor.replace(".", ",") : "",
+    comissao: p.comissao ? String(Number(p.comissao)).replace(".", ",") : "",
   };
 }
 
@@ -102,6 +105,7 @@ function paraApi(f: Formulario) {
     controle: f.controle || null,
     embalagem_sngpc: f.embalagem_sngpc,
     popular_valor: ouNulo(f.popular_valor.replace(/\./g, "").replace(",", ".")),
+    comissao: ouNulo(f.comissao.replace(",", ".")),
   };
 }
 
@@ -280,6 +284,16 @@ export default function Produtos() {
               placeholder="Fora do programa"
             />
             <small>Valor de referência do Ministério. Vazio: não está no programa.</small>
+          </label>
+          <label>
+            Comissão do vendedor (%)
+            <input
+              value={form.comissao}
+              onChange={(e) => campo("comissao", e.target.value)}
+              inputMode="decimal"
+              placeholder="A padrão da farmácia"
+            />
+            <small>Ex.: mais comissão nos genéricos. Vazio: usa a padrão.</small>
           </label>
           <label className="checkbox">
             <input type="checkbox" checked={form.controla_lote} onChange={(e) => campo("controla_lote", e.target.checked)} />

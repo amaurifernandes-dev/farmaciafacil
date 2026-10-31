@@ -175,6 +175,7 @@ function RegrasGerais({ podeEditar }: { podeEditar: boolean }) {
             dias_prazo_padrao: Number(config.dias_prazo_padrao),
             popular_validade_receita: Number(config.popular_validade_receita),
             popular_intervalo_dias: Number(config.popular_intervalo_dias),
+            comissao_padrao: String(config.comissao_padrao).replace(",", "."),
           },
         }),
       );
@@ -220,6 +221,15 @@ function RegrasGerais({ podeEditar }: { podeEditar: boolean }) {
             onChange={(e) => setConfig({ ...config, dias_prazo_padrao: Number(e.target.value) })}
           />
           <small>Vencimento do fiado quando o caixa não escolhe outra data.</small>
+        </label>
+        <label>
+          Comissão padrão dos vendedores (%)
+          <input
+            value={config.comissao_padrao}
+            onChange={(e) => setConfig({ ...config, comissao_padrao: e.target.value })}
+            inputMode="decimal"
+          />
+          <small>Sobre o que cada um vendeu. No cadastro do produto dá para usar outra.</small>
         </label>
         <label>
           Farmácia Popular: a receita vale (dias)

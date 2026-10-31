@@ -27,6 +27,8 @@ class Farmacia(ComDatas, Base):
     # Farmácia Popular: validade da receita e dias até o paciente levar o mesmo remédio de novo (0: não confere).
     popular_validade_receita: Mapped[int] = mapped_column(Integer, default=180)
     popular_intervalo_dias: Mapped[int] = mapped_column(Integer, default=30)
+    # Comissão dos vendedores, em % do que venderam (o produto pode ter outra).
+    comissao_padrao: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal(0))
 
     # Fidelidade: o cliente identificado ganha pontos por real gasto e troca por desconto.
     fidelidade_ativa: Mapped[bool] = mapped_column(Boolean, default=False)

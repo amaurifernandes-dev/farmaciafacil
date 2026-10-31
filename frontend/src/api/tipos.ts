@@ -36,6 +36,8 @@ export interface Produto {
   embalagem_sngpc: "caixa" | "frasco";
   /** Farmácia Popular: quanto o governo paga por caixa. Vazio: fora do programa. */
   popular_valor: string | null;
+  /** % de comissão do vendedor. Vazio: a padrão da farmácia. */
+  comissao: string | null;
   ativo: boolean;
   codigos: { id: string; ean: string }[];
 }
@@ -344,6 +346,7 @@ export interface Configuracoes {
   pix_no_site: boolean;
   popular_validade_receita: number;
   popular_intervalo_dias: number;
+  comissao_padrao: string;
 }
 
 export interface TaxaBairro {
@@ -982,4 +985,33 @@ export interface ListaEtiquetas {
   nunca_impressas: number;
   preco_mudou: number;
   promocao: number;
+}
+
+export interface VendedorComissao {
+  usuario_id: string;
+  nome: string;
+  papel: Papel;
+  recebe_comissao: boolean;
+  vendas: number;
+  vendido: string;
+  comissao: string;
+  ticket_medio: string;
+  percentual: string;
+}
+
+export interface RelatorioComissoes {
+  inicio: string;
+  fim: string;
+  comissao_padrao: string;
+  vendedores: VendedorComissao[];
+  total_vendido: string;
+  total_comissao: string;
+}
+
+export interface DetalheVendedor {
+  inicio: string;
+  fim: string;
+  vendedor: VendedorComissao;
+  vendas: { venda_id: string; numero: number; finalizada_em: string; vendido: string; comissao: string; pre_venda: boolean }[];
+  produtos: { produto_id: string; descricao: string; quantidade: string; vendido: string; percentual: string; comissao: string }[];
 }

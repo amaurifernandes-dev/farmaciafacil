@@ -195,6 +195,8 @@ def registrar_venda(
     venda = Venda(
         caixa_id=caixa.id,
         usuario_id=usuario.usuario_id,
+        # Venda que veio de pré-venda é do balconista que atendeu.
+        vendedor_id=pre_venda.usuario_id if pre_venda is not None else usuario.usuario_id,
         chave_idempotencia=dados.chave_idempotencia,
         cliente_cpf=dados.cliente_cpf,
         cliente_id=dados.cliente_id,
@@ -206,6 +208,7 @@ def registrar_venda(
     # Caixas antigos, de antes das lojas, vendem do estoque da matriz.
     loja_id = caixa.loja_id or matriz(db).id
     promocoes = vigentes_por_produto(db, [i.produto_id for i in dados.itens], loja_id)
+    farmacia = db.get(Farmacia, usuario.farmacia_id)
 
     subtotal = Decimal(0)
     descontos = dados.desconto
@@ -236,6 +239,7 @@ def registrar_venda(
                 custo_unitario=produto.preco_custo,
                 promocao_id=promocao.id if promocao else None,
                 desconto_promocao=desconto_promocao,
+                comissao=produto.comissao if produto.comissao is not None else farmacia.comissao_padrao,
             )
         )
         subtotal += bruto
@@ -247,7 +251,6 @@ def registrar_venda(
     receituario = receituario_da_venda(vendidos)
     if receituario is not None:
         validar_receita(receituario, dados.receita, hoje())
-    farmacia = db.get(Farmacia, usuario.farmacia_id)
     maximo = farmacia.desconto_maximo_caixa
     if usuario.papel not in GERENTES and subtotal > 0 and manuais * 100 / subtotal > maximo:
         raise SemPermissao(f"Desconto acima de {maximo:g}% precisa de um gerente")
