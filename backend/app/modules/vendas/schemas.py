@@ -48,7 +48,8 @@ class ResumoCaixa(BaseModel):
     total_vendido: Decimal
     por_forma: dict[str, Decimal]
     recebimentos_dinheiro: Decimal = Decimal(0)  # contas a receber (fiado) pagas em dinheiro neste caixa
-    dinheiro_esperado: Decimal  # abertura + dinheiro recebido - troco + recebimentos em dinheiro
+    servicos_dinheiro: Decimal = Decimal(0)  # serviços farmacêuticos pagos em dinheiro neste caixa
+    dinheiro_esperado: Decimal  # abertura + dinheiro recebido - troco + recebimentos e serviços em dinheiro
     diferenca: Decimal | None  # informado - esperado (só depois de fechar)
 
 

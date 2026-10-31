@@ -9,6 +9,7 @@ interface Usuario {
   papel: Papel;
   ativo: boolean;
   recebe_comissao: boolean;
+  crf: string | null;
 }
 
 const PERFIS: { papel: Papel; descricao: string }[] = [
@@ -38,6 +39,7 @@ const CAMPOS: Campo[] = [
     ignorarVazio: true,
     dica: "Deixe em branco para manter a atual",
   },
+  { nome: "crf", rotulo: "CRF (só farmacêutico)", dica: "Ex.: SP 12345. Vai na declaração dos serviços farmacêuticos" },
   { nome: "recebe_comissao", rotulo: "Recebe comissão sobre o que vende", tipo: "check" },
   { nome: "ativo", rotulo: "Usuário ativo", tipo: "check", soNaEdicao: true },
 ];
@@ -55,7 +57,7 @@ export default function Usuarios() {
       colunas={[
         { titulo: "Nome", valor: (u) => <strong>{u.nome}</strong> },
         { titulo: "E-mail", valor: (u) => u.email },
-        { titulo: "Perfil", valor: (u) => NOMES_PAPEIS[u.papel] },
+        { titulo: "Perfil", valor: (u) => NOMES_PAPEIS[u.papel] + (u.crf ? ` · CRF ${u.crf}` : "") },
         { titulo: "Comissão", valor: (u) => (u.recebe_comissao ? "Recebe" : "Não recebe") },
         { titulo: "Situação", valor: (u) => (u.ativo ? "Ativo" : "Inativo") },
       ]}

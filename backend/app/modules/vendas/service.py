@@ -26,6 +26,7 @@ from app.modules.lojas.service import matriz, obter_loja, pode_receber
 from app.modules.pedidos.models import EM_ANDAMENTO, Pedido
 from app.modules.popular import service as popular
 from app.modules.produtos.models import Produto
+from app.modules.servicos.service import recebido_no_caixa as servicos_no_caixa
 from app.modules.promocoes.service import melhor, vigentes_por_produto
 from app.modules.vendas.models import Caixa, PreVenda, Venda, VendaItem, VendaPagamento
 from app.modules.vendas.schemas import CaixaSaida, PreVendaCriar, PreVendaSaida, ResumoCaixa, VendaCriar
@@ -130,7 +131,9 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
     )
     # Fiado recebido em dinheiro neste caixa também está na gaveta.
     recebimentos = recebido_no_caixa(db, caixa.id)
-    esperado = caixa.valor_abertura + por_forma.get("dinheiro", Decimal(0)) - troco + recebimentos
+    # E o dinheiro dos serviços farmacêuticos (pressão, glicemia, injetáveis).
+    servicos = servicos_no_caixa(db, caixa.id)
+    esperado = caixa.valor_abertura + por_forma.get("dinheiro", Decimal(0)) - troco + recebimentos + servicos
     diferenca = None
     if caixa.valor_fechamento_informado is not None:
         diferenca = caixa.valor_fechamento_informado - esperado
@@ -145,6 +148,7 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
         total_vendido=total,
         por_forma=por_forma,
         recebimentos_dinheiro=recebimentos,
+        servicos_dinheiro=servicos,
         dinheiro_esperado=esperado,
         diferenca=diferenca,
     )

@@ -21,6 +21,7 @@ const MENU: ItemMenu[] = [
   { para: "/clientes", rotulo: "Clientes", icone: "pessoa", agrupa: true },
   { para: "/convenios", rotulo: "Convênios", icone: "loja", agrupa: true, pode: ehGerente },
   { para: "/popular", rotulo: "Farmácia Popular", icone: "remedio", pode: ehGerente },
+  { para: "/servicos", rotulo: "Serviços farmacêuticos", icone: "estetoscopio", pode: ehFarmaceutico },
   { para: "/faltas", rotulo: "Faltas e encomendas", icone: "sino" },
   { para: "/estoque", rotulo: "Estoque", icone: "pacote", agrupa: true },
   { para: "/etiquetas", rotulo: "Etiquetas de preço", icone: "etiqueta" },
