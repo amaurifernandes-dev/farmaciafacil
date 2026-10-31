@@ -663,3 +663,51 @@ button.vitrine-tirar { border: 0; color: var(--suave); font-size: 12px; padding:
 .contagem-qtd { min-width: 56px; height: 36px; font-size: 18px; font-weight: 700; border: 1px solid var(--borda); background: var(--fundo) !important; color: var(--texto) !important; }
 .contagem-editar input { width: 72px; font-size: 16px; text-align: center; }
 .contagem-busca { background: var(--superficie); border: 1px solid var(--borda); border-radius: 12px; padding: 12px; }
+
+/* Serviços farmacêuticos */
+.servico-form { display: flex; flex-direction: column; gap: 0; }
+.servico-form h2 { margin: 0 0 12px; font-size: 17px; }
+.servico-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+button.servico-opcao { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 16px; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); color: var(--texto); text-align: left; }
+button.servico-opcao small { color: var(--suave); }
+button.servico-opcao:hover { border-color: var(--primaria); }
+button.servico-opcao.escolhido { border: 2px solid var(--primaria); background: var(--primaria-suave); padding: 13px 15px; }
+.servico-feito h2 { margin: 6px 0; }
+.aviso-atencao { color: #b54708; background: #fff4e5; padding: 6px 10px; border-radius: 6px; }
+.acoes-linha { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+.acoes-tabela { white-space: nowrap; text-align: right; }
+.acoes-tabela > * + * { margin-left: 6px; }
+.cancelar-inline { display: inline-flex; gap: 6px; align-items: center; }
+.cancelar-inline input { width: 160px; }
+.servicos-ficha .aviso-mini { color: #b54708; font-size: 12px; }
+
+/* Declaração de serviço farmacêutico (A4) */
+.declaracao { max-width: 190mm; margin: 0 auto; padding: 24px; background: var(--superficie); color: #111; font-size: 14px; }
+.declaracao-topo { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+.declaracao-topo small { color: var(--suave); }
+.declaracao-cabecalho { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 12px; border-bottom: 2px solid #111; }
+.declaracao-cabecalho > div { display: flex; flex-direction: column; gap: 2px; }
+.declaracao-cabecalho strong { font-size: 18px; }
+.declaracao-cabecalho span { font-size: 12px; color: #333; }
+.declaracao-numero { text-align: right; align-items: flex-end; }
+.declaracao-numero span:first-child { font-size: 14px !important; font-weight: 700; color: #111 !important; }
+.declaracao h1 { text-align: center; font-size: 20px; margin: 22px 0 14px; letter-spacing: 0.02em; }
+.declaracao section { margin-bottom: 14px; }
+.declaracao h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #444; margin: 0 0 6px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+.declaracao p { margin: 4px 0; }
+.declaracao-tabela { width: 100%; border-collapse: collapse; }
+.declaracao-tabela th, .declaracao-tabela td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #e5e5e5; }
+.declaracao-tabela th { width: 45%; font-weight: 500; color: #444; }
+.declaracao-tabela td { font-weight: 700; }
+.declaracao-ref { font-size: 12px; color: #444; }
+.declaracao-aviso { font-weight: 700; border: 1px solid #111; padding: 8px 10px; border-radius: 4px; }
+.declaracao-orientacao { white-space: pre-wrap; }
+.declaracao-legal { font-size: 11px; color: #444; margin-top: 18px !important; }
+.declaracao-assinaturas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 56px; }
+.declaracao-assinaturas > div { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; font-size: 12px; }
+.linha-assinatura { width: 100%; border-top: 1px solid #111; margin-bottom: 4px; }
+@media print {
+  body { background: #fff; }
+  .declaracao { padding: 0; max-width: none; }
+}
+.servico-form .campos { margin-top: 0; }

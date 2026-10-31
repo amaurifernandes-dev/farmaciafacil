@@ -101,6 +101,12 @@ function Linhas({ resumo }: { resumo: ResumoCaixa }) {
           <dd>{reais(resumo.recebimentos_dinheiro)}</dd>
         </div>
       )}
+      {Number(resumo.servicos_dinheiro ?? 0) > 0 && (
+        <div>
+          <dt>Serviços farmacêuticos em dinheiro</dt>
+          <dd>{reais(resumo.servicos_dinheiro)}</dd>
+        </div>
+      )}
       <dt>Dinheiro esperado</dt>
       <dd>{reais(resumo.dinheiro_esperado)}</dd>
     </dl>

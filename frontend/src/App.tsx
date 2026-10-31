@@ -26,6 +26,8 @@ import Transferencia from "./pages/gestao/Transferencia";
 import Contagem from "./pages/inventario/Contagem";
 import Inventario from "./pages/inventario/Inventario";
 import Inventarios from "./pages/inventario/Inventarios";
+import DeclaracaoServico from "./pages/servicos/Declaracao";
+import Servicos from "./pages/servicos/Servicos";
 import Inicio from "./pages/Inicio";
 import Login from "./pages/Login";
 import Pdv from "./pages/pdv/Pdv";
@@ -83,6 +85,7 @@ export default function App() {
       <Route path="/loja/:endereco" element={<LojaOnline />} />
       <Route path="/loja/:endereco/pedido/:codigo" element={<AcompanharPedido />} />
       <Route path="/pdv" element={<Protegido><Pdv /></Protegido>} />
+      <Route path="/servicos/declaracao/:id" element={<Protegido><DeclaracaoServico /></Protegido>} />
       <Route path="/inventario/:id/contar" element={<Protegido><Contagem /></Protegido>} />
       <Route path="/etiquetas/imprimir" element={<Protegido><ImprimirEtiquetas /></Protegido>} />
       <Route path="/popular/comprovante/:vendaId" element={<Protegido><ComprovantePopular /></Protegido>} />
@@ -121,6 +124,7 @@ export default function App() {
         <Route path="/etiquetas" element={<Etiquetas />} />
         <Route path="/comissoes" element={<Comissoes />} />
         <Route path="/metas" element={<Metas />} />
+        <Route path="/servicos" element={<SoFarmaceutico><Servicos /></SoFarmaceutico>} />
         <Route path="/controlados" element={<SoFarmaceutico><Controlados /></SoFarmaceutico>} />
         <Route path="/fiscal" element={<SoGerente><FechamentoFiscal /></SoGerente>} />
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />

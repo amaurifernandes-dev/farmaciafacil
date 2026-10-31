@@ -92,6 +92,7 @@ export interface ResumoCaixa {
   total_vendido: string;
   por_forma: Record<string, string>;
   recebimentos_dinheiro: string;
+  servicos_dinheiro: string;
   dinheiro_esperado: string;
   diferenca: string | null;
 }
@@ -1092,4 +1093,46 @@ export interface InventarioDetalhe extends Inventario {
   itens: ItemInventario[];
   nao_contados: ItemInventario[] | null;
   ve_saldo: boolean;
+}
+
+export type TipoServico = "pressao" | "glicemia" | "temperatura" | "injetavel" | "outro";
+export type FormaServico = "dinheiro" | "pix" | "debito" | "credito" | "cortesia";
+
+export interface Servico {
+  id: string;
+  nome: string;
+  tipo: TipoServico;
+  preco: string;
+  ativo: boolean;
+}
+
+export interface AtendimentoServico {
+  id: string;
+  numero: number;
+  criado_em: string;
+  loja_id: string;
+  loja_nome: string;
+  servico_id: string;
+  servico_nome: string;
+  tipo: TipoServico;
+  cliente_id: string | null;
+  paciente_nome: string;
+  paciente_cpf: string | null;
+  paciente_nascimento: string | null;
+  farmaceutico: string;
+  farmaceutico_crf: string | null;
+  resultados: Record<string, string | number | boolean>;
+  resultado_texto: string;
+  aviso: { nivel: "alerta" | "atencao"; texto: string } | null;
+  orientacao: string | null;
+  valor: string;
+  forma_pagamento: FormaServico;
+  status: "registrado" | "cancelado";
+  motivo_cancelamento: string | null;
+}
+
+export interface ListaAtendimentos {
+  itens: AtendimentoServico[];
+  total_recebido: string;
+  por_servico: Record<string, number>;
 }

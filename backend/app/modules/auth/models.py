@@ -16,3 +16,4 @@ class Usuario(TabelaDaFarmacia, Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     # Entra no cálculo de comissão (o dono ou o gerente podem ficar de fora).
     recebe_comissao: Mapped[bool] = mapped_column(Boolean, default=True)
+    crf: Mapped[str | None] = mapped_column(String(20))  # do farmacêutico, vai na declaração de serviço

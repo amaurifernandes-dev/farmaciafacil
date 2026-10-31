@@ -5,7 +5,8 @@ import { api, mensagem } from "../../api/cliente";
 import type { FichaCliente, MovimentoPontos } from "../../api/tipos";
 import { FormularioCadastro, Janela } from "../../components/Cadastro";
 import { data, quantidade, reais } from "../../formato";
-import { ehGerente, useSessao } from "../../sessao";
+import { ehFarmaceutico, ehGerente, useSessao } from "../../sessao";
+import ServicosDoCliente from "../servicos/DoCliente";
 import { documento, telefone } from "../configuracoes/campos";
 import { camposCliente, useConvenios } from "./Clientes";
 
@@ -216,6 +217,8 @@ export default function Ficha() {
           )}
         </div>
       </div>
+
+      {ehFarmaceutico(sessao) && id && <ServicosDoCliente clienteId={id} />}
 
       <div className="cartao ficha-extrato">
         <div className="cartao-cabecalho">

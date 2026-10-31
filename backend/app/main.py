@@ -15,6 +15,7 @@ from app.modules.etiquetas.router import router as etiquetas_router
 from app.modules.comissoes.router import router as comissoes_router
 from app.modules.metas.router import router as metas_router
 from app.modules.inventario.router import router as inventario_router
+from app.modules.servicos.router import router as servicos_router
 from app.modules.fornecedores.router import router as fornecedores_router
 from app.modules.lojas.router import lojas as lojas_router
 from app.modules.lojas.router import terminais as terminais_router
@@ -60,6 +61,7 @@ app.include_router(etiquetas_router, prefix="/api/v1")
 app.include_router(comissoes_router, prefix="/api/v1")
 app.include_router(metas_router, prefix="/api/v1")
 app.include_router(inventario_router, prefix="/api/v1")
+app.include_router(servicos_router, prefix="/api/v1")
 app.include_router(pedidos_router, prefix="/api/v1")
 app.include_router(loja_online_router, prefix="/api/v1")
 

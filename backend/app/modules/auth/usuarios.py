@@ -18,6 +18,7 @@ from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado
 Papel = Literal["admin", "gerente", "farmaceutico", "caixa", "atendente", "estoque"]
 Senha = Annotated[str, Field(min_length=8, max_length=72)]
 Nome = Annotated[str, Field(min_length=1, max_length=120)]
+Crf = Annotated[str, Field(max_length=20)] | None  # ex.: "SP 12345"
 
 
 class UsuarioCriar(BaseModel):
@@ -26,6 +27,7 @@ class UsuarioCriar(BaseModel):
     papel: Papel
     senha: Senha
     recebe_comissao: bool = True
+    crf: Crf = None
 
 
 class UsuarioAtualizar(BaseModel):
@@ -35,6 +37,7 @@ class UsuarioAtualizar(BaseModel):
     ativo: bool | None = None
     senha: Senha | None = None
     recebe_comissao: bool | None = None
+    crf: Crf = None  # texto vazio apaga
 
 
 class UsuarioSaida(BaseModel):
@@ -46,6 +49,7 @@ class UsuarioSaida(BaseModel):
     papel: Papel
     ativo: bool
     recebe_comissao: bool = True
+    crf: str | None = None
     criado_em: datetime
 
 
@@ -81,6 +85,7 @@ def criar(db: DB, _: Admin, dados: UsuarioCriar) -> UsuarioSaida:
         papel=dados.papel,
         senha_hash=gerar_hash_senha(dados.senha),
         recebe_comissao=dados.recebe_comissao,
+        crf=dados.crf or None,
     )
     db.add(usuario)
     _salvar(db)
@@ -96,6 +101,8 @@ def atualizar(db: DB, eu: Admin, usuario_id: UUID, dados: UsuarioAtualizar) -> U
         usuario.senha_hash = gerar_hash_senha(alteracoes.pop("senha"))
     if "email" in alteracoes:
         alteracoes["email"] = alteracoes["email"].lower()
+    if "crf" in alteracoes:
+        alteracoes["crf"] = alteracoes["crf"] or None
     for campo, valor in alteracoes.items():
         setattr(usuario, campo, valor)
     _salvar(db)
