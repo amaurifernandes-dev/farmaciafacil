@@ -12,6 +12,8 @@ from app.modules.auth.models import Usuario
 from app.modules.estoque.models import MovimentoEstoque
 from app.modules.estoque.service import Referencia, baixar_fefo, devolver_movimento
 from app.modules.clientes.models import Cliente
+from app.modules.controlados.models import Receita
+from app.modules.controlados.regras import receituario_da_venda, validar_quantidade, validar_receita
 from app.modules.farmacias.models import Farmacia
 from app.modules.faltas.service import entregar_da_venda, estornar_da_venda as reabrir_encomendas
 from app.modules.fidelidade.service import desconto_do_resgate, estornar_da_venda, pontuar_venda
@@ -23,6 +25,7 @@ from app.modules.produtos.models import Produto
 from app.modules.promocoes.service import melhor, vigentes_por_produto
 from app.modules.vendas.models import Caixa, PreVenda, Venda, VendaItem, VendaPagamento
 from app.modules.vendas.schemas import CaixaSaida, PreVendaCriar, PreVendaSaida, ResumoCaixa, VendaCriar
+from app.shared.datas import hoje
 from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado, SemPermissao
 
 CENTAVO = Decimal("0.01")
@@ -203,10 +206,13 @@ def registrar_venda(
     subtotal = Decimal(0)
     descontos = dados.desconto
     manuais = dados.desconto  # só o desconto dado pelo operador conta no limite do caixa
+    vendidos = []
     for ordem, entrada in enumerate(dados.itens, start=1):
         produto = db.get(Produto, entrada.produto_id)
         if produto is None or not produto.ativo:
             raise NaoEncontrado("Produto não encontrado")
+        validar_quantidade(produto, entrada.quantidade)
+        vendidos.append(produto)
         bruto = (produto.preco_venda * entrada.quantidade).quantize(CENTAVO)
         promocao, desconto_promocao = melhor(
             promocoes.get(produto.id, []), produto.preco_venda, entrada.quantidade, dados.cliente_id is not None
@@ -234,6 +240,9 @@ def registrar_venda(
 
     if descontos > subtotal:
         raise ErroDeNegocio("Desconto maior que o valor da venda")
+    receituario = receituario_da_venda(vendidos)
+    if receituario is not None:
+        validar_receita(receituario, dados.receita, hoje())
     farmacia = db.get(Farmacia, usuario.farmacia_id)
     maximo = farmacia.desconto_maximo_caixa
     if usuario.papel not in GERENTES and subtotal > 0 and manuais * 100 / subtotal > maximo:
@@ -269,6 +278,8 @@ def registrar_venda(
     venda.numero = _proximo_numero(db)
     db.add(venda)
     db.flush()  # gera os ids dos itens para referenciar nos movimentos
+    if receituario is not None:
+        db.add(_receita(venda, dados.receita))
 
     for item in venda.itens:
         produto = db.get(Produto, item.produto_id)
@@ -303,6 +314,15 @@ def registrar_venda(
             raise
         return existente, False
     return venda, True
+
+
+def _receita(venda: Venda, dados) -> Receita:
+    valores = dados.model_dump()
+    if valores["comprador_documento"] and valores["comprador_tipo_documento"] is None:
+        valores["comprador_tipo_documento"] = 2  # carteira de identidade (RG)
+    if valores["paciente_idade"] is None:
+        valores["paciente_unidade_idade"] = None
+    return Receita(venda_id=venda.id, uso=2 if dados.prescritor_conselho == "CRMV" else 1, **valores)
 
 
 def obter_venda(db: Session, venda_id: UUID) -> Venda:

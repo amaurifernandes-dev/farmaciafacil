@@ -31,9 +31,14 @@ export interface Produto {
   tipo: "medicamento" | "perfumaria" | "outros";
   vende_online: boolean;
   registro_ms: string | null;
+  /** Lista da Portaria 344 ou "ATB" (antibiótico). Vazio: não é controlado. */
+  controle: ListaControle | null;
+  embalagem_sngpc: "caixa" | "frasco";
   ativo: boolean;
   codigos: { id: string; ean: string }[];
 }
+
+export type ListaControle = "A1" | "A2" | "A3" | "B1" | "B2" | "C1" | "C2" | "C3" | "C4" | "C5" | "ATB";
 
 export interface ProdutoPDV extends Produto {
   saldo: string;
@@ -285,6 +290,7 @@ export interface Loja {
   uf: string;
   responsavel_tecnico: string | null;
   crf: string | null;
+  responsavel_cpf: string | null;
   modo_caixa: ModoCaixa;
   terminal_central_id: string | null;
   ativo: boolean;
@@ -758,4 +764,64 @@ export interface FechamentoFiscal {
   pgdas: { normal: string; icms_st: string; monofasico: string; st_e_monofasico: string; total: string };
   pendencias: { tipo: string; texto: string; quantidade: number }[];
   sped_disponivel: boolean;
+}
+
+// --- Remédios controlados (SNGPC) ---
+
+/** Dados da receita que o balconista copia na venda de controlado. Os códigos são os do SNGPC. */
+export interface Receita {
+  tipo_receituario: number;
+  numero_notificacao: string | null;
+  data_prescricao: string;
+  prescritor_nome: string;
+  prescritor_conselho: "CRM" | "CRMV" | "CRO" | "CRF" | "RMS";
+  prescritor_numero: string;
+  prescritor_uf: string;
+  uso_prolongado: boolean;
+  comprador_nome: string | null;
+  comprador_tipo_documento: number | null;
+  comprador_documento: string | null;
+  comprador_orgao: string | null;
+  comprador_uf: string | null;
+  paciente_nome: string | null;
+  paciente_idade: number | null;
+  paciente_unidade_idade: 1 | 2;
+  paciente_sexo: 1 | 2 | null;
+  cid: string | null;
+}
+
+export interface LinhaLivro {
+  data: string;
+  produto_id: string;
+  produto: string;
+  lista: string;
+  lote: string;
+  tipo: string;
+  entrada: string;
+  saida: string;
+  saldo: string;
+  documento: string | null;
+  receita: string | null;
+  pessoa: string | null;
+}
+
+export interface SaldoControlado {
+  lote_id: string;
+  produto_id: string;
+  produto: string;
+  lista: string;
+  registro_ms: string | null;
+  lote: string;
+  validade: string | null;
+  quantidade: string;
+}
+
+export interface ResumoControlados {
+  loja_id: string;
+  inicio: string;
+  fim: string;
+  totais: { entradas: string; vendas: string; perdas: string; transferencias: string };
+  pendencias: { codigo: string; texto: string; bloqueia: boolean }[];
+  saldos: SaldoControlado[];
+  livro: LinhaLivro[];
 }

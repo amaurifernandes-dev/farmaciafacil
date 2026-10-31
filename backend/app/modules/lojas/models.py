@@ -41,6 +41,7 @@ class Loja(TabelaDaFarmacia, Base):
     uf: Mapped[str] = mapped_column(String(2))
     responsavel_tecnico: Mapped[str | None] = mapped_column(String(120))
     crf: Mapped[str | None] = mapped_column(String(20))
+    responsavel_cpf: Mapped[str | None] = mapped_column(String(11))  # quem transmite o SNGPC
     # mono: um PDV central recebe tudo; multi: cada PDV ativo abre o próprio caixa.
     modo_caixa: Mapped[str] = mapped_column(String(10), default="mono")
     terminal_central_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))

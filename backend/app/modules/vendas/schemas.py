@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.controlados.schemas import ReceitaDados
 from app.modules.fiscal.schemas import NotaFiscalSaida
 from app.shared.campos import Cpf
 
@@ -80,6 +81,7 @@ class VendaCriar(BaseModel):
         default=0, description="Pontos do cliente trocados por desconto nesta venda"
     )
     pre_venda_id: UUID | None = Field(default=None, description="Pré-venda que está sendo recebida")
+    receita: ReceitaDados | None = Field(default=None, description="Obrigatória quando a venda tem remédio controlado")
 
 
 class VendaCancelar(BaseModel):

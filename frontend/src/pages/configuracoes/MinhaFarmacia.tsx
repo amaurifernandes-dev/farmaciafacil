@@ -24,6 +24,12 @@ const CAMPOS: Campo[] = [
   },
   { nome: "responsavel_tecnico", rotulo: "Farmacêutico responsável" },
   { nome: "crf", rotulo: "CRF / UF" },
+  {
+    nome: "responsavel_cpf",
+    rotulo: "CPF do farmacêutico",
+    inputMode: "numeric",
+    dica: "Vai no arquivo do SNGPC como quem transmite",
+  },
 ];
 
 export default function MinhaFarmacia() {

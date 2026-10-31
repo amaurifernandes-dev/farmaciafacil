@@ -53,6 +53,7 @@ def _movimentar(
     custo_unitario: Decimal | None = None,
     referencia: Referencia | None = None,
     motivo: str | None = None,
+    motivo_sngpc: int | None = None,
 ) -> MovimentoEstoque:
     """Altera o saldo do lote e grava o movimento. O lote deve estar travado (FOR UPDATE)."""
     novo_saldo = lote.quantidade + quantidade
@@ -70,6 +71,7 @@ def _movimentar(
         referencia_id=referencia.id if referencia else None,
         usuario_id=usuario_id,
         motivo=motivo,
+        motivo_sngpc=motivo_sngpc,
     )
     db.add(movimento)
     return movimento
@@ -168,6 +170,10 @@ def registrar_entrada(db: Session, usuario_id: UUID, entrada: EntradaCriar) -> l
 
 def ajustar(db: Session, usuario_id: UUID, ajuste: AjusteCriar) -> MovimentoEstoque:
     lote = _lote_travado(db, ajuste.lote_id)
+    if lote.produto.controle:
+        raise ErroDeNegocio(
+            f"{lote.produto.nome} é controlado: o saldo só muda por nota, venda, transferência ou perda com motivo"
+        )
     diferenca = ajuste.nova_quantidade - lote.quantidade
     if diferenca == 0:
         raise ErroDeNegocio("A quantidade informada é igual ao saldo atual")
@@ -178,7 +184,16 @@ def ajustar(db: Session, usuario_id: UUID, ajuste: AjusteCriar) -> MovimentoEsto
 
 def registrar_perda(db: Session, usuario_id: UUID, perda: PerdaCriar) -> MovimentoEstoque:
     lote = _lote_travado(db, perda.lote_id)
-    movimento = _movimentar(db, lote, -perda.quantidade, "perda", usuario_id, motivo=perda.motivo)
+    motivo_sngpc = None
+    if lote.produto.controle:
+        if perda.motivo_sngpc is None:
+            raise ErroDeNegocio(f"{lote.produto.nome} é controlado: escolha o motivo da perda para a Anvisa")
+        if perda.quantidade != perda.quantidade.to_integral_value():
+            raise ErroDeNegocio(f"{lote.produto.nome} é controlado: a perda é em caixa ou frasco inteiro")
+        motivo_sngpc = perda.motivo_sngpc
+    movimento = _movimentar(
+        db, lote, -perda.quantidade, "perda", usuario_id, motivo=perda.motivo, motivo_sngpc=motivo_sngpc
+    )
     db.commit()
     return movimento
 

@@ -11,6 +11,7 @@ import {
   novoCarrinho,
   paraCentavos,
   problemaParaFinalizar,
+  receituarioDoCarrinho,
   removerItem,
   subtotal,
   total,
@@ -38,6 +39,8 @@ function produto(campos: Partial<ProdutoPDV> = {}): ProdutoPDV {
     controla_lote: true,
     tipo: "medicamento",
     registro_ms: null,
+    controle: null,
+    embalagem_sngpc: "caixa",
     ativo: true,
     codigos: [],
     saldo: "10",
@@ -124,6 +127,7 @@ describe("carrinho", () => {
       cliente_id: null,
       pontos_resgatados: 0,
       pre_venda_id: null,
+      receita: null,
     });
     expect(montarVenda({ ...c, preVenda: { id: "pv1", numero: 7 } }).pre_venda_id).toBe("pv1");
   });
@@ -196,5 +200,26 @@ describe("promoções", () => {
     expect(total(carrinho)).toBe(3000);
     carrinho = { ...carrinho, cliente: { id: "c1", nome: "Maria", disponivelCentavos: 0 } };
     expect(total(carrinho)).toBe(2250);
+  });
+
+  it("venda com controlado pede a receita certa", () => {
+    let c = adicionarProduto(novoCarrinho(), produto(), 1);
+    expect(receituarioDoCarrinho(c)).toBeNull();
+    c = adicionarProduto(c, produto({ id: "p2", nome: "Clonazepam", controle: "B1" }), 1);
+    c = { ...c, pagamentos: [{ forma: "dinheiro", centavos: 5000 }] };
+    expect(receituarioDoCarrinho(c)).toBe(2);
+    expect(problemaParaFinalizar(c)).toMatch(/receita \(F5\)/);
+    const receita = {
+      tipo_receituario: 2, numero_notificacao: "123", data_prescricao: "2026-10-30", prescritor_nome: "Dra. Paula",
+      prescritor_conselho: "CRM" as const, prescritor_numero: "1", prescritor_uf: "SP", uso_prolongado: false,
+      comprador_nome: "José", comprador_tipo_documento: 2, comprador_documento: "1", comprador_orgao: "SSP",
+      comprador_uf: "SP", paciente_nome: null, paciente_idade: null, paciente_unidade_idade: 1 as const,
+      paciente_sexo: null, cid: null,
+    };
+    c = { ...c, receita };
+    expect(problemaParaFinalizar(c)).toBeNull();
+    expect(montarVenda(c).receita).toEqual(receita);
+    // Tirou o controlado: a receita não vai.
+    expect(montarVenda(removerItem(c, 1)).receita).toBeNull();
   });
 });

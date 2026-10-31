@@ -29,6 +29,7 @@ import {
   paraCentavos,
   problemaParaFinalizar,
   promocaoDoItem,
+  receituarioDoCarrinho,
   removerItem,
   subtotal,
   total,
@@ -40,6 +41,7 @@ import {
 import type { Cliente as ClienteCadastro, CreditoCliente, Pontos } from "../../api/tipos";
 import { lerEsteTerminal } from "../caixas/Caixas";
 import FecharCaixa from "./FecharCaixa";
+import ReceitaDaVenda from "./ReceitaDaVenda";
 
 type Modo =
   | "venda"
@@ -51,6 +53,7 @@ type Modo =
   | "pontos"
   | "preVenda"
   | "falta"
+  | "receita"
   | "fechar";
 
 /** O que o cliente pediu e não tinha, para anotar com F1 na lista de faltas. */
@@ -467,12 +470,18 @@ export default function Pdv() {
   // Atalhos de teclado do PDV.
   useEffect(() => {
     function tecla(evento: KeyboardEvent) {
-      if (!caixa || modo === "fechar") return;
+      if (!caixa || modo === "fechar" || modo === "receita") return;
       const atalhos: Record<string, () => void> = {
         F1: () => modo === "venda" && anotarFalta(),
         F2: () => mudarModo("busca"),
         F3: () => selecionado >= 0 && mudarModo("quantidade"),
-        F4: () => carrinho.itens.length > 0 && mudarModo("pagamento"),
+        F4: () => {
+          if (carrinho.itens.length === 0) return;
+          // Controlado: primeiro a receita, depois o pagamento.
+          const tipo = receituarioDoCarrinho(carrinho);
+          mudarModo(tipo && carrinho.receita?.tipo_receituario !== tipo ? "receita" : "pagamento");
+        },
+        F5: () => receituarioDoCarrinho(carrinho) && mudarModo("receita"),
         F6: () => carrinho.itens.length > 0 && mudarModo("desconto"),
         F7: () => mudarModo("preVenda"),
         F8: () => (modo === "venda" || modo === "pagamento") && identificarCliente(false),
@@ -547,6 +556,28 @@ export default function Pdv() {
     );
   }
 
+  if (modo === "receita") {
+    const tipo = receituarioDoCarrinho(carrinho);
+    if (tipo) {
+      return (
+        <div className="pdv-centro-largo">
+          <ReceitaDaVenda
+            tipo={tipo}
+            inicial={carrinho.receita}
+            remedios={carrinho.itens.filter((i) => i.controle).map((i) => i.descricao)}
+            aoVoltar={() => mudarModo("venda")}
+            aoSalvar={(receita) => {
+              setCarrinho({ ...carrinho, receita });
+              setModo("pagamento");
+              setTexto(falta(carrinho) ? (falta(carrinho) / 100).toFixed(2).replace(".", ",") : "");
+              setAviso({ tipo: "ok", texto: "Receita guardada. Agora o pagamento." });
+            }}
+          />
+        </div>
+      );
+    }
+  }
+
   const rotulos: Record<Modo, string> = {
     venda: "Código de barras (ou nome do produto)",
     busca: "Buscar produto por nome",
@@ -557,6 +588,7 @@ export default function Pdv() {
     pontos: "Quantos pontos usar como desconto (Enter confirma; 0 tira)",
     preVenda: "Número da pré-venda",
     falta: "O que o cliente pediu e não tinha (Enter anota; Esc volta)",
+    receita: "",
     fechar: "",
   };
 
@@ -594,6 +626,7 @@ export default function Pdv() {
                 <td>{i + 1}</td>
                 <td>
                   {item.descricao}
+                  {item.controle && <span className="selo selo-controle">Controlado</span>}
                   <PromocaoDoItem item={item} comCliente={!!carrinho.cliente} />
                 </td>
                 <td className="num">{fmtQtd(item.quantidade)}</td>
@@ -643,6 +676,23 @@ export default function Pdv() {
                 Alt+{f.tecla} {f.nome}
               </button>
             ))}
+          </div>
+        )}
+
+        {receituarioDoCarrinho(carrinho) && (
+          <div className={`pdv-cliente ${carrinho.receita ? "" : "pdv-receita-falta"}`}>
+            <small>Receita</small>
+            {carrinho.receita ? (
+              <>
+                <strong>{carrinho.receita.prescritor_nome}</strong>
+                <small>
+                  {carrinho.receita.prescritor_conselho} {carrinho.receita.prescritor_numero}/{carrinho.receita.prescritor_uf}
+                  {carrinho.receita.numero_notificacao && ` · nº ${carrinho.receita.numero_notificacao}`}
+                </small>
+              </>
+            ) : (
+              <strong>Falta preencher (F5)</strong>
+            )}
           </div>
         )}
 
@@ -732,6 +782,7 @@ export default function Pdv() {
         <span>F2 Buscar</span>
         <span>F3 Quantidade</span>
         <span>F4 Pagamento (Alt+5 a prazo)</span>
+        <span>F5 Receita</span>
         <span>F6 Desconto</span>
         <span>F7 Receber pré-venda</span>
         <span>F8 Cliente</span>
