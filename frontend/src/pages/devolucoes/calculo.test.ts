@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Devolucao, ItemDevolvivel } from "../../api/tipos";
-import { devolvidoPorItem, lerQuantidade, valorDoItem } from "./calculo";
+import { devolvidoPorItem, lerQuantidade, textoPontos, valorDoItem } from "./calculo";
 
 const item = (extra: Partial<ItemDevolvivel> = {}): ItemDevolvivel => ({
   venda_item_id: "i1",
@@ -44,5 +44,11 @@ describe("devolução", () => {
     expect(lerQuantidade("1,5")).toBe(1.5);
     expect(lerQuantidade("")).toBe(0);
     expect(lerQuantidade("-1")).toBe(0);
+  });
+
+  it("explica os pontos", () => {
+    expect(textoPontos(0)).toBe("");
+    expect(textoPontos(-23)).toContain("perdeu 23 pontos");
+    expect(textoPontos(1)).toContain("recebeu de volta 1 ponto de");
   });
 });

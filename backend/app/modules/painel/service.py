@@ -1,11 +1,13 @@
 from datetime import timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.core.security import TokenDados
 from app.modules.clientes.models import Cliente
+from app.modules.devolucoes.models import Devolucao
 from app.modules.estoque.service import alertas
 from app.modules.faltas.service import quantas_chegaram
 from app.modules.farmacias.models import Farmacia
@@ -32,6 +34,17 @@ def painel(db: Session, usuario: TokenDados) -> dict:
             .group_by(dia_local)
         )
     }
+
+    # Itens devolvidos saem do dia da venda.
+    for dia, valor in db.execute(
+        select(dia_local, func.sum(Devolucao.valor_total))
+        .join(Devolucao, Devolucao.venda_id == Venda.id)
+        .where(Venda.status == "finalizada", dia_local >= inicio - timedelta(days=1))
+        .group_by(dia_local)
+    ):
+        if dia in por_dia:
+            linha = por_dia[dia]
+            por_dia[dia] = SimpleNamespace(total=linha.total - valor, quantidade=linha.quantidade)
 
     def total(dia):
         linha = por_dia.get(dia)

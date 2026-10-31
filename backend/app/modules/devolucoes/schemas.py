@@ -57,6 +57,7 @@ class DevolucaoSaida(BaseModel):
     usuario: str
     destino: Destino
     valor_total: Decimal
+    pontos: int = Field(default=0, description="Mudança no saldo de pontos do cliente (negativo: perdeu)")
     motivo: str
     criado_em: datetime
     itens: list[ItemDevolucaoSaida]

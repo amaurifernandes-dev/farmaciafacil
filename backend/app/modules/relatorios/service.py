@@ -4,10 +4,11 @@ from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
-from sqlalchemy import Date, cast, func, literal_column, select
+from sqlalchemy import Date, case, cast, func, literal_column, select
 from sqlalchemy.orm import Session
 
 from app.modules.auth.models import Usuario
+from app.modules.devolucoes.models import Devolucao, ItemDevolucao
 from app.modules.estoque.models import Lote
 from app.modules.produtos.models import Produto
 from app.modules.relatorios.schemas import (
@@ -50,6 +51,28 @@ def _custo_item():
     return VendaItem.quantidade * func.coalesce(VendaItem.custo_unitario, Produto.preco_custo)
 
 
+def _devolvido_por_venda(db: Session, vendas) -> list[tuple]:
+    """(venda_id, valor devolvido, custo do que voltou ao estoque, nº de devoluções) das vendas.
+
+    A devolução sai do dia da venda, como nas metas e comissões. O custo só sai do que voltou
+    para o estoque: o que foi para descarte continua sendo custo (é perda da farmácia).
+    """
+    custo = func.coalesce(VendaItem.custo_unitario, Produto.preco_custo, 0)
+    return db.execute(
+        select(
+            Devolucao.venda_id,
+            func.sum(ItemDevolucao.valor),
+            func.sum(case((ItemDevolucao.volta_estoque, ItemDevolucao.quantidade * custo), else_=0)),
+            func.count(func.distinct(Devolucao.id)),
+        )
+        .join(ItemDevolucao, ItemDevolucao.devolucao_id == Devolucao.id)
+        .join(VendaItem, VendaItem.id == ItemDevolucao.venda_item_id)
+        .join(Produto, Produto.id == VendaItem.produto_id)
+        .where(Devolucao.venda_id.in_(vendas))
+        .group_by(Devolucao.venda_id)
+    ).all()
+
+
 def _resumo(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> ResumoVendas:
     vendas = _vendas(inicio, fim, loja_id)
     quantidade, faturamento, descontos = db.execute(
@@ -69,11 +92,17 @@ def _resumo(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> Resum
         select(func.count(), func.coalesce(func.sum(Venda.total), 0))
         .where(Venda.id.in_(_vendas(inicio, fim, loja_id, "cancelada")))
     ).one()
-    custo = Decimal(custo).quantize(CENTAVO, ROUND_HALF_UP)
+    devolvidas = _devolvido_por_venda(db, vendas)
+    valor_devolvido = sum((valor for _, valor, _, _ in devolvidas), ZERO)
+    faturamento -= valor_devolvido
+    custo = Decimal(custo) - sum((Decimal(c) for _, _, c, _ in devolvidas), ZERO)
+    custo = custo.quantize(CENTAVO, ROUND_HALF_UP)
     lucro = faturamento - custo
     return ResumoVendas(
         quantidade=quantidade,
         faturamento=faturamento,
+        devolucoes=sum((n for _, _, _, n in devolvidas), 0),
+        valor_devolvido=valor_devolvido,
         descontos=descontos,
         descontos_promocao=promocao,
         ticket_medio=(faturamento / quantidade).quantize(CENTAVO, ROUND_HALF_UP) if quantidade else ZERO,
@@ -100,6 +129,22 @@ def vendas(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> Relato
             .group_by(dia_local)
         )
     }
+    # Devoluções saem do dia e do operador da venda.
+    devolvido = (
+        select(Venda.id.label("venda_id"), dia_local.label("dia"), Venda.usuario_id.label("usuario_id"),
+               func.sum(Devolucao.valor_total).label("valor"))
+        .join(Devolucao, Devolucao.venda_id == Venda.id)
+        .where(Venda.id.in_(finalizadas))
+        .group_by(Venda.id, dia_local, Venda.usuario_id)
+    ).subquery()
+    for dia, valor in db.execute(select(devolvido.c.dia, func.sum(devolvido.c.valor)).group_by(devolvido.c.dia)):
+        quantidade, total = por_dia[dia]
+        por_dia[dia] = (quantidade, total - valor)
+    devolvido_por_operador = dict(db.execute(
+        select(Usuario.nome, func.sum(devolvido.c.valor))
+        .join(Usuario, Usuario.id == devolvido.c.usuario_id)
+        .group_by(Usuario.nome)
+    ).all())
     # Troco sai do dinheiro: o que ficou na gaveta é o pago menos o troco.
     troco = db.scalar(select(func.coalesce(func.sum(Venda.troco), 0)).where(Venda.id.in_(finalizadas)))
     formas = dict(
@@ -129,7 +174,10 @@ def vendas(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> Relato
             for dia in (inicio + timedelta(days=i) for i in range(dias))
         ],
         por_forma=[FormaVendas(forma=f, valor=v) for f, v in sorted(formas.items(), key=lambda x: -x[1])],
-        por_operador=[OperadorVendas(nome=n, quantidade=q, total=t) for n, q, t in operadores],
+        por_operador=sorted(
+            (OperadorVendas(nome=n, quantidade=q, total=t - devolvido_por_operador.get(n, ZERO)) for n, q, t in operadores),
+            key=lambda o: -o.total,
+        ),
     )
 
 
@@ -149,6 +197,31 @@ def produtos(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> Rela
         .group_by(VendaItem.produto_id, Produto.nome, Produto.apresentacao)
         .order_by(func.sum(VendaItem.total).desc())
     ).all()
+    # Tira o que voltou: a quantidade e a parte do valor do item; o custo, só do que voltou ao estoque.
+    custo_unitario = func.coalesce(VendaItem.custo_unitario, Produto.preco_custo, 0)
+    devolvidos = {
+        produto_id: (quantidade, valor, custo)
+        for produto_id, quantidade, valor, custo in db.execute(
+            select(
+                VendaItem.produto_id,
+                func.sum(ItemDevolucao.quantidade),
+                func.sum(VendaItem.total * ItemDevolucao.quantidade / VendaItem.quantidade),
+                func.sum(case((ItemDevolucao.volta_estoque, ItemDevolucao.quantidade * custo_unitario), else_=0)),
+            )
+            .join(VendaItem, VendaItem.id == ItemDevolucao.venda_item_id)
+            .join(Produto, Produto.id == VendaItem.produto_id)
+            .where(VendaItem.venda_id.in_(_vendas(inicio, fim, loja_id)))
+            .group_by(VendaItem.produto_id)
+        )
+    }
+    ajustadas = []
+    for produto_id, nome, apresentacao, quantidade, faturamento, custo, sem_custo in linhas:
+        qtd_dev, valor_dev, custo_dev = devolvidos.get(produto_id, (ZERO, ZERO, ZERO))
+        faturamento = faturamento - Decimal(valor_dev).quantize(CENTAVO, ROUND_HALF_UP)
+        custo = Decimal(custo) - Decimal(custo_dev) if custo is not None else None
+        if quantidade - qtd_dev > 0:
+            ajustadas.append((produto_id, nome, apresentacao, quantidade - qtd_dev, faturamento, custo, sem_custo))
+    linhas = sorted(ajustadas, key=lambda linha: -linha[4])
     total = sum((linha[4] for linha in linhas), ZERO)
 
     # Curva ABC: os que somam 80% do faturamento são A, até 95% são B, o resto é C.

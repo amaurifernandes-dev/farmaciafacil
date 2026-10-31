@@ -8,7 +8,9 @@ from pydantic import BaseModel, Field
 
 class ResumoVendas(BaseModel):
     quantidade: int
-    faturamento: Decimal = Field(description="Total das vendas finalizadas, já com descontos")
+    faturamento: Decimal = Field(description="Total das vendas finalizadas, já com descontos e sem as devoluções")
+    devolucoes: int = 0
+    valor_devolvido: Decimal = Field(default=Decimal(0), description="Já tirado do faturamento")
     descontos: Decimal
     descontos_promocao: Decimal
     ticket_medio: Decimal

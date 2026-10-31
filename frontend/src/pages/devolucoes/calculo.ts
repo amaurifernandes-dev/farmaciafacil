@@ -30,3 +30,12 @@ export function valorDoItem(item: ItemDevolvivel, quantidade: number, jaDevolvid
 
 /** Motivo pronto para o gerente só tocar. */
 export const MOTIVOS = ["Troca por outro produto", "Produto com defeito", "Comprou errado", "Desistiu da compra"];
+
+/** O que a devolução fez com os pontos de fidelidade do cliente. */
+export function textoPontos(pontos: number): string {
+  if (pontos === 0) return "";
+  const n = Math.abs(pontos);
+  return pontos < 0
+    ? `O cliente perdeu ${n} ponto${n > 1 ? "s" : ""} de fidelidade, ganhos com o que devolveu.`
+    : `O cliente recebeu de volta ${n} ponto${n > 1 ? "s" : ""} de fidelidade usados no que devolveu.`;
+}
