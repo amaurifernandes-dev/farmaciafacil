@@ -37,6 +37,8 @@ import Controlados from "./pages/controlados/Controlados";
 import Convenios from "./pages/convenios/Convenios";
 import ComprovantePopular from "./pages/popular/Comprovante";
 import Popular from "./pages/popular/Popular";
+import Etiquetas from "./pages/etiquetas/Etiquetas";
+import ImprimirEtiquetas from "./pages/etiquetas/Imprimir";
 import PreVenda from "./pages/vendas/PreVenda";
 import Vendas from "./pages/vendas/Vendas";
 import { cuidaDoEstoque, ehAdmin, ehFarmaceutico, ehGerente, useSessao } from "./sessao";
@@ -74,6 +76,7 @@ export default function App() {
       <Route path="/loja/:endereco" element={<LojaOnline />} />
       <Route path="/loja/:endereco/pedido/:codigo" element={<AcompanharPedido />} />
       <Route path="/pdv" element={<Protegido><Pdv /></Protegido>} />
+      <Route path="/etiquetas/imprimir" element={<Protegido><ImprimirEtiquetas /></Protegido>} />
       <Route path="/popular/comprovante/:vendaId" element={<Protegido><ComprovantePopular /></Protegido>} />
       <Route element={<Protegido><Layout /></Protegido>}>
         <Route path="/" element={<Inicio />} />
@@ -105,6 +108,7 @@ export default function App() {
         <Route path="/convenios" element={<SoGerente><Convenios /></SoGerente>} />
         <Route path="/convenios/:id" element={<SoGerente><Convenios /></SoGerente>} />
         <Route path="/popular" element={<SoGerente><Popular /></SoGerente>} />
+        <Route path="/etiquetas" element={<Etiquetas />} />
         <Route path="/controlados" element={<SoFarmaceutico><Controlados /></SoFarmaceutico>} />
         <Route path="/fiscal" element={<SoGerente><FechamentoFiscal /></SoGerente>} />
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />
