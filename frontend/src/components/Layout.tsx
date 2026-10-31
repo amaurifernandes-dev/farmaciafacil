@@ -23,6 +23,7 @@ const MENU: ItemMenu[] = [
   { para: "/popular", rotulo: "Farmácia Popular", icone: "remedio", pode: ehGerente },
   { para: "/faltas", rotulo: "Faltas e encomendas", icone: "sino" },
   { para: "/estoque", rotulo: "Estoque", icone: "pacote", agrupa: true },
+  { para: "/etiquetas", rotulo: "Etiquetas de preço", icone: "etiqueta" },
   { para: "/controlados", rotulo: "Controlados", icone: "remedio", pode: ehFarmaceutico },
   { para: "/compras", rotulo: "Compras", icone: "caminhao", agrupa: true, pode: cuidaDoEstoque },
   { para: "/financeiro", rotulo: "Financeiro", icone: "dinheiro", agrupa: true, pode: ehGerente },

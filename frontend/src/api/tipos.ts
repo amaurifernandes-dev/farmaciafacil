@@ -950,3 +950,36 @@ export interface MesPopular {
   lancamentos: Conta[];
   pode_lancar: boolean;
 }
+
+export type MotivoEtiqueta =
+  | "nunca_impressa"
+  | "preco_subiu"
+  | "preco_baixou"
+  | "promocao_comecou"
+  | "promocao_acabou"
+  | "promocao_mudou";
+
+export interface EtiquetaItem {
+  produto_id: string;
+  nome: string;
+  apresentacao: string | null;
+  fabricante: string | null;
+  ean: string | null;
+  unidade: string;
+  preco: string;
+  preco_promocional: string | null;
+  promocao: string | null;
+  promocao_fim: string | null;
+  saldo: string;
+  impressa: { preco: string; preco_promocional: string | null; promocao: string | null; impressa_em: string } | null;
+  motivo: MotivoEtiqueta | null;
+}
+
+export interface ListaEtiquetas {
+  loja_id: string;
+  itens: EtiquetaItem[];
+  para_trocar: number;
+  nunca_impressas: number;
+  preco_mudou: number;
+  promocao: number;
+}
