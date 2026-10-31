@@ -17,6 +17,7 @@ const FORMAS: Record<string, string> = {
   prazo: "A prazo",
   convenio: "Convênio",
   popular: "Farmácia Popular",
+  vale: "Vale-troca",
 };
 
 function dataHora(iso: string): string {
@@ -73,6 +74,11 @@ export default function Vendas() {
           <p className="vazio">Frente de caixa, pré-vendas do balcão e as últimas vendas.</p>
         </div>
         <div className="acoes">
+          {gerente && (
+            <Link to="/devolucoes" className="botao-contorno">
+              <Icone nome="troca" /> Trocas e devoluções
+            </Link>
+          )}
           <Link to="/vendas/pre-venda" className="botao-contorno">
             <Icone nome="recibo" /> Nova pré-venda
           </Link>
@@ -201,9 +207,14 @@ export default function Vendas() {
                         </span>
                       ) : (
                         gerente && (
-                          <button type="button" className="botao-pequeno" onClick={() => setCancelando(v)}>
-                            Cancelar
-                          </button>
+                          <span className="acoes-tabela">
+                            <Link to={`/devolucoes?venda=${v.numero}`} className="botao-pequeno" title="Devolver itens desta venda">
+                              Trocar
+                            </Link>
+                            <button type="button" className="botao-pequeno" onClick={() => setCancelando(v)}>
+                              Cancelar
+                            </button>
+                          </span>
                         )
                       )}
                     </td>

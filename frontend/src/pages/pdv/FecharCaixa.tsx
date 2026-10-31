@@ -13,6 +13,7 @@ const NOMES: Record<string, string> = {
   prazo: "A prazo (fiado)",
   convenio: "Convênio",
   popular: "Farmácia Popular",
+  vale: "Vale-troca",
 };
 
 interface Props {
@@ -105,6 +106,12 @@ function Linhas({ resumo }: { resumo: ResumoCaixa }) {
         <div>
           <dt>Serviços farmacêuticos em dinheiro</dt>
           <dd>{reais(resumo.servicos_dinheiro)}</dd>
+        </div>
+      )}
+      {Number(resumo.devolucoes_dinheiro ?? 0) > 0 && (
+        <div>
+          <dt>Devolvido a clientes (trocas)</dt>
+          <dd>-{reais(resumo.devolucoes_dinheiro)}</dd>
         </div>
       )}
       <dt>Dinheiro esperado</dt>

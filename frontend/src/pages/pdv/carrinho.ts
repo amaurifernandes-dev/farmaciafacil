@@ -20,6 +20,8 @@ export interface ItemCarrinho {
 export interface Pagamento {
   forma: FormaPagamento;
   centavos: number;
+  /** Só no vale-troca: o código conferido no PDV. */
+  valeCodigo?: string;
 }
 
 export interface Carrinho {
@@ -325,7 +327,11 @@ export function montarVenda(carrinho: Carrinho, cpf?: string) {
     itens: carrinho.itens.map((item) => ({ produto_id: item.produtoId, quantidade: String(item.quantidade) })),
     pagamentos: [
       ...(parteDoGoverno(carrinho) > 0 ? [{ forma: "popular", valor: centavosParaApi(parteDoGoverno(carrinho)) }] : []),
-      ...carrinho.pagamentos.map((p) => ({ forma: p.forma, valor: centavosParaApi(p.centavos) })),
+      ...carrinho.pagamentos.map((p) => ({
+        forma: p.forma,
+        valor: centavosParaApi(p.centavos),
+        ...(p.valeCodigo ? { vale_codigo: p.valeCodigo } : {}),
+      })),
     ],
     desconto: centavosParaApi(carrinho.descontoCentavos),
     cliente_cpf: cpf || null,

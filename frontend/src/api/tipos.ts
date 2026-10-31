@@ -93,11 +93,12 @@ export interface ResumoCaixa {
   por_forma: Record<string, string>;
   recebimentos_dinheiro: string;
   servicos_dinheiro: string;
+  devolucoes_dinheiro: string;
   dinheiro_esperado: string;
   diferenca: string | null;
 }
 
-export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix" | "prazo" | "convenio" | "popular";
+export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix" | "prazo" | "convenio" | "popular" | "vale";
 
 export interface Venda {
   id: string;
@@ -1135,4 +1136,79 @@ export interface ListaAtendimentos {
   itens: AtendimentoServico[];
   total_recebido: string;
   por_servico: Record<string, number>;
+}
+
+// --- Troca e devolução ---
+
+export interface ValeTroca {
+  id: string;
+  codigo: string;
+  valor: string;
+  saldo: string;
+  validade: string;
+  status: "ativo" | "usado" | "cancelado" | "vencido";
+  cliente_id: string | null;
+  cliente_nome: string | null;
+  criado_em: string;
+}
+
+export interface ItemDevolucao {
+  venda_item_id: string;
+  produto_id: string;
+  descricao: string;
+  quantidade: string;
+  valor: string;
+  volta_estoque: boolean;
+}
+
+export interface Devolucao {
+  id: string;
+  numero: number;
+  venda_id: string;
+  venda_numero: number;
+  loja_id: string;
+  loja: string;
+  usuario: string;
+  destino: "dinheiro" | "vale";
+  valor_total: string;
+  motivo: string;
+  criado_em: string;
+  itens: ItemDevolucao[];
+  vale: ValeTroca | null;
+}
+
+export interface ItemDevolvivel {
+  venda_item_id: string;
+  produto_id: string;
+  descricao: string;
+  tipo_produto: string;
+  quantidade: string;
+  devolvida: string;
+  disponivel: string;
+  valor_pago: string;
+  valor_unitario: string;
+  bloqueio: string | null;
+  volta_estoque_sugerido: boolean;
+}
+
+export interface VendaParaDevolver {
+  venda_id: string;
+  numero: number;
+  finalizada_em: string;
+  status: string;
+  total: string;
+  cliente_id: string | null;
+  cliente_nome: string | null;
+  formas: FormaPagamento[];
+  bloqueio: string | null;
+  itens: ItemDevolvivel[];
+  devolucoes: Devolucao[];
+}
+
+export interface ListaDevolucoes {
+  itens: Devolucao[];
+  quantidade: number;
+  total: string;
+  em_dinheiro: string;
+  em_vale: string;
 }

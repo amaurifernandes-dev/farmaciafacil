@@ -27,6 +27,8 @@ import Contagem from "./pages/inventario/Contagem";
 import Inventario from "./pages/inventario/Inventario";
 import Inventarios from "./pages/inventario/Inventarios";
 import DeclaracaoServico from "./pages/servicos/Declaracao";
+import ComprovanteDevolucao from "./pages/devolucoes/Comprovante";
+import Devolucoes from "./pages/devolucoes/Devolucoes";
 import Servicos from "./pages/servicos/Servicos";
 import Inicio from "./pages/Inicio";
 import Login from "./pages/Login";
@@ -86,6 +88,7 @@ export default function App() {
       <Route path="/loja/:endereco/pedido/:codigo" element={<AcompanharPedido />} />
       <Route path="/pdv" element={<Protegido><Pdv /></Protegido>} />
       <Route path="/servicos/declaracao/:id" element={<Protegido><DeclaracaoServico /></Protegido>} />
+      <Route path="/devolucoes/:id/comprovante" element={<Protegido><ComprovanteDevolucao /></Protegido>} />
       <Route path="/inventario/:id/contar" element={<Protegido><Contagem /></Protegido>} />
       <Route path="/etiquetas/imprimir" element={<Protegido><ImprimirEtiquetas /></Protegido>} />
       <Route path="/popular/comprovante/:vendaId" element={<Protegido><ComprovantePopular /></Protegido>} />
@@ -93,6 +96,7 @@ export default function App() {
         <Route path="/" element={<Inicio />} />
         <Route path="/vendas" element={<Vendas />} />
         <Route path="/vendas/pre-venda" element={<PreVenda />} />
+        <Route path="/devolucoes" element={<SoGerente><Devolucoes /></SoGerente>} />
         <Route path="/caixas" element={<Caixas />} />
         <Route path="/clientes" element={<Clientes />} />
         <Route path="/clientes/:id" element={<FichaCliente />} />

@@ -11,6 +11,7 @@ import type {
   ProdutoPDV,
   ResumoCaixa,
   Venda,
+  ValeTroca,
 } from "../../api/tipos";
 import { quantidade as fmtQtd, reais } from "../../formato";
 import { useSessao } from "../../sessao";
@@ -60,6 +61,7 @@ type Modo =
   | "falta"
   | "receita"
   | "popular"
+  | "vale"
   | "fechar";
 
 /** O que o cliente pediu e não tinha, para anotar com F1 na lista de faltas. */
@@ -76,6 +78,7 @@ const FORMAS: { tecla: string; forma: FormaPagamento; nome: string }[] = [
   { tecla: "4", forma: "pix", nome: "Pix" },
   { tecla: "5", forma: "prazo", nome: "A prazo" },
   { tecla: "6", forma: "convenio", nome: "Convênio" },
+  { tecla: "8", forma: "vale", nome: "Vale-troca" },
 ];
 
 const CHAVE_VENDA = "ff.venda-em-andamento";
@@ -110,6 +113,8 @@ export default function Pdv() {
   const [confirmarCancelar, setConfirmarCancelar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [faltaPendente, setFaltaPendente] = useState<FaltaPendente | null>(null);
+  // Vale-troca conferido (Alt+8), esperando o valor a usar dele.
+  const [valeAtual, setValeAtual] = useState<{ codigo: string; saldoCentavos: number } | null>(null);
   const campo = useRef<HTMLInputElement>(null);
 
   const atualizarCaixa = useCallback(async () => {
@@ -181,6 +186,11 @@ export default function Pdv() {
   /** A prazo precisa de um cliente com limite: escolhe antes de lançar o valor. */
   function escolherForma(nova: FormaPagamento) {
     setForma(nova);
+    if (nova === "vale") {
+      setValeAtual(null);
+      mudarModo("vale");
+      return setAviso({ tipo: "ok", texto: "Digite ou bipe o código do vale-troca do cliente." });
+    }
     if (nova === "prazo" && !carrinho.cliente) identificarCliente(true);
     if (nova === "convenio") {
       if (!carrinho.cliente) {
@@ -213,6 +223,31 @@ export default function Pdv() {
     }
     setTexto(textoValor(Math.min(falta(atual), convenio.disponivelCentavos)));
     setAviso({ tipo: "ok", texto: `Convênio ${convenio.nome}: pode comprar até ${reais(convenio.disponivelCentavos)}.` });
+  }
+
+  /** Confere o vale-troca e sugere usar o que cabe dele nesta compra. */
+  async function conferirVale(digitado: string) {
+    if (!digitado.trim()) return erro("Digite o código do vale-troca");
+    try {
+      const vale = await api<ValeTroca>(`/vales/${encodeURIComponent(digitado.trim())}`);
+      if (vale.status !== "ativo") {
+        const motivo = { usado: "já foi usado", cancelado: "foi cancelado", vencido: "venceu" }[vale.status];
+        return erro(`O vale ${vale.codigo} ${motivo}.`);
+      }
+      // O mesmo vale pode já ter sido lançado nesta venda.
+      const jaUsado = carrinho.pagamentos
+        .filter((p) => p.valeCodigo === vale.codigo)
+        .reduce((soma, p) => soma + p.centavos, 0);
+      const saldoCentavos = (paraCentavos(vale.saldo) ?? 0) - jaUsado;
+      if (saldoCentavos <= 0) return erro(`O saldo do vale ${vale.codigo} já está todo nesta venda.`);
+      setValeAtual({ codigo: vale.codigo, saldoCentavos });
+      setModo("pagamento");
+      setTexto(textoValor(Math.min(falta(carrinho), saldoCentavos)));
+      const dono = vale.cliente_nome ? ` de ${vale.cliente_nome}` : "";
+      setAviso({ tipo: "ok", texto: `Vale ${vale.codigo}${dono}: saldo de ${reais(saldoCentavos)}. Enter usa o valor do campo.` });
+    } catch (e) {
+      erro(mensagem(e));
+    }
   }
 
   async function buscarCliente(termo: string) {
@@ -493,6 +528,9 @@ export default function Pdv() {
         if (clientes.length > 0 && clientes[indiceBusca]) escolherCliente(clientes[indiceBusca]);
         else buscarCliente(valor);
         break;
+      case "vale":
+        conferirVale(valor);
+        break;
       case "pontos": {
         const quantos = valor.trim() === "" ? 0 : Number(valor.trim());
         if (!Number.isInteger(quantos) || quantos < 0) return erro("Informe um número inteiro de pontos");
@@ -517,9 +555,18 @@ export default function Pdv() {
         if (valor.trim() === "" && falta(carrinho) === 0) return void finalizar();
         const centavos = paraCentavos(valor);
         if (!centavos) return erro("Valor inválido");
-        const atualizado = { ...carrinho, pagamentos: [...carrinho.pagamentos, { forma, centavos }] };
+        if (forma === "vale") {
+          if (!valeAtual) return escolherForma("vale");
+          if (centavos > valeAtual.saldoCentavos) return erro(`O vale só tem ${reais(valeAtual.saldoCentavos)} de saldo`);
+        }
+        const novo = forma === "vale" && valeAtual ? { forma, centavos, valeCodigo: valeAtual.codigo } : { forma, centavos };
+        const atualizado = { ...carrinho, pagamentos: [...carrinho.pagamentos, novo] };
         setCarrinho(atualizado);
         setAviso(null);
+        if (forma === "vale") {
+          setValeAtual(null);
+          setForma("dinheiro");
+        }
         const restante = falta(atualizado);
         setTexto(restante ? (restante / 100).toFixed(2).replace(".", ",") : "");
         break;
@@ -554,6 +601,11 @@ export default function Pdv() {
             return mudarModo("pagamento");
           }
           if (modo === "cliente" || modo === "pontos") return mudarModo(voltarPara);
+          if (modo === "vale" || (modo === "pagamento" && forma === "vale")) {
+            setValeAtual(null);
+            setForma("dinheiro");
+            return mudarModo("pagamento");
+          }
           if (modo !== "venda") return mudarModo("venda");
           if (carrinho.itens.length === 0) return;
           if (!confirmarCancelar) {
@@ -581,8 +633,8 @@ export default function Pdv() {
           setSelecionado((i) => Math.min(i, carrinho.itens.length - 2));
         },
       };
-      // No pagamento, Alt+1 a Alt+5 escolhem a forma sem atrapalhar a digitação do valor.
-      if (modo === "pagamento" && evento.altKey) {
+      // No pagamento, Alt+1 a Alt+8 escolhem a forma sem atrapalhar a digitação do valor.
+      if ((modo === "pagamento" || modo === "vale") && evento.altKey) {
         if (evento.key === "7") {
           evento.preventDefault();
           return abrirPopular();
@@ -693,6 +745,7 @@ export default function Pdv() {
     falta: "O que o cliente pediu e não tinha (Enter anota; Esc volta)",
     receita: "",
     popular: "",
+    vale: "Código do vale-troca (Enter confere o saldo; Esc volta)",
     fechar: "",
   };
 
@@ -774,7 +827,8 @@ export default function Pdv() {
           )}
           {carrinho.pagamentos.map((p, i) => (
             <div key={i} className="pagamento">
-              {FORMAS.find((f) => f.forma === p.forma)?.nome} <span>{reais(p.centavos)}</span>
+              {FORMAS.find((f) => f.forma === p.forma)?.nome}
+              {p.valeCodigo && ` ${p.valeCodigo}`} <span>{reais(p.centavos)}</span>
             </div>
           ))}
           {(carrinho.pagamentos.length > 0 || parteDoGoverno(carrinho) > 0) && (
@@ -784,7 +838,7 @@ export default function Pdv() {
           )}
         </div>
 
-        {modo === "pagamento" && (
+        {(modo === "pagamento" || modo === "vale") && (
           <div className="formas">
             {FORMAS.map((f) => (
               <button key={f.forma} className={f.forma === forma ? "ativa" : ""} onClick={() => escolherForma(f.forma)}>

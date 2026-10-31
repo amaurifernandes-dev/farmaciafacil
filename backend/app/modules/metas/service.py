@@ -10,6 +10,7 @@ from sqlalchemy import Date, cast, delete, func, literal_column, select
 from sqlalchemy.orm import Session
 
 from app.modules.auth.models import Usuario
+from app.modules.devolucoes.models import Devolucao
 from app.modules.lojas.models import Loja
 from app.modules.metas.models import Meta
 from app.modules.metas.schemas import Andamento, MetasDoMes, SalvarMetas
@@ -52,6 +53,16 @@ def _somas(db: Session, inicio: date, fim: date, dia_hoje: date):
         .where(Venda.status == "finalizada", dia.between(inicio, fim))
         .group_by(Caixa.loja_id, Venda.vendedor_id, "hoje")
     ).all()
+    # Itens devolvidos saem do vendido (no mês da venda), mas a venda continua contando.
+    devolvidos = db.execute(
+        select(Caixa.loja_id, Venda.vendedor_id, (dia == dia_hoje).label("hoje"),
+               func.sum(Devolucao.valor_total))
+        .join(Venda, Venda.id == Devolucao.venda_id)
+        .join(Caixa, Caixa.id == Venda.caixa_id)
+        .where(Venda.status == "finalizada", dia.between(inicio, fim))
+        .group_by(Caixa.loja_id, Venda.vendedor_id, "hoje")
+    ).all()
+    linhas = list(linhas) + [(loja, vendedor, de_hoje, -valor, 0) for loja, vendedor, de_hoje, valor in devolvidos]
     por_loja: dict = defaultdict(lambda: [ZERO, 0, ZERO])
     por_vendedor: dict = defaultdict(lambda: [ZERO, 0, ZERO])
     for loja_id, vendedor_id, de_hoje, valor, quantas in linhas:

@@ -13,6 +13,7 @@ from app.modules.estoque.models import MovimentoEstoque
 from app.modules.estoque.service import Referencia, baixar_fefo, devolver_movimento
 from app.modules.clientes.models import Cliente
 from app.modules.controlados.models import Receita
+from app.modules.devolucoes.integracao import devolvido_no_caixa, estornar_vales, normalizar_codigo, tem_devolucao, usar_vales
 from app.modules.convenios.service import cancelar_da_venda as cancelar_compra_convenio
 from app.modules.convenios.service import desconto_do_cliente as desconto_do_convenio
 from app.modules.convenios.service import lancar_compra as lancar_compra_convenio
@@ -133,7 +134,11 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
     recebimentos = recebido_no_caixa(db, caixa.id)
     # E o dinheiro dos serviços farmacêuticos (pressão, glicemia, injetáveis).
     servicos = servicos_no_caixa(db, caixa.id)
-    esperado = caixa.valor_abertura + por_forma.get("dinheiro", Decimal(0)) - troco + recebimentos + servicos
+    # E sai o dinheiro devolvido a clientes nas trocas.
+    devolucoes = devolvido_no_caixa(db, caixa.id)
+    esperado = (
+        caixa.valor_abertura + por_forma.get("dinheiro", Decimal(0)) - troco + recebimentos + servicos - devolucoes
+    )
     diferenca = None
     if caixa.valor_fechamento_informado is not None:
         diferenca = caixa.valor_fechamento_informado - esperado
@@ -149,6 +154,7 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
         por_forma=por_forma,
         recebimentos_dinheiro=recebimentos,
         servicos_dinheiro=servicos,
+        devolucoes_dinheiro=devolucoes,
         dinheiro_esperado=esperado,
         diferenca=diferenca,
     )
@@ -302,7 +308,14 @@ def registrar_venda(
     if troco > em_dinheiro:
         raise ErroDeNegocio("Troco só pode sair do pagamento em dinheiro")
     venda.troco = troco
-    venda.pagamentos = [VendaPagamento(forma=p.forma, valor=p.valor) for p in dados.pagamentos]
+    # Vale-troca: confere e desconta o saldo (trava o vale até o fim da venda).
+    vales = usar_vales(db, dados.pagamentos)
+    venda.pagamentos = [
+        VendaPagamento(
+            forma=p.forma, valor=p.valor, vale_id=vales[normalizar_codigo(p.vale_codigo)] if p.forma == "vale" else None
+        )
+        for p in dados.pagamentos
+    ]
 
     venda.numero = _proximo_numero(db)
     db.add(venda)
@@ -381,6 +394,8 @@ def cancelar_venda(db: Session, usuario: TokenDados, venda_id: UUID, motivo: str
         raise NaoEncontrado("Venda não encontrada")
     if venda.status == "cancelada":
         raise Conflito("Esta venda já foi cancelada")
+    if tem_devolucao(db, venda.id):
+        raise Conflito("Esta venda já teve itens devolvidos e não pode mais ser cancelada. Devolva os outros itens.")
 
     # Devolve a cada lote exatamente o que saiu dele.
     movimentos = db.scalars(
@@ -394,6 +409,7 @@ def cancelar_venda(db: Session, usuario: TokenDados, venda_id: UUID, motivo: str
     popular.cancelar_da_venda(db, venda)
     estornar_da_venda(db, usuario.usuario_id, venda)
     reabrir_encomendas(db, venda)
+    estornar_vales(db, venda)
     for movimento in movimentos:
         devolver_movimento(db, movimento, usuario.usuario_id, motivo=f"Cancelamento da venda {venda.numero}")
 
