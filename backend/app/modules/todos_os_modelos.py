@@ -20,3 +20,4 @@ from app.modules.convenios.models import CompraConvenio, Convenio  # noqa: F401
 from app.modules.popular.models import VendaPopular  # noqa: F401
 from app.modules.etiquetas.models import Etiqueta  # noqa: F401
 from app.modules.metas.models import Meta  # noqa: F401
+from app.modules.inventario.models import Inventario, ItemInventario  # noqa: F401

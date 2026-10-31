@@ -610,3 +610,56 @@ button.vitrine-tirar { border: 0; color: var(--suave); font-size: 12px; padding:
 .metas-inicio strong.valor-meta { font-size: 22px; }
 .metas-acoes { align-items: center; }
 .cartao label.meta-sugestao { flex-direction: row; align-items: center; gap: 8px; color: var(--suave); font-size: 14px; }
+
+/* Inventário */
+.negativo-texto { color: var(--erro); }
+.acoes-titulo { display: flex; gap: 10px; align-items: center; }
+.inventario-aberto { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-color: #b7dccd; background: var(--primaria-suave); }
+.inventario-aberto .espaco, .inventario-fim .espaco { flex: 1; }
+.inventario-aberto .botao-contorno { margin-top: 0; }
+.formulario-inventario { display: flex; flex-direction: column; gap: 12px; }
+.formulario-inventario h2 { margin: 0; }
+.linha-campos { display: flex; gap: 14px; flex-wrap: wrap; }
+.linha-campos > label { flex: 1; min-width: 220px; }
+.cartao label.opcao-escopo { flex-direction: row; align-items: flex-start; gap: 10px; color: var(--texto); }
+.opcao-escopo input { margin-top: 3px; }
+.inventario-celular { display: flex; gap: 20px; align-items: center; }
+.inventario-celular img { width: 132px; height: 132px; image-rendering: pixelated; }
+.inventario-celular h2 { margin: 0 0 6px; }
+.inventario-celular code { font-size: 13px; color: var(--suave); word-break: break-all; }
+.inventario-fim { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.inventario-fim p { margin: 0; flex-basis: 100%; }
+.inventario-fim p.vazio { flex-basis: auto; }
+
+/* Contagem pelo celular: tela própria, sem o menu */
+.contagem { max-width: 560px; margin: 0 auto; padding: 12px 16px 40px; display: flex; flex-direction: column; gap: 12px; }
+.contagem-topo { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+.contagem-topo a { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--borda); background: var(--superficie); color: var(--texto); }
+.contagem-topo div { display: flex; flex-direction: column; }
+.contagem-topo small { color: var(--suave); }
+.contagem-camera { display: none; position: relative; border-radius: 14px; overflow: hidden; background: #111; aspect-ratio: 4 / 3; }
+.contagem-camera.ligada { display: block; }
+.contagem-camera video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.contagem-mira { position: absolute; left: 10%; right: 10%; top: 42%; height: 16%; border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 10px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.25); }
+.contagem-botao { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; padding: 14px; font-size: 16px; }
+.contagem .botao-contorno.contagem-botao { margin-top: 0; background: var(--superficie); }
+.contagem-codigo { display: flex; gap: 8px; }
+.contagem-codigo input { flex: 1; min-width: 0; font-size: 17px; padding: 12px; }
+.contagem-por-leitura { display: flex; align-items: center; gap: 8px; color: var(--suave); }
+.contagem-por-leitura input { width: 64px; text-align: center; font-size: 16px; }
+.contagem-por-leitura button.botao-pequeno { width: 40px; height: 36px; justify-content: center; font-size: 18px; }
+.contagem-leitura { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; font-size: 16px; animation: piscar 0.4s ease-out; }
+.contagem-leitura.ok { background: var(--ok-fundo); color: var(--ok); }
+.contagem-leitura.erro { background: var(--erro-fundo); color: var(--erro); }
+.contagem-leitura strong { font-size: 28px; }
+@keyframes piscar { from { transform: scale(0.97); opacity: 0.4; } to { transform: none; opacity: 1; } }
+.contagem-titulo { margin: 12px 0 0; font-size: 17px; }
+.contagem-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.contagem-lista li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--borda); border-radius: 12px; background: var(--superficie); }
+.contagem-lista li > div:first-child { display: flex; flex-direction: column; min-width: 0; }
+.contagem-lista small { color: var(--suave); font-size: 12px; }
+.contagem-acoes, .contagem-editar { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.contagem-acoes button.botao-pequeno { width: 36px; height: 36px; justify-content: center; font-size: 18px; }
+.contagem-qtd { min-width: 56px; height: 36px; font-size: 18px; font-weight: 700; border: 1px solid var(--borda); background: var(--fundo) !important; color: var(--texto) !important; }
+.contagem-editar input { width: 72px; font-size: 16px; text-align: center; }
+.contagem-busca { background: var(--superficie); border: 1px solid var(--borda); border-radius: 12px; padding: 12px; }

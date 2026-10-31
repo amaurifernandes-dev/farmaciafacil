@@ -1,17 +1,18 @@
 import { useState, type FormEvent } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 import { mensagem } from "../api/cliente";
 import { useSessao } from "../sessao";
 
 export default function Login() {
   const { sessao, entrar } = useSessao();
+  const voltar = (useLocation().state as { voltar?: string } | null)?.voltar;
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  if (sessao) return <Navigate to="/" replace />;
+  if (sessao) return <Navigate to={voltar?.startsWith("/") && !voltar.startsWith("//") ? voltar : "/"} replace />;
 
   async function enviar(evento: FormEvent) {
     evento.preventDefault();

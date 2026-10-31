@@ -12,6 +12,7 @@ export default function Estoque() {
           Alertas
         </NavLink>
         <NavLink to="/estoque/saldos">Saldo por loja</NavLink>
+        <NavLink to="/estoque/inventario">Inventário</NavLink>
         {cuidaDoEstoque(sessao) && (
           <>
             <NavLink to="/estoque/entrada">Entrada manual</NavLink>
