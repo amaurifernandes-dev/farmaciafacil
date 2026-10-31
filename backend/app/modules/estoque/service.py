@@ -409,3 +409,11 @@ def devolver_movimento(db: Session, movimento: MovimentoEstoque, usuario_id: UUI
         referencia=Referencia(movimento.referencia_tipo, movimento.referencia_id),
         motivo=motivo,
     )
+
+
+def devolver_ao_lote(
+    db: Session, lote_id: UUID, quantidade: Decimal, usuario_id: UUID, referencia: Referencia, motivo: str
+) -> MovimentoEstoque:
+    """Põe de volta no lote parte do que saiu dele (troca ou devolução de item). Não faz commit."""
+    lote = _lote_travado(db, lote_id)
+    return _movimentar(db, lote, quantidade, "devolucao", usuario_id, referencia=referencia, motivo=motivo)

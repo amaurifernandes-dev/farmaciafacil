@@ -12,7 +12,7 @@ from app.shared.campos import Cpf
 
 Dinheiro = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
 DinheiroPositivo = Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=2)]
-FormaPagamento = Literal["dinheiro", "debito", "credito", "pix", "prazo", "convenio", "popular"]
+FormaPagamento = Literal["dinheiro", "debito", "credito", "pix", "prazo", "convenio", "popular", "vale"]
 
 
 # --- Caixa ---
@@ -49,7 +49,9 @@ class ResumoCaixa(BaseModel):
     por_forma: dict[str, Decimal]
     recebimentos_dinheiro: Decimal = Decimal(0)  # contas a receber (fiado) pagas em dinheiro neste caixa
     servicos_dinheiro: Decimal = Decimal(0)  # serviços farmacêuticos pagos em dinheiro neste caixa
-    dinheiro_esperado: Decimal  # abertura + dinheiro recebido - troco + recebimentos e serviços em dinheiro
+    devolucoes_dinheiro: Decimal = Decimal(0)  # dinheiro devolvido a clientes (trocas) neste caixa
+    # abertura + dinheiro recebido - troco + recebimentos e serviços em dinheiro - devoluções em dinheiro
+    dinheiro_esperado: Decimal
     diferenca: Decimal | None  # informado - esperado (só depois de fechar)
 
 
@@ -65,6 +67,7 @@ class PagamentoCriar(BaseModel):
     forma: FormaPagamento
     valor: DinheiroPositivo
     vencimento: date | None = Field(default=None, description="Só na venda a prazo. Vazio = prazo padrão da farmácia")
+    vale_codigo: str | None = Field(default=None, max_length=20, description="Só na forma vale: o código do vale-troca")
 
 
 class VendaCriar(BaseModel):

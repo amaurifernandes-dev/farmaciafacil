@@ -16,6 +16,7 @@ const NOMES_FORMA: Record<string, string> = {
   prazo: "A prazo",
   convenio: "Convênio",
   popular: "Farmácia Popular",
+  vale: "Vale-troca",
 };
 
 function iso(dia: Date): string {

@@ -18,6 +18,7 @@ const NOMES_FORMA: Record<string, string> = {
   prazo: "A prazo",
   convenio: "Convênio",
   popular: "Farmácia Popular",
+  vale: "Vale-troca",
 };
 
 const NOMES_MOVIMENTO: Record<MovimentoPontos["tipo"], string> = {

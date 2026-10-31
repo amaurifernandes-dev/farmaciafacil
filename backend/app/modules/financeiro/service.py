@@ -24,6 +24,7 @@ from app.modules.financeiro.schemas import (
     PaginaContas,
     Totais,
 )
+from app.modules.devolucoes.models import Devolucao
 from app.modules.fornecedores.models import Fornecedor
 from app.modules.lojas.service import matriz, obter_loja
 from app.modules.vendas.models import Caixa, Venda, VendaPagamento
@@ -423,12 +424,14 @@ def fluxo(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> FluxoCa
 
     dias: dict[date, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
 
-    # O que entrou no caixa pelas vendas: tudo menos a parte a prazo, e o troco sai do dinheiro.
+    # O que entrou no caixa pelas vendas: tudo menos a parte a prazo e o vale-troca (já é da loja),
+    # e o troco sai do dinheiro.
     dia_venda = cast(func.timezone(FUSO.key, Venda.finalizada_em), Date)
     vendas = (
         select(dia_venda.label("dia"), func.sum(VendaPagamento.valor).label("valor"))
         .join(VendaPagamento, VendaPagamento.venda_id == Venda.id)
-        .where(Venda.status == "finalizada", VendaPagamento.forma.not_in(A_RECEBER_DEPOIS), dia_venda.between(inicio, fim))
+        .where(Venda.status == "finalizada", VendaPagamento.forma.not_in(A_RECEBER_DEPOIS + ("vale",)),
+               dia_venda.between(inicio, fim))
         .group_by(dia_venda)
     )
     trocos = (
@@ -442,6 +445,17 @@ def fluxo(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> FluxoCa
     for dia, valor in db.execute(vendas):
         dias[dia]["vendas"] += valor
     for dia, valor in db.execute(trocos):
+        dias[dia]["vendas"] -= valor
+    # Dinheiro devolvido ao cliente numa troca sai no dia da devolução.
+    dia_devolucao = cast(func.timezone(FUSO.key, Devolucao.criado_em), Date)
+    devolvido = (
+        select(dia_devolucao, func.sum(Devolucao.valor_total))
+        .where(Devolucao.destino == "dinheiro", dia_devolucao.between(inicio, fim))
+        .group_by(dia_devolucao)
+    )
+    if loja_id:
+        devolvido = devolvido.where(Devolucao.loja_id == loja_id)
+    for dia, valor in db.execute(devolvido):
         dias[dia]["vendas"] -= valor
 
     contas = select(Conta).where(Conta.status != "cancelada")

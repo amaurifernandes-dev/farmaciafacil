@@ -19,6 +19,7 @@ from app.modules.comissoes.schemas import (
     VendaDoVendedor,
     Vendedor,
 )
+from app.modules.devolucoes.models import ItemDevolucao
 from app.modules.farmacias.models import Farmacia
 from app.modules.produtos.models import Produto
 from app.modules.vendas.models import Caixa, PreVenda, Venda
@@ -56,6 +57,7 @@ def _calcular(db: Session, farmacia: Farmacia, vendas: list[Venda]) -> dict[UUID
 
     Descontos da venda inteira (manual, pontos, convênio) são divididos entre os itens; a taxa de
     entrega não entra. O percentual é o gravado na venda; nas vendas antigas, a regra de hoje.
+    Itens que o cliente devolveu saem da conta.
     """
     ids = {i.produto_id for v in vendas for i in v.itens}
     regra_atual = dict(db.execute(select(Produto.id, Produto.comissao).where(Produto.id.in_(ids))).all()) if ids else {}
@@ -63,6 +65,16 @@ def _calcular(db: Session, farmacia: Farmacia, vendas: list[Venda]) -> dict[UUID
     de_pre_venda = set(
         db.scalars(select(PreVenda.venda_id).where(PreVenda.venda_id.in_([v.id for v in vendas])))
     ) if vendas else set()
+
+    ids_itens = [i.id for v in vendas for i in v.itens]
+    devolvidos = {
+        item_id: (qtd, valor)
+        for item_id, qtd, valor in db.execute(
+            select(ItemDevolucao.venda_item_id, func.sum(ItemDevolucao.quantidade), func.sum(ItemDevolucao.valor))
+            .where(ItemDevolucao.venda_item_id.in_(ids_itens))
+            .group_by(ItemDevolucao.venda_item_id)
+        )
+    } if ids_itens else {}
 
     contas: dict[UUID, _Conta] = defaultdict(_Conta)
     for venda in vendas:
@@ -73,6 +85,8 @@ def _calcular(db: Session, farmacia: Farmacia, vendas: list[Venda]) -> dict[UUID
         vendido_venda = comissao_venda = ZERO
         for item in venda.itens:
             base = (item.total * fator).quantize(CENTAVO, ROUND_HALF_UP)
+            qtd_devolvida, valor_devolvido = devolvidos.get(item.id, (ZERO, ZERO))
+            base -= valor_devolvido
             percentual = item.comissao
             if percentual is None:
                 atual = regra_atual.get(item.produto_id)
@@ -87,7 +101,7 @@ def _calcular(db: Session, farmacia: Farmacia, vendas: list[Venda]) -> dict[UUID
                 {"descricao": item.descricao, "quantidade": ZERO, "vendido": ZERO, "comissao": ZERO, "percentuais": set()},
             )
             produto["percentuais"].add(percentual)
-            produto["quantidade"] += item.quantidade
+            produto["quantidade"] += item.quantidade - qtd_devolvida
             produto["vendido"] += base
             produto["comissao"] += valor
         conta.vendas += 1

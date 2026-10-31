@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.models import Base, TabelaDaFarmacia
 
-FORMAS_PAGAMENTO = ("dinheiro", "debito", "credito", "pix", "prazo", "convenio", "popular")
+FORMAS_PAGAMENTO = ("dinheiro", "debito", "credito", "pix", "prazo", "convenio", "popular", "vale")
 
 
 class Caixa(TabelaDaFarmacia, Base):
@@ -107,11 +107,13 @@ class VendaPagamento(TabelaDaFarmacia, Base):
     __tablename__ = "venda_pagamentos"
     __table_args__ = (
         ForeignKeyConstraint(["farmacia_id", "venda_id"], ["vendas.farmacia_id", "vendas.id"], ondelete="CASCADE"),
+        ForeignKeyConstraint(["farmacia_id", "vale_id"], ["vales_troca.farmacia_id", "vales_troca.id"]),
     )
 
     venda_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     forma: Mapped[str] = mapped_column(String(10))
     valor: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    vale_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # só na forma "vale"
 
 
 class PreVenda(TabelaDaFarmacia, Base):

@@ -711,3 +711,26 @@ button.servico-opcao.escolhido { border: 2px solid var(--primaria); background: 
   .declaracao { padding: 0; max-width: none; }
 }
 .servico-form .campos { margin-top: 0; }
+
+/* Trocas e devoluções */
+.devolucao-form { display: flex; flex-direction: column; }
+.devolucao-form h2 { margin: 0 0 12px; font-size: 17px; }
+.devolucao-form .barra { flex-wrap: nowrap; }
+.devolucao-form .barra input { max-width: 320px; min-width: 0; flex: 1; }
+.devolucao-venda { margin: 12px 0 0; }
+.campo-quantidade { width: 72px; text-align: right; }
+.bloco { display: block; }
+.acoes-tabela a + button { margin-left: 6px; }
+button.servico-opcao:disabled { opacity: 0.55; cursor: not-allowed; border-color: var(--borda); }
+.campo-motivo { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; max-width: 520px; }
+.motivos-rapidos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.devolucao-total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 18px; padding: 14px 16px; border-radius: 10px; background: var(--primaria-suave); max-width: 520px; }
+.devolucao-total strong { font-size: 26px; color: var(--primaria); }
+.devolucao-feita h2 { margin: 6px 0; }
+.codigo-vale { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 34px; font-weight: 700; letter-spacing: 0.12em; margin: 8px 0; color: var(--texto); }
+.vale-destaque { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 2px dashed #111; border-radius: 10px; padding: 16px; margin-bottom: 18px !important; }
+.vale-destaque .codigo-vale { color: #111; }
+@media (max-width: 640px) {
+  .codigo-vale { font-size: 26px; }
+  .devolucao-total strong { font-size: 22px; }
+}
