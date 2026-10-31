@@ -259,6 +259,8 @@ def confirmar(db: Session, usuario: TokenDados, nota_id: UUID) -> NotaEntrada:
     vinculos: dict[str, tuple[UUID, int]] = {}
     for item in nota.itens:
         produto = obter_produto(db, item.produto_id)
+        if not produto.registro_ms and item.registro_ms:
+            produto.registro_ms = item.registro_ms  # o registro na Anvisa vem na nota (vai para o SNGPC)
         entrar(
             db,
             nota.loja_id,

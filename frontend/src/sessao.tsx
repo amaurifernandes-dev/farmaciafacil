@@ -47,6 +47,11 @@ export function podeReceber(sessao: Sessao | null): boolean {
   return ["admin", "gerente", "farmaceutico", "caixa"].includes(sessao?.papel ?? "");
 }
 
+/** Perfis que cuidam do livro de remédios controlados (SNGPC). */
+export function ehFarmaceutico(sessao: Sessao | null): boolean {
+  return ["admin", "gerente", "farmaceutico"].includes(sessao?.papel ?? "");
+}
+
 /** Perfis que cadastram produtos e fornecedores e dão entrada no estoque. */
 export function cuidaDoEstoque(sessao: Sessao | null): boolean {
   return ["admin", "gerente", "farmaceutico", "estoque"].includes(sessao?.papel ?? "");

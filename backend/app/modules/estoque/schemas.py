@@ -40,6 +40,12 @@ class PerdaCriar(BaseModel):
     lote_id: UUID
     quantidade: QuantidadePositiva
     motivo: Motivo
+    motivo_sngpc: Annotated[int, Field(ge=1, le=10)] | None = Field(
+        default=None,
+        description="Obrigatório no controlado. 1 furto/roubo, 2 avaria, 3 vencimento, 4 apreensão pela Visa, "
+        "5 perda no processo, 6 controle de qualidade, 7 saiu da Portaria 344, 8 desvio de qualidade, "
+        "9 recolhimento do fabricante, 10 devolução ao fornecedor",
+    )
 
 
 class ItemTransferencia(BaseModel):
@@ -86,6 +92,7 @@ class MovimentoSaida(BaseModel):
     referencia_id: UUID | None
     usuario_id: UUID
     motivo: str | None
+    motivo_sngpc: int | None = None
     criado_em: datetime
 
 

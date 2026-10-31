@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.shared.campos import Cep, Cnpj, Email, Telefone, Uf, texto
+from app.shared.campos import Cep, Cnpj, Cpf, Email, Telefone, Uf, texto
 
 ModoCaixa = Literal["mono", "multi"]
 Nome = Annotated[str, Field(min_length=1, max_length=60)]
@@ -28,6 +28,7 @@ class LojaDados(BaseModel):
     uf: Uf
     responsavel_tecnico: texto(120)
     crf: texto(20)
+    responsavel_cpf: Cpf
 
 
 class LojaCriar(LojaDados):
@@ -52,6 +53,7 @@ class LojaAtualizar(BaseModel):
     uf: Uf | None = None
     responsavel_tecnico: texto(120)
     crf: texto(20)
+    responsavel_cpf: Cpf
     modo_caixa: ModoCaixa | None = None
     terminal_central_id: UUID | None = None
     ativo: bool | None = None
@@ -77,6 +79,7 @@ class LojaSaida(BaseModel):
     uf: str
     responsavel_tecnico: str | None
     crf: str | None
+    responsavel_cpf: str | None
     modo_caixa: ModoCaixa
     terminal_central_id: UUID | None
     ativo: bool

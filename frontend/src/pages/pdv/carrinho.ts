@@ -1,7 +1,7 @@
 // Regras do carrinho do PDV, sem React, para poder testar isoladamente.
 // Valores em dinheiro ficam em centavos (inteiros) para não ter erro de arredondamento.
 
-import type { FormaPagamento, ProdutoPDV, PromocaoPDV } from "../../api/tipos";
+import type { FormaPagamento, ProdutoPDV, PromocaoPDV, Receita } from "../../api/tipos";
 
 export interface ItemCarrinho {
   produtoId: string;
@@ -11,6 +11,8 @@ export interface ItemCarrinho {
   saldo: number;
   /** Promoções do produto hoje; vale a que der mais desconto. */
   promocoes?: PromocaoPDV[];
+  /** Lista da Portaria 344 ou ATB: a venda pede a receita. */
+  controle?: string | null;
 }
 
 export interface Pagamento {
@@ -32,6 +34,8 @@ export interface Carrinho {
   pontosResgatados?: number;
   /** Taxa de entrega do pedido que virou a pré-venda (o servidor cobra a mesma). */
   taxaEntregaCentavos?: number;
+  /** Dados da receita, quando a venda tem remédio controlado. */
+  receita?: Receita;
 }
 
 export interface ClienteVenda {
@@ -101,6 +105,7 @@ export function adicionarProduto(carrinho: Carrinho, produto: ProdutoPDV, quanti
     quantidade,
     saldo: Number(produto.saldo),
     promocoes: produto.promocoes ?? [],
+    controle: produto.controle ?? null,
   };
   return { ...carrinho, itens: [...carrinho.itens, novo] };
 }
@@ -204,8 +209,29 @@ export function itensSemSaldo(carrinho: Carrinho): ItemCarrinho[] {
 }
 
 /** O que impede de finalizar, ou null se está tudo certo. */
+/** Receita que cada lista pede, com os códigos do SNGPC (o servidor confere de novo). */
+export const RECEITUARIO: Record<string, number> = {
+  A1: 4, A2: 4, A3: 4, B1: 2, B2: 2, C2: 3, C1: 1, C4: 1, C5: 1, ATB: 5,
+};
+
+export const NOMES_RECEITUARIO: Record<number, string> = {
+  1: "Receita de controle especial (2 vias)",
+  2: "Notificação B (azul)",
+  3: "Notificação de receita especial",
+  4: "Notificação A (amarela)",
+  5: "Receita de antibiótico (2 vias)",
+};
+
+/** O tipo de receita que a venda pede, ou null se não tem remédio controlado. */
+export function receituarioDoCarrinho(carrinho: Carrinho): number | null {
+  const item = carrinho.itens.find((i) => i.controle && RECEITUARIO[i.controle]);
+  return item ? RECEITUARIO[item.controle as string] : null;
+}
+
 export function problemaParaFinalizar(carrinho: Carrinho): string | null {
   if (carrinho.itens.length === 0) return "Nenhum item na venda";
+  const tipo = receituarioDoCarrinho(carrinho);
+  if (tipo && carrinho.receita?.tipo_receituario !== tipo) return "Venda com remédio controlado: preencha a receita (F5)";
   if (falta(carrinho) > 0) return "Pagamento não cobre o total";
   const emDinheiro = carrinho.pagamentos
     .filter((p) => p.forma === "dinheiro")
@@ -238,5 +264,6 @@ export function montarVenda(carrinho: Carrinho, cpf?: string) {
     cliente_id: carrinho.cliente?.id ?? null,
     pontos_resgatados: carrinho.pontosResgatados ?? 0,
     pre_venda_id: carrinho.preVenda?.id ?? null,
+    receita: receituarioDoCarrinho(carrinho) ? (carrinho.receita ?? null) : null,
   };
 }

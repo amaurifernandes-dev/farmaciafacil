@@ -15,6 +15,9 @@ Cfop = Annotated[str, Field(pattern=r"^[5-7]\d{3}$", description="CFOP de saída
 IcmsOrigem = Annotated[str, Field(pattern=r"^[0-8]$")]
 IcmsSituacao = Annotated[str, Field(pattern=r"^\d{2,3}$", description="CSOSN (Simples) ou CST do ICMS")]
 PisCofinsSituacao = Annotated[str, Field(pattern=r"^\d{2}$")]
+# Lista da Portaria 344/98, ou ATB para antibiótico (RDC 20/2011).
+Controle = Literal["A1", "A2", "A3", "B1", "B2", "C1", "C2", "C3", "C4", "C5", "ATB"]
+EmbalagemSngpc = Literal["caixa", "frasco"]
 
 
 class ProdutoBase(BaseModel):
@@ -36,6 +39,8 @@ class ProdutoBase(BaseModel):
     tipo: TipoProduto = "outros"
     registro_ms: str | None = Field(default=None, max_length=20)
     vende_online: bool | None = Field(default=None, description="Vazio: sim, menos para medicamento")
+    controle: Controle | None = Field(default=None, description="Remédio controlado: lista da Portaria 344 ou ATB")
+    embalagem_sngpc: EmbalagemSngpc = "caixa"
 
 
 class ProdutoCriar(ProdutoBase):
@@ -63,6 +68,8 @@ class ProdutoAtualizar(BaseModel):
     tipo: TipoProduto | None = None
     registro_ms: str | None = Field(default=None, max_length=20)
     vende_online: bool | None = None
+    controle: Controle | None = None
+    embalagem_sngpc: EmbalagemSngpc | None = None
     ativo: bool | None = None
 
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import { api, mensagem } from "../../api/cliente";
-import type { PaginaProdutos, Produto } from "../../api/tipos";
+import type { ListaControle, PaginaProdutos, Produto } from "../../api/tipos";
 import { reais } from "../../formato";
 import { cuidaDoEstoque, useSessao } from "../../sessao";
 
@@ -20,7 +20,23 @@ type Formulario = {
   cfop: string;
   icms_situacao_tributaria: string;
   registro_ms: string;
+  controle: ListaControle | "";
+  embalagem_sngpc: Produto["embalagem_sngpc"];
 };
+
+/** As listas da Portaria 344/98 que a farmácia vende, e o antibiótico (RDC 20/2011). */
+export const LISTAS_CONTROLE: { valor: ListaControle; nome: string }[] = [
+  { valor: "ATB", nome: "Antibiótico (receita em 2 vias, vale 10 dias)" },
+  { valor: "C1", nome: "C1 - Controle especial (receita em 2 vias)" },
+  { valor: "C2", nome: "C2 - Retinoides (notificação especial)" },
+  { valor: "C4", nome: "C4 - Antirretrovirais" },
+  { valor: "C5", nome: "C5 - Anabolizantes" },
+  { valor: "B1", nome: "B1 - Psicotrópicos (notificação azul)" },
+  { valor: "B2", nome: "B2 - Anorexígenos (notificação azul)" },
+  { valor: "A1", nome: "A1 - Entorpecentes (notificação amarela)" },
+  { valor: "A2", nome: "A2 - Entorpecentes (notificação amarela)" },
+  { valor: "A3", nome: "A3 - Psicotrópicos (notificação amarela)" },
+];
 
 const VAZIO: Formulario = {
   ean: "",
@@ -37,6 +53,8 @@ const VAZIO: Formulario = {
   cfop: "",
   icms_situacao_tributaria: "",
   registro_ms: "",
+  controle: "",
+  embalagem_sngpc: "caixa",
 };
 
 function paraFormulario(p: Produto): Formulario {
@@ -55,6 +73,8 @@ function paraFormulario(p: Produto): Formulario {
     cfop: p.cfop ?? "",
     icms_situacao_tributaria: p.icms_situacao_tributaria ?? "",
     registro_ms: p.registro_ms ?? "",
+    controle: p.controle ?? "",
+    embalagem_sngpc: p.embalagem_sngpc,
   };
 }
 
@@ -76,6 +96,8 @@ function paraApi(f: Formulario) {
     cfop: ouNulo(f.cfop),
     icms_situacao_tributaria: ouNulo(f.icms_situacao_tributaria),
     registro_ms: ouNulo(f.registro_ms),
+    controle: f.controle || null,
+    embalagem_sngpc: f.embalagem_sngpc,
   };
 }
 
@@ -207,15 +229,55 @@ export default function Produtos() {
             />
           </label>
           <label>
-            Registro MS
-            <input value={form.registro_ms} onChange={(e) => campo("registro_ms", e.target.value)} />
+            Remédio controlado
+            <select
+              value={form.controle}
+              onChange={(e) => {
+                const controle = e.target.value as Formulario["controle"];
+                // Controlado só sai no balcão, com a receita.
+                setForm((f) => ({ ...f, controle, vende_online: controle ? false : f.vende_online }));
+              }}
+            >
+              <option value="">Não é controlado</option>
+              {LISTAS_CONTROLE.map((l) => (
+                <option key={l.valor} value={l.valor}>
+                  {l.nome}
+                </option>
+              ))}
+            </select>
           </label>
+          <label>
+            Registro MS {form.controle && <small>(13 números, vai para o SNGPC)</small>}
+            <input
+              value={form.registro_ms}
+              onChange={(e) => campo("registro_ms", e.target.value)}
+              inputMode="numeric"
+              required={!!form.controle}
+            />
+          </label>
+          {form.controle && (
+            <label>
+              A Anvisa conta em
+              <select
+                value={form.embalagem_sngpc}
+                onChange={(e) => campo("embalagem_sngpc", e.target.value as Formulario["embalagem_sngpc"])}
+              >
+                <option value="caixa">Caixas</option>
+                <option value="frasco">Frascos</option>
+              </select>
+            </label>
+          )}
           <label className="checkbox">
             <input type="checkbox" checked={form.controla_lote} onChange={(e) => campo("controla_lote", e.target.checked)} />
             Controla lote e validade
           </label>
           <label className="checkbox">
-            <input type="checkbox" checked={form.vende_online} onChange={(e) => campo("vende_online", e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={form.vende_online}
+              disabled={!!form.controle}
+              onChange={(e) => campo("vende_online", e.target.checked)}
+            />
             Aparece na loja online <small>(remédio só se não precisar de receita)</small>
           </label>
           {erro && <p className="erro">{erro}</p>}
@@ -247,7 +309,10 @@ export default function Produtos() {
               <td>
                 {p.nome} {p.apresentacao && <small>{p.apresentacao}</small>}
               </td>
-              <td>{p.tipo}</td>
+              <td>
+                {p.tipo}
+                {p.controle && <span className="selo selo-controle">{p.controle === "ATB" ? "Antibiótico" : p.controle}</span>}
+              </td>
               <td className="num">{reais(p.preco_venda)}</td>
               <td>{podeEditar && <button onClick={() => abrir(p)}>Editar</button>}</td>
             </tr>

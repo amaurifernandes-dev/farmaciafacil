@@ -33,9 +33,10 @@ import Pedidos from "./pages/pedidos/Pedidos";
 import Promocoes from "./pages/promocoes/Promocoes";
 import Relatorios from "./pages/relatorios/Relatorios";
 import FechamentoFiscal from "./pages/fiscal/FechamentoFiscal";
+import Controlados from "./pages/controlados/Controlados";
 import PreVenda from "./pages/vendas/PreVenda";
 import Vendas from "./pages/vendas/Vendas";
-import { cuidaDoEstoque, ehAdmin, ehGerente, useSessao } from "./sessao";
+import { cuidaDoEstoque, ehAdmin, ehFarmaceutico, ehGerente, useSessao } from "./sessao";
 
 function Protegido({ children }: { children: ReactNode }) {
   const { sessao } = useSessao();
@@ -50,6 +51,11 @@ function SoAdmin({ children }: { children: ReactNode }) {
 function SoGerente({ children }: { children: ReactNode }) {
   const { sessao } = useSessao();
   return ehGerente(sessao) ? children : <Navigate to="/" replace />;
+}
+
+function SoFarmaceutico({ children }: { children: ReactNode }) {
+  const { sessao } = useSessao();
+  return ehFarmaceutico(sessao) ? children : <Navigate to="/" replace />;
 }
 
 function SoEstoque({ children }: { children: ReactNode }) {
@@ -92,6 +98,7 @@ export default function App() {
         <Route path="/pedidos" element={<Pedidos />} />
         <Route path="/promocoes" element={<SoGerente><Promocoes /></SoGerente>} />
         <Route path="/relatorios" element={<SoGerente><Relatorios /></SoGerente>} />
+        <Route path="/controlados" element={<SoFarmaceutico><Controlados /></SoFarmaceutico>} />
         <Route path="/fiscal" element={<SoGerente><FechamentoFiscal /></SoGerente>} />
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />
         <Route path="/configuracoes/fornecedores" element={<Fornecedores />} />

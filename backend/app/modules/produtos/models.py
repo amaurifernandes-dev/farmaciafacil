@@ -14,6 +14,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.shared.models import Base, TabelaDaFarmacia
 
 TIPOS_PRODUTO = ("medicamento", "perfumaria", "outros")
+# Listas da Portaria 344/98 e antimicrobianos (RDC 20/2011): o que vai para o SNGPC.
+LISTAS_CONTROLE = ("A1", "A2", "A3", "B1", "B2", "C1", "C2", "C3", "C4", "C5", "ATB")
 
 
 class Produto(TabelaDaFarmacia, Base):
@@ -44,6 +46,9 @@ class Produto(TabelaDaFarmacia, Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     # Aparece na loja online. Remédio com receita fica de fora.
     vende_online: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Lista da Portaria 344 ou "ATB" (antibiótico). Vazio: não é controlado.
+    controle: Mapped[str | None] = mapped_column(String(3))
+    embalagem_sngpc: Mapped[str] = mapped_column(String(6), default="caixa")  # caixa ou frasco, como a Anvisa conta
 
     codigos: Mapped[list["ProdutoCodigo"]] = relationship(
         back_populates="produto", cascade="all, delete-orphan", lazy="selectin"

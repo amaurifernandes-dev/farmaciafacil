@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import type { Sessao } from "../api/tipos";
-import { cuidaDoEstoque, ehAdmin, ehGerente, NOMES_PAPEIS, useSessao } from "../sessao";
+import { cuidaDoEstoque, ehAdmin, ehFarmaceutico, ehGerente, NOMES_PAPEIS, useSessao } from "../sessao";
 import Icone, { type NomeIcone } from "./Icone";
 
 interface ItemMenu {
@@ -21,6 +21,7 @@ const MENU: ItemMenu[] = [
   { para: "/clientes", rotulo: "Clientes", icone: "pessoa", agrupa: true },
   { para: "/faltas", rotulo: "Faltas e encomendas", icone: "sino" },
   { para: "/estoque", rotulo: "Estoque", icone: "pacote", agrupa: true },
+  { para: "/controlados", rotulo: "Controlados", icone: "remedio", pode: ehFarmaceutico },
   { para: "/compras", rotulo: "Compras", icone: "caminhao", agrupa: true, pode: cuidaDoEstoque },
   { para: "/financeiro", rotulo: "Financeiro", icone: "dinheiro", agrupa: true, pode: ehGerente },
   { para: "/promocoes", rotulo: "Promoções", icone: "etiqueta", pode: ehGerente },

@@ -70,6 +70,8 @@ def criar(db: Session, dados: ProdutoCriar) -> Produto:
     valores = dados.model_dump()
     if valores["vende_online"] is None:
         valores["vende_online"] = dados.tipo != "medicamento"  # remédio só vai para o site se a farmácia marcar
+    if dados.controle:
+        valores["vende_online"] = False  # controlado precisa da receita no balcão
     produto = Produto(**valores)
     db.add(produto)
     db.commit()
@@ -81,8 +83,12 @@ def atualizar(db: Session, produto_id: UUID, dados: ProdutoAtualizar) -> Produto
     alteracoes = dados.model_dump(exclude_unset=True)
     if alteracoes.get("ean") and _ean_em_uso(db, alteracoes["ean"], ignorar_produto_id=produto.id):
         raise Conflito("Já existe produto com este código de barras")
+    if alteracoes.get("embalagem_sngpc", "") is None:
+        del alteracoes["embalagem_sngpc"]
     for campo, valor in alteracoes.items():
         setattr(produto, campo, valor)
+    if produto.controle:
+        produto.vende_online = False  # controlado precisa da receita no balcão
     db.commit()
     db.refresh(produto)
     return produto
