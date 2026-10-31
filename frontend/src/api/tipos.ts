@@ -34,6 +34,8 @@ export interface Produto {
   /** Lista da Portaria 344 ou "ATB" (antibiótico). Vazio: não é controlado. */
   controle: ListaControle | null;
   embalagem_sngpc: "caixa" | "frasco";
+  /** Farmácia Popular: quanto o governo paga por caixa. Vazio: fora do programa. */
+  popular_valor: string | null;
   ativo: boolean;
   codigos: { id: string; ean: string }[];
 }
@@ -92,7 +94,7 @@ export interface ResumoCaixa {
   diferenca: string | null;
 }
 
-export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix" | "prazo" | "convenio";
+export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix" | "prazo" | "convenio" | "popular";
 
 export interface Venda {
   id: string;
@@ -340,6 +342,8 @@ export interface Configuracoes {
   pix_nome: string | null;
   pix_cidade: string | null;
   pix_no_site: boolean;
+  popular_validade_receita: number;
+  popular_intervalo_dias: number;
 }
 
 export interface TaxaBairro {
@@ -902,4 +906,47 @@ export interface ConvenioDoCliente {
   limite: string;
   usado: string;
   disponivel: string;
+}
+
+/** O que o balconista copia da receita e do autorizador do governo, na venda pela Farmácia Popular. */
+export interface DadosPopular {
+  paciente_cpf: string;
+  paciente_nome: string;
+  prescritor_crm: string;
+  prescritor_uf: string;
+  receita_data: string;
+  autorizacao: string;
+}
+
+export interface ItemPopular {
+  produto_id: string;
+  descricao: string;
+  quantidade: string;
+  total: string;
+  governo: string;
+}
+
+export interface VendaPopular extends DadosPopular {
+  id: string;
+  venda_id: string;
+  loja_id: string;
+  numero: number;
+  data: string;
+  itens: ItemPopular[];
+  valor_governo: string;
+  valor_paciente: string;
+  status: "aberta" | "lancada";
+  conta_id: string | null;
+}
+
+export interface MesPopular {
+  mes: string;
+  vendas: VendaPopular[];
+  quantidade: number;
+  pacientes: number;
+  total_governo: string;
+  total_paciente: string;
+  em_aberto: string;
+  lancamentos: Conta[];
+  pode_lancar: boolean;
 }

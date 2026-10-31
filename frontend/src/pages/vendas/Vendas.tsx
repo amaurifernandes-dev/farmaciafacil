@@ -16,6 +16,7 @@ const FORMAS: Record<string, string> = {
   pix: "Pix",
   prazo: "A prazo",
   convenio: "Convênio",
+  popular: "Farmácia Popular",
 };
 
 function dataHora(iso: string): string {

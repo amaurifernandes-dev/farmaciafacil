@@ -173,6 +173,8 @@ function RegrasGerais({ podeEditar }: { podeEditar: boolean }) {
             desconto_maximo_caixa: String(config.desconto_maximo_caixa).replace(",", "."),
             dias_alerta_vencimento: Number(config.dias_alerta_vencimento),
             dias_prazo_padrao: Number(config.dias_prazo_padrao),
+            popular_validade_receita: Number(config.popular_validade_receita),
+            popular_intervalo_dias: Number(config.popular_intervalo_dias),
           },
         }),
       );
@@ -218,6 +220,28 @@ function RegrasGerais({ podeEditar }: { podeEditar: boolean }) {
             onChange={(e) => setConfig({ ...config, dias_prazo_padrao: Number(e.target.value) })}
           />
           <small>Vencimento do fiado quando o caixa não escolhe outra data.</small>
+        </label>
+        <label>
+          Farmácia Popular: a receita vale (dias)
+          <input
+            type="number"
+            min={30}
+            max={365}
+            value={config.popular_validade_receita}
+            onChange={(e) => setConfig({ ...config, popular_validade_receita: Number(e.target.value) })}
+          />
+          <small>Receita mais velha que isso não é aceita no caixa.</small>
+        </label>
+        <label>
+          Farmácia Popular: dias até levar o mesmo remédio de novo
+          <input
+            type="number"
+            min={0}
+            max={90}
+            value={config.popular_intervalo_dias}
+            onChange={(e) => setConfig({ ...config, popular_intervalo_dias: Number(e.target.value) })}
+          />
+          <small>O caixa avisa antes do governo recusar. 0 deixa só o sistema do governo conferir.</small>
         </label>
         {podeEditar && (
           <div className="acoes largo">

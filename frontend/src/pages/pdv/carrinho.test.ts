@@ -10,6 +10,7 @@ import {
   montarVenda,
   novoCarrinho,
   paraCentavos,
+  parteDoGoverno,
   descontoConvenio,
   problemaParaFinalizar,
   receituarioDoCarrinho,
@@ -42,6 +43,7 @@ function produto(campos: Partial<ProdutoPDV> = {}): ProdutoPDV {
     registro_ms: null,
     controle: null,
     embalagem_sngpc: "caixa",
+    popular_valor: null,
     ativo: true,
     codigos: [],
     saldo: "10",
@@ -129,6 +131,7 @@ describe("carrinho", () => {
       pontos_resgatados: 0,
       pre_venda_id: null,
       receita: null,
+      popular: null,
     });
     expect(montarVenda({ ...c, preVenda: { id: "pv1", numero: 7 } }).pre_venda_id).toBe("pv1");
   });
@@ -238,5 +241,29 @@ describe("promoções", () => {
     const semConvenio = { ...c, cliente: { id: "c2", nome: "Ana", disponivelCentavos: 0 } };
     expect(descontoConvenio(semConvenio)).toBe(0);
     expect(problemaParaFinalizar(semConvenio)).toMatch(/Pagamento não cobre|empresa conveniada/);
+  });
+
+  it("Farmácia Popular: o governo paga até o valor do programa e o paciente paga o resto", () => {
+    let c = adicionarProduto(novoCarrinho(), produto({ preco_venda: "25.00", popular_valor: "18.40" }), 1);
+    c = adicionarProduto(c, produto({ id: "p2", preco_venda: "9.00", popular_valor: "12.00" }), 1);
+    c = adicionarProduto(c, produto({ id: "p3", preco_venda: "20.00" }), 1);
+    // Sem os dados do programa, o governo não paga nada.
+    expect(parteDoGoverno(c)).toBe(0);
+    c = {
+      ...c,
+      popular: {
+        paciente_cpf: "52998224725", paciente_nome: "Maria", prescritor_crm: "123", prescritor_uf: "SP",
+        receita_data: "2026-10-01", autorizacao: "12345",
+      },
+    };
+    expect(parteDoGoverno(c)).toBe(1840 + 900);
+    expect(falta(c)).toBe(5400 - 2740);
+    c = { ...c, pagamentos: [{ forma: "dinheiro", centavos: 3000 }] };
+    expect(problemaParaFinalizar(c)).toBeNull();
+    expect(troco(c)).toBe(340);
+    expect(montarVenda(c).pagamentos[0]).toEqual({ forma: "popular", valor: "27.40" });
+    // Só item fora do programa: não dá para vender pela Farmácia Popular.
+    const fora = { ...c, itens: c.itens.slice(2), pagamentos: [] };
+    expect(problemaParaFinalizar(fora)).toMatch(/Nenhum remédio/);
   });
 });

@@ -41,6 +41,9 @@ class ProdutoBase(BaseModel):
     vende_online: bool | None = Field(default=None, description="Vazio: sim, menos para medicamento")
     controle: Controle | None = Field(default=None, description="Remédio controlado: lista da Portaria 344 ou ATB")
     embalagem_sngpc: EmbalagemSngpc = "caixa"
+    popular_valor: Preco | None = Field(
+        default=None, description="Farmácia Popular: quanto o governo paga por caixa. Vazio: fora do programa"
+    )
 
 
 class ProdutoCriar(ProdutoBase):
@@ -70,6 +73,7 @@ class ProdutoAtualizar(BaseModel):
     vende_online: bool | None = None
     controle: Controle | None = None
     embalagem_sngpc: EmbalagemSngpc | None = None
+    popular_valor: Preco | None = None
     ativo: bool | None = None
 
 

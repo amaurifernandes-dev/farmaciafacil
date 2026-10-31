@@ -12,6 +12,7 @@ const NOMES: Record<string, string> = {
   pix: "Pix",
   prazo: "A prazo (fiado)",
   convenio: "Convênio",
+  popular: "Farmácia Popular",
 };
 
 interface Props {

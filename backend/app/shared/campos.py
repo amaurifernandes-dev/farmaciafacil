@@ -42,6 +42,7 @@ def _maiusculas(valor: object) -> object:
 
 
 Cpf = _opcional(Annotated[str, AfterValidator(_cpf)], _digitos)
+CpfObrigatorio = Annotated[str, BeforeValidator(_digitos), AfterValidator(_cpf)]
 Cnpj = Annotated[str, BeforeValidator(_digitos), AfterValidator(_cnpj)]
 CnpjOpcional = _opcional(Annotated[str, AfterValidator(_cnpj)], _digitos)
 Cep = _opcional(Annotated[str, Field(pattern=r"^\d{8}$")], _digitos)

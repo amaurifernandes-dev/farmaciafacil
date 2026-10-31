@@ -22,6 +22,7 @@ type Formulario = {
   registro_ms: string;
   controle: ListaControle | "";
   embalagem_sngpc: Produto["embalagem_sngpc"];
+  popular_valor: string;
 };
 
 /** As listas da Portaria 344/98 que a farmácia vende, e o antibiótico (RDC 20/2011). */
@@ -55,6 +56,7 @@ const VAZIO: Formulario = {
   registro_ms: "",
   controle: "",
   embalagem_sngpc: "caixa",
+  popular_valor: "",
 };
 
 function paraFormulario(p: Produto): Formulario {
@@ -75,6 +77,7 @@ function paraFormulario(p: Produto): Formulario {
     registro_ms: p.registro_ms ?? "",
     controle: p.controle ?? "",
     embalagem_sngpc: p.embalagem_sngpc,
+    popular_valor: p.popular_valor ? p.popular_valor.replace(".", ",") : "",
   };
 }
 
@@ -98,6 +101,7 @@ function paraApi(f: Formulario) {
     registro_ms: ouNulo(f.registro_ms),
     controle: f.controle || null,
     embalagem_sngpc: f.embalagem_sngpc,
+    popular_valor: ouNulo(f.popular_valor.replace(/\./g, "").replace(",", ".")),
   };
 }
 
@@ -267,6 +271,16 @@ export default function Produtos() {
               </select>
             </label>
           )}
+          <label>
+            Farmácia Popular: governo paga por caixa (R$)
+            <input
+              value={form.popular_valor}
+              onChange={(e) => campo("popular_valor", e.target.value)}
+              inputMode="decimal"
+              placeholder="Fora do programa"
+            />
+            <small>Valor de referência do Ministério. Vazio: não está no programa.</small>
+          </label>
           <label className="checkbox">
             <input type="checkbox" checked={form.controla_lote} onChange={(e) => campo("controla_lote", e.target.checked)} />
             Controla lote e validade
@@ -312,6 +326,7 @@ export default function Produtos() {
               <td>
                 {p.tipo}
                 {p.controle && <span className="selo selo-controle">{p.controle === "ATB" ? "Antibiótico" : p.controle}</span>}
+                {p.popular_valor && <span className="selo selo-popular">Farmácia Popular</span>}
               </td>
               <td className="num">{reais(p.preco_venda)}</td>
               <td>{podeEditar && <button onClick={() => abrir(p)}>Editar</button>}</td>

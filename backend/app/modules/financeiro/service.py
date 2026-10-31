@@ -32,6 +32,9 @@ from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado
 
 CENTAVO = Decimal("0.01")
 ZERO = Decimal(0)
+PAGADOR_POPULAR = "Ministério da Saúde"
+# Formas de pagamento que não entram no caixa no dia: viram conta a receber.
+A_RECEBER_DEPOIS = ("prazo", "convenio", "popular")
 
 
 def _dividir(total: Decimal, partes: int) -> list[Decimal]:
@@ -49,6 +52,8 @@ def _validar_categoria(tipo: str, categoria: str) -> None:
 
 def criar(db: Session, usuario: TokenDados, dados: ContaCriar) -> list[Conta]:
     _validar_categoria(dados.tipo, dados.categoria)
+    if dados.categoria == "popular":
+        raise ErroDeNegocio("A Farmácia Popular é lançada pela tela Farmácia Popular, com as vendas do mês")
     loja = obter_loja(db, dados.loja_id) if dados.loja_id else matriz(db)
     if dados.fornecedor_id and db.get(Fornecedor, dados.fornecedor_id) is None:
         raise NaoEncontrado("Fornecedor não encontrado")
@@ -211,7 +216,8 @@ def saidas(db: Session, contas: list[Conta]) -> list[ContaSaida]:
     return [
         ContaSaida.model_validate(c).model_copy(
             update={
-                "pessoa": nomes.get(c.fornecedor_id or c.cliente_id or c.convenio_id),
+                "pessoa": PAGADOR_POPULAR if c.categoria == "popular"
+                else nomes.get(c.fornecedor_id or c.cliente_id or c.convenio_id),
                 "vencida": c.status == "aberta" and c.vencimento < dia,
             }
         )
@@ -336,6 +342,10 @@ def atualizar(db: Session, conta_id: UUID, dados: ContaAtualizar) -> Conta:
         _validar_categoria(conta.tipo, alteracoes["categoria"])
     if conta.venda_id and "valor" in alteracoes:
         raise ErroDeNegocio("O valor de uma venda a prazo só muda cancelando a venda")
+    if conta.categoria == "popular" and ("valor" in alteracoes or "categoria" in alteracoes):
+        raise ErroDeNegocio("O valor da Farmácia Popular vem das vendas. Desfaça o lançamento em Farmácia Popular.")
+    if alteracoes.get("categoria") == "popular":
+        raise ErroDeNegocio("A Farmácia Popular é lançada pela tela Farmácia Popular")
     if conta.convenio_id and "valor" in alteracoes:
         raise ErroDeNegocio("O valor da fatura do convênio vem das compras. Desfaça a fatura em Convênios para mudar.")
     for campo, valor in alteracoes.items():
@@ -388,6 +398,8 @@ def cancelar(db: Session, conta_id: UUID) -> Conta:
         raise ErroDeNegocio("Para cancelar uma venda a prazo, cancele a venda")
     if conta.convenio_id is not None:
         raise ErroDeNegocio("Para cancelar a fatura de um convênio, use Desfazer fatura em Convênios")
+    if conta.categoria == "popular":
+        raise ErroDeNegocio("Para cancelar a Farmácia Popular do mês, use Desfazer lançamento em Farmácia Popular")
     conta.status = "cancelada"
     db.commit()
     return conta
@@ -416,7 +428,7 @@ def fluxo(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> FluxoCa
     vendas = (
         select(dia_venda.label("dia"), func.sum(VendaPagamento.valor).label("valor"))
         .join(VendaPagamento, VendaPagamento.venda_id == Venda.id)
-        .where(Venda.status == "finalizada", VendaPagamento.forma.not_in(("prazo", "convenio")), dia_venda.between(inicio, fim))
+        .where(Venda.status == "finalizada", VendaPagamento.forma.not_in(A_RECEBER_DEPOIS), dia_venda.between(inicio, fim))
         .group_by(dia_venda)
     )
     trocos = (

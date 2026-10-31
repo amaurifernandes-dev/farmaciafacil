@@ -25,6 +25,7 @@ CATEGORIAS = {
     "receber": {
         "venda_prazo": "Venda a prazo (fiado)",
         "convenio": "Convênio de empresa",
+        "popular": "Farmácia Popular (governo)",
         "outras": "Outras receitas",
     },
 }
