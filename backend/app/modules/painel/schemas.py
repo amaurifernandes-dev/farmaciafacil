@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
+from app.modules.metas.schemas import Andamento
+
 
 class DiaDeVendas(BaseModel):
     data: date
@@ -31,3 +33,5 @@ class Painel(BaseModel):
     abaixo_do_minimo: int
     encomendas_chegaram: int
     pedidos_novos: int  # do site, WhatsApp ou telefone, esperando a farmácia aceitar  # encomendas que já têm estoque: avisar o cliente
+    meta_farmacia: Andamento | None = None  # meta do mês da farmácia toda, se definida
+    minha_meta: Andamento | None = None  # meta do mês de quem está usando

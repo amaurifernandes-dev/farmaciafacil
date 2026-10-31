@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api, baixar, mensagem } from "../../api/cliente";
-import type { DetalheVendedor, RelatorioComissoes } from "../../api/tipos";
+import type { Andamento, DetalheVendedor, RelatorioComissoes } from "../../api/tipos";
 import { data, quantidade, reais } from "../../formato";
 import { useLojas } from "../../lojas";
 import { ehGerente, NOMES_PAPEIS, useSessao } from "../../sessao";
+import { BarraMeta, pct as pctMeta, Recado, SITUACOES } from "../metas/BarraMeta";
 
 type Opcao = "este-mes" | "mes-passado" | "30";
 
@@ -43,6 +44,7 @@ export default function Comissoes() {
   const [aberto, setAberto] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<DetalheVendedor | null>(null);
   const [erro, setErro] = useState("");
+  const [minhaMeta, setMinhaMeta] = useState<Andamento | null>(null);
   const { inicio, fim, nome } = periodo(opcao);
 
   function filtros(comLoja = true) {
@@ -64,6 +66,13 @@ export default function Comissoes() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opcao, lojaId, gerente]);
+
+  useEffect(() => {
+    if (gerente) return;
+    api<Andamento | null>("/metas/minha")
+      .then(setMinhaMeta)
+      .catch(() => setMinhaMeta(null));
+  }, [gerente]);
 
   useEffect(() => {
     if (!gerente) return;
@@ -121,6 +130,24 @@ export default function Comissoes() {
       </div>
 
       {erro && <p className="erro">{erro}</p>}
+
+      {!gerente && minhaMeta && opcao === "este-mes" && (
+        <div className="cartao cartao-separado meta-resumo">
+          <div className="meta-resumo-topo">
+            <strong>
+              Sua meta do mês: {reais(minhaMeta.meta ?? "0")} · {pctMeta(minhaMeta.percentual)}
+            </strong>
+            <span className={`etiqueta ${SITUACOES[minhaMeta.situacao].classe}`}>{SITUACOES[minhaMeta.situacao].texto}</span>
+          </div>
+          <BarraMeta andamento={minhaMeta} grande />
+          <p className="vazio">
+            <Recado
+              andamento={minhaMeta}
+              dias={new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate() + 1}
+            />
+          </p>
+        </div>
+      )}
 
       {gerente && relatorio && (
         <>

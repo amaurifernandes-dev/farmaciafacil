@@ -2,10 +2,11 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { api, mensagem } from "../api/cliente";
-import type { Painel } from "../api/tipos";
+import type { Andamento, Painel } from "../api/tipos";
 import Icone, { type NomeIcone } from "../components/Icone";
 import { reais } from "../formato";
-import { podeReceber, useSessao } from "../sessao";
+import { ehGerente, podeReceber, useSessao } from "../sessao";
+import { BarraMeta, pct, Recado, SITUACOES } from "./metas/BarraMeta";
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -84,6 +85,20 @@ export default function Inicio() {
         </Indicador>
       </div>
 
+      {(painel.meta_farmacia || painel.minha_meta) && (
+        <div className="metas-inicio">
+          {painel.minha_meta && <CartaoMeta titulo="Sua meta do mês" andamento={painel.minha_meta} hoje={painel.hoje} />}
+          {painel.meta_farmacia && (
+            <CartaoMeta
+              titulo="Meta da farmácia no mês"
+              andamento={painel.meta_farmacia}
+              hoje={painel.hoje}
+              link={ehGerente(sessao) ? "/metas" : undefined}
+            />
+          )}
+        </div>
+      )}
+
       <div className="inicio-grade">
         <section className="cartao">
           <div className="cartao-cabecalho">
@@ -122,6 +137,33 @@ function Indicador(props: { titulo: string; icone: NomeIcone; valor: string; chi
       </div>
       <strong>{props.valor}</strong>
       <small>{props.children}</small>
+    </div>
+  );
+}
+
+/** Dias que faltam no mês, contando hoje. */
+function diasQueFaltam(hoje: string): number {
+  const dia = diaLocal(hoje);
+  return new Date(dia.getFullYear(), dia.getMonth() + 1, 0).getDate() - dia.getDate() + 1;
+}
+
+function CartaoMeta(props: { titulo: string; andamento: Andamento; hoje: string; link?: string }) {
+  const a = props.andamento;
+  const situacao = SITUACOES[a.situacao];
+  return (
+    <div className="cartao">
+      <div className="cartao-cabecalho">
+        <span>{props.titulo}</span>
+        <span className={`etiqueta ${situacao.classe}`}>{situacao.texto}</span>
+      </div>
+      <p>
+        <strong className="valor-meta">{reais(a.vendido)}</strong> <span className="vazio">de {reais(a.meta ?? "0")} ({pct(a.percentual)})</span>
+      </p>
+      <BarraMeta andamento={a} grande />
+      <small className="vazio">
+        <Recado andamento={a} dias={diasQueFaltam(props.hoje)} />{" "}
+        {props.link && <Link to={props.link}>Ver metas</Link>}
+      </small>
     </div>
   );
 }
