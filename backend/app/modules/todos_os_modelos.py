@@ -16,3 +16,4 @@ from app.modules.promocoes.models import Promocao, PromocaoProduto  # noqa: F401
 from app.modules.faltas.models import Falta  # noqa: F401
 from app.modules.pedidos.models import Pedido, PedidoItem  # noqa: F401
 from app.modules.controlados.models import Receita  # noqa: F401
+from app.modules.convenios.models import CompraConvenio, Convenio  # noqa: F401

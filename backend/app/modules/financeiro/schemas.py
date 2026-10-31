@@ -72,6 +72,7 @@ class ContaSaida(BaseModel):
     forma_pagamento: str | None
     nota_entrada_id: UUID | None
     venda_id: UUID | None
+    convenio_id: UUID | None = None
     observacao: str | None
     criado_em: datetime
 

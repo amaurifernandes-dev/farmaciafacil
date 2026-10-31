@@ -10,6 +10,7 @@ import {
   montarVenda,
   novoCarrinho,
   paraCentavos,
+  descontoConvenio,
   problemaParaFinalizar,
   receituarioDoCarrinho,
   removerItem,
@@ -221,5 +222,21 @@ describe("promoções", () => {
     expect(montarVenda(c).receita).toEqual(receita);
     // Tirou o controlado: a receita não vai.
     expect(montarVenda(removerItem(c, 1)).receita).toBeNull();
+  });
+
+  it("conveniado ganha o desconto e não passa do limite do convênio", () => {
+    let c = adicionarProduto(novoCarrinho(), produto({ preco_venda: "40.00" }), 1);
+    c = adicionarProduto(c, produto({ id: "p2", preco_venda: "20.00", promocoes: [promo({ percentual: "50" })] }), 1);
+    c = { ...c, cliente: { id: "c1", nome: "Pedro", disponivelCentavos: 0, convenio: { nome: "Metalúrgica", desconto: "10.00", disponivelCentavos: 4000 } } };
+    // (40 + 20 - 10 da promoção) x 10% = 5
+    expect(descontoConvenio(c)).toBe(500);
+    expect(total(c)).toBe(4500);
+    c = { ...c, pagamentos: [{ forma: "convenio", centavos: 4500 }] };
+    expect(problemaParaFinalizar(c)).toMatch(/só pode comprar mais 40,00 no convênio/);
+    c = { ...c, pagamentos: [{ forma: "convenio", centavos: 4000 }, { forma: "pix", centavos: 500 }] };
+    expect(problemaParaFinalizar(c)).toBeNull();
+    const semConvenio = { ...c, cliente: { id: "c2", nome: "Ana", disponivelCentavos: 0 } };
+    expect(descontoConvenio(semConvenio)).toBe(0);
+    expect(problemaParaFinalizar(semConvenio)).toMatch(/Pagamento não cobre|empresa conveniada/);
   });
 });

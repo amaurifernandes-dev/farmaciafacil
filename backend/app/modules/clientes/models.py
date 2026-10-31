@@ -1,8 +1,17 @@
+import uuid
 from datetime import date, datetime
-
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, Numeric, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKeyConstraint,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.shared.models import Base, TabelaDaFarmacia
@@ -12,7 +21,11 @@ class Cliente(TabelaDaFarmacia, Base):
     """Cadastro opcional. Ofertas só com consentimento registrado (LGPD)."""
 
     __tablename__ = "clientes"
-    __table_args__ = (UniqueConstraint("farmacia_id", "cpf"), UniqueConstraint("farmacia_id", "id"))
+    __table_args__ = (
+        UniqueConstraint("farmacia_id", "cpf"),
+        UniqueConstraint("farmacia_id", "id"),
+        ForeignKeyConstraint(["farmacia_id", "convenio_id"], ["convenios.farmacia_id", "convenios.id"]),
+    )
 
     nome: Mapped[str] = mapped_column(String(120))
     cpf: Mapped[str | None] = mapped_column(String(11))
@@ -29,4 +42,8 @@ class Cliente(TabelaDaFarmacia, Base):
     observacoes: Mapped[str | None] = mapped_column(String(500))
     # Quanto o cliente pode dever na venda a prazo. Vazio ou zero: não compra a prazo.
     limite_credito: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    # Funcionário de empresa conveniada: compra no convênio e ganha o desconto da empresa.
+    convenio_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    convenio_matricula: Mapped[str | None] = mapped_column(String(30))
+    convenio_limite: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))  # vazio: o limite padrão da empresa
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)

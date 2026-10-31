@@ -11,6 +11,7 @@ const NOMES: Record<string, string> = {
   credito: "Crédito",
   pix: "Pix",
   prazo: "A prazo (fiado)",
+  convenio: "Convênio",
 };
 
 interface Props {

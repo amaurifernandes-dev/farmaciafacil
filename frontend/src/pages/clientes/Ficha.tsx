@@ -7,7 +7,7 @@ import { FormularioCadastro, Janela } from "../../components/Cadastro";
 import { data, quantidade, reais } from "../../formato";
 import { ehGerente, useSessao } from "../../sessao";
 import { documento, telefone } from "../configuracoes/campos";
-import { CAMPOS_CLIENTE } from "./Clientes";
+import { camposCliente, useConvenios } from "./Clientes";
 
 const NOMES_FORMA: Record<string, string> = {
   dinheiro: "Dinheiro",
@@ -15,6 +15,7 @@ const NOMES_FORMA: Record<string, string> = {
   credito: "Crédito",
   pix: "Pix",
   prazo: "A prazo",
+  convenio: "Convênio",
 };
 
 const NOMES_MOVIMENTO: Record<MovimentoPontos["tipo"], string> = {
@@ -44,6 +45,7 @@ function haQuantoTempo(dias: number | null): string {
 export default function Ficha() {
   const { id } = useParams();
   const { sessao } = useSessao();
+  const convenios = useConvenios();
   const [ficha, setFicha] = useState<FichaCliente | null>(null);
   const [erro, setErro] = useState("");
   const [editando, setEditando] = useState(false);
@@ -266,7 +268,7 @@ export default function Ficha() {
       {editando && (
         <FormularioCadastro
           titulo="Editar cliente"
-          campos={CAMPOS_CLIENTE}
+          campos={camposCliente(convenios)}
           registro={cliente as unknown as Record<string, unknown>}
           aoFechar={() => setEditando(false)}
           aoSalvar={async (valores) => {

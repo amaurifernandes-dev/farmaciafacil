@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.models import Base, TabelaDaFarmacia
 
-FORMAS_PAGAMENTO = ("dinheiro", "debito", "credito", "pix", "prazo")
+FORMAS_PAGAMENTO = ("dinheiro", "debito", "credito", "pix", "prazo", "convenio")
 
 
 class Caixa(TabelaDaFarmacia, Base):
@@ -61,6 +61,8 @@ class Venda(TabelaDaFarmacia, Base):
     pontos_ganhos: Mapped[int] = mapped_column(Integer, default=0)
     pontos_resgatados: Mapped[int] = mapped_column(Integer, default=0)
     desconto_pontos: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    # Desconto da empresa conveniada do cliente (também já dentro de desconto).
+    desconto_convenio: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     chave_idempotencia: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     finalizada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     cancelada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

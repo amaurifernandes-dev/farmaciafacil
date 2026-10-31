@@ -13,6 +13,9 @@ from app.modules.estoque.models import MovimentoEstoque
 from app.modules.estoque.service import Referencia, baixar_fefo, devolver_movimento
 from app.modules.clientes.models import Cliente
 from app.modules.controlados.models import Receita
+from app.modules.convenios.service import cancelar_da_venda as cancelar_compra_convenio
+from app.modules.convenios.service import desconto_do_cliente as desconto_do_convenio
+from app.modules.convenios.service import lancar_compra as lancar_compra_convenio
 from app.modules.controlados.regras import receituario_da_venda, validar_quantidade, validar_receita
 from app.modules.farmacias.models import Farmacia
 from app.modules.faltas.service import entregar_da_venda, estornar_da_venda as reabrir_encomendas
@@ -248,6 +251,14 @@ def registrar_venda(
     if usuario.papel not in GERENTES and subtotal > 0 and manuais * 100 / subtotal > maximo:
         raise SemPermissao(f"Desconto acima de {maximo:g}% precisa de um gerente")
 
+    # Funcionário de empresa conveniada ganha o desconto da empresa (fora do limite do caixa).
+    desconto_convenio = desconto_do_convenio(db, dados.cliente_id, subtotal - (descontos - dados.desconto))
+    if desconto_convenio:
+        if descontos + desconto_convenio > subtotal:
+            raise ErroDeNegocio("Com o desconto do convênio, o desconto passa do valor da venda")
+        venda.desconto_convenio = desconto_convenio
+        descontos += desconto_convenio
+
     # A troca de pontos vira desconto, mas não conta no limite de desconto do caixa.
     if dados.pontos_resgatados:
         desconto_pontos = desconto_do_resgate(db, farmacia, dados.cliente_id, dados.pontos_resgatados)
@@ -285,6 +296,9 @@ def registrar_venda(
         produto = db.get(Produto, item.produto_id)
         baixar_fefo(db, loja_id, produto, item.quantidade, usuario.usuario_id, Referencia("venda_item", item.id))
 
+    no_convenio = sum((p.valor for p in dados.pagamentos if p.forma == "convenio"), Decimal(0))
+    if no_convenio:
+        lancar_compra_convenio(db, venda, loja_id, no_convenio)
     a_prazo = [p for p in dados.pagamentos if p.forma == "prazo"]
     if a_prazo:
         valor = sum((p.valor for p in a_prazo), Decimal(0))
@@ -356,6 +370,7 @@ def cancelar_venda(db: Session, usuario: TokenDados, venda_id: UUID, motivo: str
         )
     ).all()
     cancelar_fiado_da_venda(db, venda)
+    cancelar_compra_convenio(db, venda)
     estornar_da_venda(db, usuario.usuario_id, venda)
     reabrir_encomendas(db, venda)
     for movimento in movimentos:

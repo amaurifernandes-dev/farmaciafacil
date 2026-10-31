@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.security import TokenDados
 from app.modules.clientes.models import Cliente
 from app.modules.compras.nfe_xml import ler_nfe
+from app.modules.convenios.models import Convenio
 from app.modules.financeiro.models import CATEGORIAS, Conta
 from app.modules.financeiro.schemas import (
     ContaAtualizar,
@@ -203,11 +204,14 @@ def saidas(db: Session, contas: list[Conta]) -> list[ContaSaida]:
         )
     if clientes:
         nomes |= dict(db.execute(select(Cliente.id, Cliente.nome).where(Cliente.id.in_(clientes))).all())
+    convenios = {c.convenio_id for c in contas if c.convenio_id}
+    if convenios:
+        nomes |= dict(db.execute(select(Convenio.id, Convenio.nome).where(Convenio.id.in_(convenios))).all())
     dia = hoje()
     return [
         ContaSaida.model_validate(c).model_copy(
             update={
-                "pessoa": nomes.get(c.fornecedor_id or c.cliente_id),
+                "pessoa": nomes.get(c.fornecedor_id or c.cliente_id or c.convenio_id),
                 "vencida": c.status == "aberta" and c.vencimento < dia,
             }
         )
@@ -332,6 +336,8 @@ def atualizar(db: Session, conta_id: UUID, dados: ContaAtualizar) -> Conta:
         _validar_categoria(conta.tipo, alteracoes["categoria"])
     if conta.venda_id and "valor" in alteracoes:
         raise ErroDeNegocio("O valor de uma venda a prazo só muda cancelando a venda")
+    if conta.convenio_id and "valor" in alteracoes:
+        raise ErroDeNegocio("O valor da fatura do convênio vem das compras. Desfaça a fatura em Convênios para mudar.")
     for campo, valor in alteracoes.items():
         setattr(conta, campo, valor)
     db.commit()
@@ -380,6 +386,8 @@ def cancelar(db: Session, conta_id: UUID) -> Conta:
     conta = _aberta(db, conta_id)
     if conta.venda_id is not None:
         raise ErroDeNegocio("Para cancelar uma venda a prazo, cancele a venda")
+    if conta.convenio_id is not None:
+        raise ErroDeNegocio("Para cancelar a fatura de um convênio, use Desfazer fatura em Convênios")
     conta.status = "cancelada"
     db.commit()
     return conta
@@ -408,7 +416,7 @@ def fluxo(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> FluxoCa
     vendas = (
         select(dia_venda.label("dia"), func.sum(VendaPagamento.valor).label("valor"))
         .join(VendaPagamento, VendaPagamento.venda_id == Venda.id)
-        .where(Venda.status == "finalizada", VendaPagamento.forma != "prazo", dia_venda.between(inicio, fim))
+        .where(Venda.status == "finalizada", VendaPagamento.forma.not_in(("prazo", "convenio")), dia_venda.between(inicio, fim))
         .group_by(dia_venda)
     )
     trocos = (

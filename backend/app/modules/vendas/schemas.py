@@ -11,7 +11,7 @@ from app.shared.campos import Cpf
 
 Dinheiro = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
 DinheiroPositivo = Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=2)]
-FormaPagamento = Literal["dinheiro", "debito", "credito", "pix", "prazo"]
+FormaPagamento = Literal["dinheiro", "debito", "credito", "pix", "prazo", "convenio"]
 
 
 # --- Caixa ---
@@ -127,6 +127,7 @@ class VendaSaida(BaseModel):
     pontos_ganhos: int = 0
     pontos_resgatados: int = 0
     desconto_pontos: Decimal = Decimal(0)
+    desconto_convenio: Decimal = Decimal(0)
     finalizada_em: datetime
     cancelada_em: datetime | None
     motivo_cancelamento: str | None
