@@ -15,6 +15,7 @@ const NOMES_FORMA: Record<string, string> = {
   pix: "Pix",
   prazo: "A prazo",
   convenio: "Convênio",
+  popular: "Farmácia Popular",
 };
 
 function iso(dia: Date): string {

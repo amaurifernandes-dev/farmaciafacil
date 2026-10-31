@@ -1,7 +1,7 @@
 // Regras do carrinho do PDV, sem React, para poder testar isoladamente.
 // Valores em dinheiro ficam em centavos (inteiros) para não ter erro de arredondamento.
 
-import type { FormaPagamento, ProdutoPDV, PromocaoPDV, Receita } from "../../api/tipos";
+import type { DadosPopular, FormaPagamento, ProdutoPDV, PromocaoPDV, Receita } from "../../api/tipos";
 
 export interface ItemCarrinho {
   produtoId: string;
@@ -13,6 +13,8 @@ export interface ItemCarrinho {
   promocoes?: PromocaoPDV[];
   /** Lista da Portaria 344 ou ATB: a venda pede a receita. */
   controle?: string | null;
+  /** Farmácia Popular: quanto o governo paga por unidade, em centavos. Vazio: fora do programa. */
+  popularCentavos?: number | null;
 }
 
 export interface Pagamento {
@@ -36,6 +38,8 @@ export interface Carrinho {
   taxaEntregaCentavos?: number;
   /** Dados da receita, quando a venda tem remédio controlado. */
   receita?: Receita;
+  /** Venda pela Farmácia Popular: paciente, receita e número da autorização do governo. */
+  popular?: DadosPopular;
 }
 
 export interface ClienteVenda {
@@ -115,6 +119,7 @@ export function adicionarProduto(carrinho: Carrinho, produto: ProdutoPDV, quanti
     saldo: Number(produto.saldo),
     promocoes: produto.promocoes ?? [],
     controle: produto.controle ?? null,
+    popularCentavos: produto.popular_valor ? paraCentavos(produto.popular_valor) : null,
   };
   return { ...carrinho, itens: [...carrinho.itens, novo] };
 }
@@ -215,8 +220,26 @@ export function total(carrinho: Carrinho): number {
   );
 }
 
+/** Quanto o governo paga em um item: o valor do programa por unidade, nunca mais que o preço. Igual ao servidor. */
+export function governoNoItem(item: ItemCarrinho, comCliente: boolean): number {
+  if (!item.popularCentavos) return 0;
+  const cobrado = totalItem(item) - (promocaoDoItem(item, comCliente)?.centavos ?? 0);
+  return Math.min(cobrado, Math.round(item.popularCentavos * item.quantidade));
+}
+
+/** Itens do carrinho que estão na Farmácia Popular. */
+export function itensDoPopular(carrinho: Carrinho): ItemCarrinho[] {
+  return carrinho.itens.filter((item) => governoNoItem(item, !!carrinho.cliente) > 0);
+}
+
+/** A parte do governo, quando a venda é pela Farmácia Popular. Entra como um pagamento. */
+export function parteDoGoverno(carrinho: Carrinho): number {
+  if (!carrinho.popular) return 0;
+  return carrinho.itens.reduce((soma, item) => soma + governoNoItem(item, !!carrinho.cliente), 0);
+}
+
 export function pago(carrinho: Carrinho): number {
-  return carrinho.pagamentos.reduce((soma, p) => soma + p.centavos, 0);
+  return carrinho.pagamentos.reduce((soma, p) => soma + p.centavos, 0) + parteDoGoverno(carrinho);
 }
 
 export function falta(carrinho: Carrinho): number {
@@ -256,6 +279,10 @@ export function problemaParaFinalizar(carrinho: Carrinho): string | null {
   if (carrinho.itens.length === 0) return "Nenhum item na venda";
   const tipo = receituarioDoCarrinho(carrinho);
   if (tipo && carrinho.receita?.tipo_receituario !== tipo) return "Venda com remédio controlado: preencha a receita (F5)";
+  if (carrinho.popular) {
+    if (parteDoGoverno(carrinho) === 0) return "Nenhum remédio desta venda está na Farmácia Popular. Tire os dados (Alt+7).";
+    if (parteDoGoverno(carrinho) > total(carrinho)) return "Com os descontos, a venda ficou menor que a parte do governo";
+  }
   if (falta(carrinho) > 0) return "Pagamento não cobre o total";
   const emDinheiro = carrinho.pagamentos
     .filter((p) => p.forma === "dinheiro")
@@ -296,12 +323,16 @@ export function montarVenda(carrinho: Carrinho, cpf?: string) {
   return {
     chave_idempotencia: carrinho.chave,
     itens: carrinho.itens.map((item) => ({ produto_id: item.produtoId, quantidade: String(item.quantidade) })),
-    pagamentos: carrinho.pagamentos.map((p) => ({ forma: p.forma, valor: centavosParaApi(p.centavos) })),
+    pagamentos: [
+      ...(parteDoGoverno(carrinho) > 0 ? [{ forma: "popular", valor: centavosParaApi(parteDoGoverno(carrinho)) }] : []),
+      ...carrinho.pagamentos.map((p) => ({ forma: p.forma, valor: centavosParaApi(p.centavos) })),
+    ],
     desconto: centavosParaApi(carrinho.descontoCentavos),
     cliente_cpf: cpf || null,
     cliente_id: carrinho.cliente?.id ?? null,
     pontos_resgatados: carrinho.pontosResgatados ?? 0,
     pre_venda_id: carrinho.preVenda?.id ?? null,
     receita: receituarioDoCarrinho(carrinho) ? (carrinho.receita ?? null) : null,
+    popular: carrinho.popular ?? null,
   };
 }

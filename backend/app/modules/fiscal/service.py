@@ -15,7 +15,7 @@ from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado
 
 CENTAVO = Decimal("0.01")
 # Código tPag da NFC-e para cada forma de pagamento do PDV.
-FORMA_PAGAMENTO = {"dinheiro": "01", "credito": "03", "debito": "04", "prazo": "05", "convenio": "05", "pix": "17"}
+FORMA_PAGAMENTO = {"dinheiro": "01", "credito": "03", "debito": "04", "prazo": "05", "convenio": "05", "pix": "17", "popular": "99"}
 # A SEFAZ só aceita cancelar a NFC-e com justificativa de 15 a 255 caracteres.
 JUSTIFICATIVA_MINIMA = 15
 
@@ -122,6 +122,8 @@ def montar_nfce(venda: Venda, loja: Loja, config: ConfiguracaoFiscal, produtos: 
         dados = {"forma_pagamento": FORMA_PAGAMENTO[forma], "valor_pagamento": str(valor)}
         if forma in ("debito", "credito", "pix"):
             dados["tipo_integracao"] = "2"  # maquininha não integrada ao PDV
+        if forma == "popular":
+            dados["descricao_pagamento"] = "Farmacia Popular"  # tPag 99 pede a descrição
         formas.append(dados)
     if not formas:
         # Venda de valor zero (100% de desconto): a NFC-e exige uma forma, usa "sem pagamento".

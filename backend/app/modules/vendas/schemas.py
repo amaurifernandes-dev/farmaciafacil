@@ -7,11 +7,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.controlados.schemas import ReceitaDados
 from app.modules.fiscal.schemas import NotaFiscalSaida
+from app.modules.popular.schemas import PopularDados
 from app.shared.campos import Cpf
 
 Dinheiro = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
 DinheiroPositivo = Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=2)]
-FormaPagamento = Literal["dinheiro", "debito", "credito", "pix", "prazo", "convenio"]
+FormaPagamento = Literal["dinheiro", "debito", "credito", "pix", "prazo", "convenio", "popular"]
 
 
 # --- Caixa ---
@@ -82,6 +83,7 @@ class VendaCriar(BaseModel):
     )
     pre_venda_id: UUID | None = Field(default=None, description="Pré-venda que está sendo recebida")
     receita: ReceitaDados | None = Field(default=None, description="Obrigatória quando a venda tem remédio controlado")
+    popular: PopularDados | None = Field(default=None, description="Venda pela Farmácia Popular")
 
 
 class VendaCancelar(BaseModel):

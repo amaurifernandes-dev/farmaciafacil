@@ -49,6 +49,8 @@ class Produto(TabelaDaFarmacia, Base):
     # Lista da Portaria 344 ou "ATB" (antibiótico). Vazio: não é controlado.
     controle: Mapped[str | None] = mapped_column(String(3))
     embalagem_sngpc: Mapped[str] = mapped_column(String(6), default="caixa")  # caixa ou frasco, como a Anvisa conta
+    # Farmácia Popular: quanto o governo paga, no máximo, por unidade vendida. Vazio: fora do programa.
+    popular_valor: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
 
     codigos: Mapped[list["ProdutoCodigo"]] = relationship(
         back_populates="produto", cascade="all, delete-orphan", lazy="selectin"

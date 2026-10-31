@@ -24,6 +24,7 @@ from app.modules.financeiro.service import cancelar_fiado_da_venda, lancar_fiado
 from app.modules.lojas.models import Loja, Terminal
 from app.modules.lojas.service import matriz, obter_loja, pode_receber
 from app.modules.pedidos.models import EM_ANDAMENTO, Pedido
+from app.modules.popular import service as popular
 from app.modules.produtos.models import Produto
 from app.modules.promocoes.service import melhor, vigentes_por_produto
 from app.modules.vendas.models import Caixa, PreVenda, Venda, VendaItem, VendaPagamento
@@ -276,6 +277,16 @@ def registrar_venda(
         venda.taxa_entrega = pre_venda.taxa_entrega
     venda.total = subtotal - descontos + venda.taxa_entrega
 
+    # Farmácia Popular: o governo paga parte dos remédios do programa; o paciente paga o resto.
+    governo, itens_popular = popular.preparar(
+        db, farmacia, dados.popular, venda.itens, vendidos,
+        sum((p.valor for p in dados.pagamentos if p.forma == "popular"), Decimal(0)), hoje(),
+    )
+    if governo > venda.total:
+        raise ErroDeNegocio("Com os descontos, a venda ficou menor que a parte do governo. Tire o desconto.")
+    if dados.popular is not None and not venda.cliente_cpf:
+        venda.cliente_cpf = dados.popular.paciente_cpf  # vai na nota
+
     pago = sum((p.valor for p in dados.pagamentos), Decimal(0))
     em_dinheiro = sum((p.valor for p in dados.pagamentos if p.forma == "dinheiro"), Decimal(0))
     if pago < venda.total:
@@ -296,6 +307,8 @@ def registrar_venda(
         produto = db.get(Produto, item.produto_id)
         baixar_fefo(db, loja_id, produto, item.quantidade, usuario.usuario_id, Referencia("venda_item", item.id))
 
+    if governo:
+        popular.lancar(db, venda, loja_id, dados.popular, governo, itens_popular, hoje())
     no_convenio = sum((p.valor for p in dados.pagamentos if p.forma == "convenio"), Decimal(0))
     if no_convenio:
         lancar_compra_convenio(db, venda, loja_id, no_convenio)
@@ -371,6 +384,7 @@ def cancelar_venda(db: Session, usuario: TokenDados, venda_id: UUID, motivo: str
     ).all()
     cancelar_fiado_da_venda(db, venda)
     cancelar_compra_convenio(db, venda)
+    popular.cancelar_da_venda(db, venda)
     estornar_da_venda(db, usuario.usuario_id, venda)
     reabrir_encomendas(db, venda)
     for movimento in movimentos:

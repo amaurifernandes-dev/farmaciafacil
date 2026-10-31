@@ -21,13 +21,16 @@ import {
   descontoPontos,
   descontoPromocoes,
   falta,
+  governoNoItem,
   interpretarEntrada,
+  itensDoPopular,
   itensSemSaldo,
   lerQuantidade,
   maximoDePontos,
   montarVenda,
   novoCarrinho,
   paraCentavos,
+  parteDoGoverno,
   problemaParaFinalizar,
   promocaoDoItem,
   receituarioDoCarrinho,
@@ -42,6 +45,7 @@ import {
 import type { Cliente as ClienteCadastro, ConvenioDoCliente, CreditoCliente, Pontos } from "../../api/tipos";
 import { lerEsteTerminal } from "../caixas/Caixas";
 import FecharCaixa from "./FecharCaixa";
+import PopularDaVenda from "./PopularDaVenda";
 import ReceitaDaVenda from "./ReceitaDaVenda";
 
 type Modo =
@@ -55,6 +59,7 @@ type Modo =
   | "preVenda"
   | "falta"
   | "receita"
+  | "popular"
   | "fechar";
 
 /** O que o cliente pediu e não tinha, para anotar com F1 na lista de faltas. */
@@ -94,7 +99,7 @@ export default function Pdv() {
   const [modo, setModo] = useState<Modo>("venda");
   const [texto, setTexto] = useState("");
   const [selecionado, setSelecionado] = useState(-1);
-  const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string; link?: string } | null>(null);
+  const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string; link?: string; comprovante?: string } | null>(null);
   const [forma, setForma] = useState<FormaPagamento>("dinheiro");
   const [resultados, setResultados] = useState<ProdutoPDV[]>([]);
   const [indiceBusca, setIndiceBusca] = useState(0);
@@ -184,6 +189,15 @@ export default function Pdv() {
       }
       valorNoConvenio(carrinho);
     }
+  }
+
+  /** Alt+7: venda pela Farmácia Popular. */
+  function abrirPopular() {
+    if (carrinho.itens.length === 0) return;
+    if (itensDoPopular(carrinho).length === 0 && !carrinho.popular) {
+      return erro("Nenhum remédio desta venda está na Farmácia Popular. Marque no cadastro do produto quanto o governo paga.");
+    }
+    mudarModo("popular");
   }
 
   /** Sugere no campo o que cabe no convênio do cliente, ou avisa que ele não é conveniado. */
@@ -437,7 +451,12 @@ export default function Pdv() {
       mudarModo("venda");
       const ganhos = venda.pontos_ganhos ? ` ${carrinho.cliente?.nome} ganhou ${venda.pontos_ganhos} pontos.` : "";
       const textoTroco = (Number(venda.troco) > 0 ? ` Troco: ${reais(venda.troco)}` : "") + ganhos;
-      setAviso(avisoDaVenda(venda, textoTroco));
+      const aviso = avisoDaVenda(venda, textoTroco);
+      setAviso(
+        carrinho.popular
+          ? { ...aviso, texto: `${aviso.texto} Imprima o comprovante da Farmácia Popular para o paciente assinar.`, comprovante: `/popular/comprovante/${venda.id}` }
+          : aviso,
+      );
       atualizarCaixa();
     } catch (e) {
       erro(mensagem(e));
@@ -511,7 +530,7 @@ export default function Pdv() {
   // Atalhos de teclado do PDV.
   useEffect(() => {
     function tecla(evento: KeyboardEvent) {
-      if (!caixa || modo === "fechar" || modo === "receita") return;
+      if (!caixa || modo === "fechar" || modo === "receita" || modo === "popular") return;
       const atalhos: Record<string, () => void> = {
         F1: () => modo === "venda" && anotarFalta(),
         F2: () => mudarModo("busca"),
@@ -564,6 +583,10 @@ export default function Pdv() {
       };
       // No pagamento, Alt+1 a Alt+5 escolhem a forma sem atrapalhar a digitação do valor.
       if (modo === "pagamento" && evento.altKey) {
+        if (evento.key === "7") {
+          evento.preventDefault();
+          return abrirPopular();
+        }
         const escolhida = FORMAS.find((f) => f.tecla === evento.key);
         if (escolhida) {
           evento.preventDefault();
@@ -619,6 +642,45 @@ export default function Pdv() {
     }
   }
 
+  if (modo === "popular") {
+    const comCliente = !!carrinho.cliente;
+    const voltar = (atualizado: Carrinho) => {
+      setModo("pagamento");
+      setTexto(textoValor(falta(atualizado)));
+    };
+    return (
+      <div className="pdv-centro-largo">
+        <PopularDaVenda
+          inicial={carrinho.popular}
+          nome={carrinho.cliente?.nome}
+          itens={itensDoPopular(carrinho).map((i) => ({ descricao: i.descricao, governo: governoNoItem(i, comCliente) }))}
+          totalVenda={total(carrinho)}
+          aoVoltar={() => voltar(carrinho)}
+          aoTirar={
+            carrinho.popular
+              ? () => {
+                  const atualizado = { ...carrinho, popular: undefined };
+                  setCarrinho(atualizado);
+                  voltar(atualizado);
+                  setAviso({ tipo: "ok", texto: "Tirei a Farmácia Popular desta venda." });
+                }
+              : undefined
+          }
+          aoSalvar={(popular) => {
+            const atualizado = { ...carrinho, popular };
+            setCarrinho(atualizado);
+            voltar(atualizado);
+            setForma("dinheiro");
+            setAviso({
+              tipo: "ok",
+              texto: `Farmácia Popular: o governo paga ${reais(parteDoGoverno(atualizado))}. Agora a parte do paciente.`,
+            });
+          }}
+        />
+      </div>
+    );
+  }
+
   const rotulos: Record<Modo, string> = {
     venda: "Código de barras (ou nome do produto)",
     busca: "Buscar produto por nome",
@@ -630,6 +692,7 @@ export default function Pdv() {
     preVenda: "Número da pré-venda",
     falta: "O que o cliente pediu e não tinha (Enter anota; Esc volta)",
     receita: "",
+    popular: "",
     fechar: "",
   };
 
@@ -668,6 +731,7 @@ export default function Pdv() {
                 <td>
                   {item.descricao}
                   {item.controle && <span className="selo selo-controle">Controlado</span>}
+                  {item.popularCentavos ? <span className="selo selo-popular">Farmácia Popular</span> : null}
                   <PromocaoDoItem item={item} comCliente={!!carrinho.cliente} />
                 </td>
                 <td className="num">{fmtQtd(item.quantidade)}</td>
@@ -703,12 +767,17 @@ export default function Pdv() {
             <div>Entrega <span>{reais(carrinho.taxaEntregaCentavos ?? 0)}</span></div>
           )}
           <div className="total">Total <span>{reais(total(carrinho))}</span></div>
+          {parteDoGoverno(carrinho) > 0 && (
+            <div className="pagamento">
+              Farmácia Popular (governo) <span>{reais(parteDoGoverno(carrinho))}</span>
+            </div>
+          )}
           {carrinho.pagamentos.map((p, i) => (
             <div key={i} className="pagamento">
               {FORMAS.find((f) => f.forma === p.forma)?.nome} <span>{reais(p.centavos)}</span>
             </div>
           ))}
-          {carrinho.pagamentos.length > 0 && (
+          {(carrinho.pagamentos.length > 0 || parteDoGoverno(carrinho) > 0) && (
             falta(carrinho) > 0
               ? <div className="falta">Falta <span>{reais(falta(carrinho))}</span></div>
               : <div className="troco">Troco <span>{reais(troco(carrinho))}</span></div>
@@ -722,6 +791,11 @@ export default function Pdv() {
                 Alt+{f.tecla} {f.nome}
               </button>
             ))}
+            {(itensDoPopular(carrinho).length > 0 || carrinho.popular) && (
+              <button className={carrinho.popular ? "ativa" : ""} onClick={abrirPopular}>
+                Alt+7 Farmácia Popular
+              </button>
+            )}
           </div>
         )}
 
@@ -739,6 +813,19 @@ export default function Pdv() {
             ) : (
               <strong>Falta preencher (F5)</strong>
             )}
+          </div>
+        )}
+
+        {carrinho.popular && (
+          <div className="pdv-cliente">
+            <small>Farmácia Popular</small>
+            <strong>{carrinho.popular.paciente_nome}</strong>
+            <small>
+              Autorização {carrinho.popular.autorizacao} · CRM {carrinho.popular.prescritor_crm}/{carrinho.popular.prescritor_uf}
+            </small>{" "}
+            <button type="button" className="botao-pequeno" onClick={abrirPopular}>
+              Alterar
+            </button>
           </div>
         )}
 
@@ -824,6 +911,14 @@ export default function Pdv() {
                 </a>
               </>
             )}
+            {aviso.comprovante && (
+              <>
+                {" "}
+                <a href={aviso.comprovante} target="_blank" rel="noreferrer">
+                  Imprimir comprovante da Farmácia Popular
+                </a>
+              </>
+            )}
           </p>
         )}
       </form>
@@ -832,7 +927,7 @@ export default function Pdv() {
         <span>F1 Anotar falta</span>
         <span>F2 Buscar</span>
         <span>F3 Quantidade</span>
-        <span>F4 Pagamento (Alt+5 a prazo, Alt+6 convênio)</span>
+        <span>F4 Pagamento (Alt+5 a prazo, Alt+6 convênio, Alt+7 Farmácia Popular)</span>
         <span>F5 Receita</span>
         <span>F6 Desconto</span>
         <span>F7 Receber pré-venda</span>

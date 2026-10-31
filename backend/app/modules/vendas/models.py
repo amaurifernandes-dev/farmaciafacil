@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.models import Base, TabelaDaFarmacia
 
-FORMAS_PAGAMENTO = ("dinheiro", "debito", "credito", "pix", "prazo", "convenio")
+FORMAS_PAGAMENTO = ("dinheiro", "debito", "credito", "pix", "prazo", "convenio", "popular")
 
 
 class Caixa(TabelaDaFarmacia, Base):

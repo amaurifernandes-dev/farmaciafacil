@@ -12,6 +12,8 @@ ValorPonto = Annotated[Decimal, Field(gt=0, le=100, max_digits=8, decimal_places
 MinimoResgate = Annotated[int, Field(ge=1, le=1_000_000)]
 ValidadeMeses = Annotated[int, Field(ge=1, le=60)]
 EnderecoLoja = Annotated[str, Field(min_length=3, max_length=40, pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")]
+ValidadeReceita = Annotated[int, Field(ge=30, le=365)]
+IntervaloPopular = Annotated[int, Field(ge=0, le=90)]
 Valor = Annotated[Decimal, Field(ge=0, le=100_000, max_digits=12, decimal_places=2)]
 
 
@@ -46,6 +48,8 @@ class Configuracoes(BaseModel):
     pix_nome: str | None
     pix_cidade: str | None
     pix_no_site: bool
+    popular_validade_receita: ValidadeReceita = 180
+    popular_intervalo_dias: IntervaloPopular = 30
 
 
 class ConfiguracoesAtualizar(BaseModel):
@@ -76,6 +80,10 @@ class ConfiguracoesAtualizar(BaseModel):
     pix_nome: str | None = Field(default=None, max_length=25, description="Nome de quem recebe, como no banco")
     pix_cidade: str | None = Field(default=None, max_length=15)
     pix_no_site: bool | None = None
+    popular_validade_receita: ValidadeReceita | None = Field(default=None, description="Dias que a receita vale")
+    popular_intervalo_dias: IntervaloPopular | None = Field(
+        default=None, description="Dias até o paciente levar o mesmo remédio de novo. 0 não confere"
+    )
 
 
 # Campos que aceitam vazio (null apaga o valor).

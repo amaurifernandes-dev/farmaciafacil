@@ -35,6 +35,8 @@ import Relatorios from "./pages/relatorios/Relatorios";
 import FechamentoFiscal from "./pages/fiscal/FechamentoFiscal";
 import Controlados from "./pages/controlados/Controlados";
 import Convenios from "./pages/convenios/Convenios";
+import ComprovantePopular from "./pages/popular/Comprovante";
+import Popular from "./pages/popular/Popular";
 import PreVenda from "./pages/vendas/PreVenda";
 import Vendas from "./pages/vendas/Vendas";
 import { cuidaDoEstoque, ehAdmin, ehFarmaceutico, ehGerente, useSessao } from "./sessao";
@@ -72,6 +74,7 @@ export default function App() {
       <Route path="/loja/:endereco" element={<LojaOnline />} />
       <Route path="/loja/:endereco/pedido/:codigo" element={<AcompanharPedido />} />
       <Route path="/pdv" element={<Protegido><Pdv /></Protegido>} />
+      <Route path="/popular/comprovante/:vendaId" element={<Protegido><ComprovantePopular /></Protegido>} />
       <Route element={<Protegido><Layout /></Protegido>}>
         <Route path="/" element={<Inicio />} />
         <Route path="/vendas" element={<Vendas />} />
@@ -101,6 +104,7 @@ export default function App() {
         <Route path="/relatorios" element={<SoGerente><Relatorios /></SoGerente>} />
         <Route path="/convenios" element={<SoGerente><Convenios /></SoGerente>} />
         <Route path="/convenios/:id" element={<SoGerente><Convenios /></SoGerente>} />
+        <Route path="/popular" element={<SoGerente><Popular /></SoGerente>} />
         <Route path="/controlados" element={<SoFarmaceutico><Controlados /></SoFarmaceutico>} />
         <Route path="/fiscal" element={<SoGerente><FechamentoFiscal /></SoGerente>} />
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />

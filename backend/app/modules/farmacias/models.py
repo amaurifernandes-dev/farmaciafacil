@@ -24,6 +24,9 @@ class Farmacia(ComDatas, Base):
     dias_alerta_vencimento: Mapped[int] = mapped_column(Integer, default=30)
     # Vencimento padrão da venda a prazo (fiado), em dias.
     dias_prazo_padrao: Mapped[int] = mapped_column(Integer, default=30)
+    # Farmácia Popular: validade da receita e dias até o paciente levar o mesmo remédio de novo (0: não confere).
+    popular_validade_receita: Mapped[int] = mapped_column(Integer, default=180)
+    popular_intervalo_dias: Mapped[int] = mapped_column(Integer, default=30)
 
     # Fidelidade: o cliente identificado ganha pontos por real gasto e troca por desconto.
     fidelidade_ativa: Mapped[bool] = mapped_column(Boolean, default=False)
