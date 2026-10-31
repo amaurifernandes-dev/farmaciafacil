@@ -96,6 +96,14 @@ describe("carrinho", () => {
     expect(problemaParaFinalizar(c)).toBeNull();
   });
 
+  it("soma a taxa de entrega da pré-venda no total", () => {
+    let c = adicionarProduto({ ...novoCarrinho(), taxaEntregaCentavos: 950 }, produto(), 2);
+    c = { ...c, descontoCentavos: 80 };
+    expect(total(c)).toBe(1780 - 80 + 950);
+    c = { ...c, pagamentos: [{ forma: "dinheiro", centavos: 2700 }] };
+    expect(troco(c)).toBe(50);
+  });
+
   it("não deixa troco sair do cartão", () => {
     let c = adicionarProduto(novoCarrinho(), produto(), 1);
     c = { ...c, pagamentos: [{ forma: "debito", centavos: 1000 }] };

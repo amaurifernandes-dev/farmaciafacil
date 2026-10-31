@@ -15,6 +15,11 @@ EnderecoLoja = Annotated[str, Field(min_length=3, max_length=40, pattern=r"^[a-z
 Valor = Annotated[Decimal, Field(ge=0, le=100_000, max_digits=12, decimal_places=2)]
 
 
+class TaxaBairro(BaseModel):
+    bairro: Annotated[str, Field(min_length=2, max_length=60)]
+    taxa: Annotated[Decimal, Field(ge=0, le=1000, max_digits=8, decimal_places=2)]
+
+
 class Configuracoes(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -34,6 +39,13 @@ class Configuracoes(BaseModel):
     entrega_ativa: bool
     entrega_minimo: Decimal
     entrega_area: str | None
+    entrega_taxa: Decimal
+    entrega_gratis_acima: Decimal | None
+    entrega_bairros: list[TaxaBairro]
+    pix_chave: str | None
+    pix_nome: str | None
+    pix_cidade: str | None
+    pix_no_site: bool
 
 
 class ConfiguracoesAtualizar(BaseModel):
@@ -55,10 +67,19 @@ class ConfiguracoesAtualizar(BaseModel):
     entrega_ativa: bool | None = None
     entrega_minimo: Valor | None = None
     entrega_area: str | None = Field(default=None, max_length=200)
+    entrega_taxa: Valor | None = Field(default=None, description="Taxa de entrega quando não há lista de bairros")
+    entrega_gratis_acima: Valor | None = Field(default=None, description="Pedido a partir deste valor não paga entrega")
+    entrega_bairros: Annotated[list[TaxaBairro], Field(max_length=200)] | None = Field(
+        default=None, description="Taxa por bairro. Com a lista preenchida, o site só entrega nesses bairros"
+    )
+    pix_chave: str | None = Field(default=None, max_length=77)
+    pix_nome: str | None = Field(default=None, max_length=25, description="Nome de quem recebe, como no banco")
+    pix_cidade: str | None = Field(default=None, max_length=15)
+    pix_no_site: bool | None = None
 
 
 # Campos que aceitam vazio (null apaga o valor).
 PODEM_FICAR_VAZIOS = {
     "pontos_validade_meses", "loja_online_endereco", "loja_online_loja_id", "loja_online_mensagem", "whatsapp",
-    "entrega_area",
+    "entrega_area", "entrega_gratis_acima", "pix_chave", "pix_nome", "pix_cidade",
 }

@@ -18,9 +18,11 @@ from app.modules.clientes.models import Cliente
 from app.modules.estoque.models import Lote
 from app.modules.estoque.service import _lotes_vendaveis
 from app.modules.farmacias.models import Farmacia
+from app.modules.farmacias.schemas import TaxaBairro
 from app.modules.lojas.models import Loja
 from app.modules.lojas.service import matriz, obter_loja
 from app.modules.pedidos.models import EM_ANDAMENTO, Pedido, PedidoItem
+from app.modules.pedidos.pix import copia_e_cola
 from app.modules.pedidos.schemas import (
     Catalogo,
     ItemPedidoSaida,
@@ -87,7 +89,32 @@ def loja_publica(db: Session, farmacia: Farmacia) -> LojaPublica:
         entrega=farmacia.entrega_ativa,
         entrega_minimo=farmacia.entrega_minimo,
         entrega_area=farmacia.entrega_area,
+        entrega_taxa=farmacia.entrega_taxa,
+        entrega_gratis_acima=farmacia.entrega_gratis_acima,
+        bairros=[TaxaBairro(**b) for b in farmacia.entrega_bairros],
+        pix=_pix_no_site(farmacia),
     )
+
+
+def _pix_no_site(farmacia: Farmacia) -> bool:
+    return farmacia.pix_no_site and bool(farmacia.pix_chave and farmacia.pix_nome and farmacia.pix_cidade)
+
+
+def taxa_de_entrega(farmacia: Farmacia, bairro: str | None, valor_itens: Decimal, so_da_lista: bool) -> tuple[str | None, Decimal]:
+    """A taxa do bairro (ou a padrão) e o nome do bairro como está na lista. Acima do valor de frete grátis, zero."""
+    bairro = (bairro or "").strip() or None
+    taxa = farmacia.entrega_taxa
+    if farmacia.entrega_bairros:
+        achado = next((b for b in farmacia.entrega_bairros
+                       if bairro and b["bairro"].casefold() == bairro.casefold()), None)
+        if achado is not None:
+            bairro, taxa = achado["bairro"], Decimal(achado["taxa"])
+        elif so_da_lista:
+            raise ErroDeNegocio(f"Não entregamos no bairro {bairro}. Escolha retirar na loja" if bairro
+                                else "Escolha o bairro da entrega")
+    if farmacia.entrega_gratis_acima is not None and valor_itens >= farmacia.entrega_gratis_acima:
+        taxa = Decimal(0)
+    return bairro, taxa
 
 
 def catalogo(db: Session, farmacia: Farmacia, busca: str | None, pagina: int, por_pagina: int) -> Catalogo:
@@ -166,12 +193,16 @@ def _itens(db: Session, loja_id: UUID, dados: PedidoCriar, so_online: bool) -> l
 def _criar(db: Session, farmacia: Farmacia, loja: Loja, dados: PedidoCriar, canal: str,
            usuario_id: UUID | None) -> Pedido:
     itens = _itens(db, loja.id, dados, so_online=canal == "site")
-    total = sum((i.total for i in itens), Decimal(0))
+    valor_itens = sum((i.total for i in itens), Decimal(0))
+    bairro, taxa = None, Decimal(0)
     if dados.entrega:
         if canal == "site" and not farmacia.entrega_ativa:
             raise ErroDeNegocio("Esta farmácia não faz entrega pelo site. Escolha retirar na loja")
-        if total < farmacia.entrega_minimo:
+        if valor_itens < farmacia.entrega_minimo:
             raise ErroDeNegocio(f"Para entrega, o pedido mínimo é R$ {farmacia.entrega_minimo:.2f}".replace(".", ","))
+        # No WhatsApp a equipe pode anotar um bairro fora da lista: vale a taxa padrão.
+        bairro, taxa = taxa_de_entrega(farmacia, dados.bairro, valor_itens, so_da_lista=canal == "site")
+    total = valor_itens + taxa
     troco = dados.troco_para if dados.forma_pagamento == "dinheiro" else None
     if troco is not None and troco < total:
         raise ErroDeNegocio("O troco precisa ser para um valor maior que o total")
@@ -197,21 +228,35 @@ def _criar(db: Session, farmacia: Farmacia, loja: Loja, dados: PedidoCriar, cana
         forma_pagamento=dados.forma_pagamento,
         troco_para=troco,
         observacao=(dados.observacao or "").strip() or None,
+        bairro=bairro,
+        taxa_entrega=taxa,
         total=total,
         status="novo",
         usuario_id=usuario_id,
         itens=itens,
     )
+    # Pix com QR Code: no site, se a farmácia ligou; no WhatsApp, para a equipe mandar o "copia e cola".
+    # Sem isso, o Pix é pago na entrega ou na retirada, como antes.
+    if dados.forma_pagamento == "pix" and (_pix_no_site(farmacia) if canal == "site" else farmacia.pix_chave):
+        pedido.pix_txid = f"PEDIDO{pedido.numero}"
     db.add(pedido)
     db.commit()
     return pedido
 
 
 def criar_pelo_site(db: Session, farmacia: Farmacia, dados: PedidoCriar) -> PedidoPublico:
-    return publico(_criar(db, farmacia, _loja_do_site(db, farmacia), dados, "site", None))
+    return publico(farmacia, _criar(db, farmacia, _loja_do_site(db, farmacia), dados, "site", None))
 
 
-def publico(pedido: Pedido) -> PedidoPublico:
+def _copia_e_cola(farmacia: Farmacia, pedido: Pedido) -> str | None:
+    """O Pix do pedido, enquanto ainda falta pagar."""
+    if (pedido.pix_txid is None or pedido.pix_pago_em is not None or pedido.status in ("entregue", "cancelado")
+            or not (farmacia.pix_chave and farmacia.pix_nome and farmacia.pix_cidade)):
+        return None
+    return copia_e_cola(farmacia.pix_chave, farmacia.pix_nome, farmacia.pix_cidade, pedido.total, pedido.pix_txid)
+
+
+def publico(farmacia: Farmacia, pedido: Pedido) -> PedidoPublico:
     return PedidoPublico(
         numero=pedido.numero,
         codigo=pedido.codigo,
@@ -219,24 +264,28 @@ def publico(pedido: Pedido) -> PedidoPublico:
         entrega=pedido.entrega,
         forma_pagamento=pedido.forma_pagamento,
         troco_para=pedido.troco_para,
+        taxa_entrega=pedido.taxa_entrega,
         total=pedido.total,
         itens=[ItemPedidoSaida.model_validate(i, from_attributes=True) for i in pedido.itens],
         criado_em=pedido.criado_em,
         motivo_cancelamento=pedido.motivo_cancelamento,
+        pix_copia_e_cola=_copia_e_cola(farmacia, pedido) if pedido.canal == "site" else None,
+        pix_pago=pedido.pix_pago_em is not None,
     )
 
 
-def acompanhar(db: Session, codigo: str) -> PedidoPublico:
+def acompanhar(db: Session, farmacia: Farmacia, codigo: str) -> PedidoPublico:
     pedido = db.scalar(select(Pedido).where(Pedido.codigo == codigo))
     if pedido is None:
         raise NaoEncontrado("Pedido não encontrado")
-    return publico(pedido)
+    return publico(farmacia, pedido)
 
 
 # --- Na farmácia ---
 
 def saidas(db: Session, pedidos: list[Pedido]) -> list[PedidoSaida]:
     lojas = dict(db.execute(select(Loja.id, Loja.nome)).all())
+    farmacia = db.get(Farmacia, db.info["farmacia_id"]) if pedidos else None
     ids = [p.pre_venda_id for p in pedidos if p.pre_venda_id]
     pre_vendas = {pv.id: pv for pv in db.scalars(select(PreVenda).where(PreVenda.id.in_(ids)))} if ids else {}
     resultado = []
@@ -246,7 +295,8 @@ def saidas(db: Session, pedidos: list[Pedido]) -> list[PedidoSaida]:
             PedidoSaida.model_validate(
                 {
                     **{c: getattr(pedido, c) for c in PedidoSaida.model_fields
-                       if c not in ("loja_nome", "pre_venda_numero", "pago", "itens")},
+                       if c not in ("loja_nome", "pre_venda_numero", "pago", "itens", "pix_copia_e_cola")},
+                    "pix_copia_e_cola": _copia_e_cola(farmacia, pedido),
                     "loja_nome": lojas.get(pedido.loja_id, ""),
                     "pre_venda_numero": pre_venda.numero if pre_venda else None,
                     "pago": pre_venda is not None and pre_venda.status == "recebida",
@@ -336,6 +386,9 @@ def confirmar(db: Session, usuario: TokenDados, pedido_id: UUID) -> PedidoSaida:
             cliente_cpf=cliente.cpf if cliente else None,
             loja_id=pedido.loja_id,
         ),
+        entrega=pedido.entrega,
+        taxa_entrega=pedido.taxa_entrega,
+        pago_antecipado=pedido.total if pedido.pix_pago_em else Decimal(0),
     )
     pedido.pre_venda_id = pre_venda.id
     db.commit()
@@ -376,3 +429,22 @@ def cancelar(db: Session, pedido_id: UUID, motivo: str) -> PedidoSaida:
         db.commit()
     return saidas(db, [pedido])[0]
 
+
+
+def pix_recebido(db: Session, usuario: TokenDados, pedido_id: UUID) -> PedidoSaida:
+    """A equipe viu o Pix no extrato: o caixa recebe o pedido já como pago."""
+    pedido = db.scalar(select(Pedido).where(Pedido.id == pedido_id).with_for_update())
+    if pedido is None:
+        raise NaoEncontrado("Pedido não encontrado")
+    if pedido.forma_pagamento != "pix":
+        raise ErroDeNegocio("Este pedido não é para pagar com Pix")
+    if pedido.status in ("entregue", "cancelado"):
+        raise Conflito(f"O pedido nº {pedido.numero} está {pedido.status}")
+    if pedido.pix_pago_em is None:
+        pedido.pix_pago_em = datetime.now(FUSO)
+        pedido.pix_confirmado_por = usuario.usuario_id
+        pre_venda = db.get(PreVenda, pedido.pre_venda_id) if pedido.pre_venda_id else None
+        if pre_venda is not None and pre_venda.status == "aberta":
+            pre_venda.pago_antecipado = pedido.total
+        db.commit()
+    return saidas(db, [pedido])[0]

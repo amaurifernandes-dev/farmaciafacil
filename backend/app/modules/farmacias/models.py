@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 
 from sqlalchemy import Boolean, Integer, Numeric, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.shared.models import Base, ComDatas, uuid7
@@ -42,3 +42,13 @@ class Farmacia(ComDatas, Base):
     entrega_ativa: Mapped[bool] = mapped_column(Boolean, default=False)
     entrega_minimo: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal(0))
     entrega_area: Mapped[str | None] = mapped_column(String(200))
+    # Taxa de entrega: a padrão, ou a do bairro quando há lista de bairros ([{"bairro": ..., "taxa": "5.00"}]).
+    # Com a lista preenchida, o site só entrega nesses bairros.
+    entrega_taxa: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal(0))
+    entrega_gratis_acima: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    entrega_bairros: Mapped[list[dict]] = mapped_column(JSONB, default=list)
+    # Pix no site: QR Code com a chave da própria farmácia (sem banco intermediário); a equipe confirma o recebimento.
+    pix_chave: Mapped[str | None] = mapped_column(String(77))
+    pix_nome: Mapped[str | None] = mapped_column(String(25))
+    pix_cidade: Mapped[str | None] = mapped_column(String(15))
+    pix_no_site: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -72,9 +72,11 @@ def montar_nfce(venda: Venda, loja: Loja, config: ConfiguracaoFiscal, produtos: 
 
     desconto_da_venda = venda.desconto - sum((item.desconto for item in venda.itens), Decimal(0))
     rateio = _ratear(desconto_da_venda, [item.total for item in venda.itens])
+    # A taxa de entrega vai como outras despesas, dividida entre os itens.
+    taxas = _ratear(venda.taxa_entrega, [item.total for item in venda.itens])
 
     itens = []
-    for item, desconto_rateado in zip(venda.itens, rateio):
+    for item, desconto_rateado, taxa in zip(venda.itens, rateio, taxas):
         produto: Produto = produtos[item.produto_id]
         quantidade = f"{item.quantidade:.4f}"
         desconto = item.desconto + desconto_rateado
@@ -101,6 +103,8 @@ def montar_nfce(venda: Venda, loja: Loja, config: ConfiguracaoFiscal, produtos: 
         }
         if desconto > 0:
             dados["valor_desconto"] = str(desconto)
+        if taxa > 0:
+            dados["valor_outras_despesas"] = str(taxa)
         if produto.cest:
             dados["cest"] = produto.cest
         itens.append(dados)
@@ -127,7 +131,8 @@ def montar_nfce(venda: Venda, loja: Loja, config: ConfiguracaoFiscal, produtos: 
         "cnpj_emitente": loja.cnpj,
         "data_emissao": datetime.now(FUSO).isoformat(timespec="seconds"),
         "natureza_operacao": "VENDA AO CONSUMIDOR",
-        "presenca_comprador": "1",
+        # 4: NFC-e com entrega em domicílio.
+        "presenca_comprador": "4" if venda.entrega else "1",
         "modalidade_frete": "9",
         "local_destino": "1",
         "indicador_inscricao_estadual_destinatario": "9",

@@ -463,3 +463,21 @@ button.vitrine-tirar { border: 0; color: var(--suave); font-size: 12px; padding:
 .fechamento-ok svg { flex-shrink: 0; width: 28px; height: 28px; color: var(--ok); }
 .fechamento-ok p { margin: 4px 0 0; color: var(--suave); font-size: 14px; }
 .avisos .texto-pendencia { margin: 0; color: var(--texto); }
+
+/* Taxa de entrega por bairro */
+.bairros-entrega { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.bairros-entrega .rotulo { font-size: 13px; color: var(--suave); }
+.bairros-entrega small { color: var(--suave); font-size: 12px; margin-top: -4px; }
+.bairro-linha { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; width: 100%; max-width: 480px; align-items: center; }
+.vitrine-subtotal { display: flex; justify-content: space-between; gap: 12px; margin: 8px 0 0; color: var(--suave); font-size: 14px; }
+.vitrine-dica { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--primaria-suave); color: var(--primaria); font-size: 14px; }
+
+/* Pix do pedido */
+.vitrine-pix { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; }
+.vitrine-pix img { width: 180px; height: 180px; display: block; background: #fff; border-radius: 8px; image-rendering: pixelated; }
+.vitrine-pix h2 { margin: 0 0 6px; font-size: 18px; }
+.vitrine-pix p { margin: 0 0 10px; color: var(--suave); font-size: 14px; }
+.vitrine-pix code { display: block; max-height: 64px; overflow: auto; padding: 8px; border: 1px solid var(--borda); border-radius: 8px; font-size: 11px; word-break: break-all; color: var(--texto); background: var(--fundo); }
+.vitrine-pix-pago { display: flex; align-items: center; gap: 10px; color: var(--ok); background: var(--ok-fundo); }
+@media (max-width: 560px) { .vitrine-pix { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
+.etiqueta.etiqueta-alerta { background: #fff4e5; color: #b54708; }

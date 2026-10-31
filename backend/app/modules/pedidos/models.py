@@ -1,8 +1,10 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    DateTime,
     ForeignKeyConstraint,
     Integer,
     Numeric,
@@ -45,11 +47,17 @@ class Pedido(TabelaDaFarmacia, Base):
     forma_pagamento: Mapped[str] = mapped_column(String(10))
     troco_para: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     observacao: Mapped[str | None] = mapped_column(String(300))
-    total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    bairro: Mapped[str | None] = mapped_column(String(60))
+    taxa_entrega: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal(0))
+    total: Mapped[Decimal] = mapped_column(Numeric(12, 2))  # itens + taxa de entrega
     status: Mapped[str] = mapped_column(String(10), default="novo")
     motivo_cancelamento: Mapped[str | None] = mapped_column(String(200))
     pre_venda_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     usuario_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # quem anotou (WhatsApp, telefone)
+    # Pix pelo site: o identificador vai no QR Code; quem confere o extrato marca como recebido.
+    pix_txid: Mapped[str | None] = mapped_column(String(25))
+    pix_pago_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    pix_confirmado_por: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
     itens: Mapped[list["PedidoItem"]] = relationship(cascade="all, delete-orphan", lazy="selectin")
 

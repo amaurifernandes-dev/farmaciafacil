@@ -62,6 +62,12 @@ def entregue(db: DB, _: Atendimento, pedido_id: UUID) -> PedidoSaida:
     return service.entregue(db, pedido_id)
 
 
+@pedidos.post("/{pedido_id}/pix-recebido")
+def pix_recebido(db: DB, usuario: Atendimento, pedido_id: UUID) -> PedidoSaida:
+    """Marca o Pix do pedido como recebido (a equipe conferiu no extrato do banco)."""
+    return service.pix_recebido(db, usuario, pedido_id)
+
+
 @pedidos.post("/{pedido_id}/cancelar")
 def cancelar(db: DB, _: Atendimento, pedido_id: UUID, dados: PedidoCancelar) -> PedidoSaida:
     return service.cancelar(db, pedido_id, dados.motivo)
@@ -114,4 +120,4 @@ def fazer_pedido(db: DBLoja, dados: PedidoCriar) -> PedidoPublico:
 
 @loja.get("/pedidos/{codigo}")
 def acompanhar(db: DBLoja, codigo: Annotated[str, Path(max_length=16)]) -> PedidoPublico:
-    return service.acompanhar(db, codigo)
+    return service.acompanhar(db, _farmacia(db), codigo)

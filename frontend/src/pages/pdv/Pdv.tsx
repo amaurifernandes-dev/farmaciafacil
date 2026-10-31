@@ -309,7 +309,11 @@ export default function Pdv() {
     try {
       const pre = await api<PreVenda>(`/pre-vendas/numero/${numero}`);
       if (pre.status !== "aberta") return erro(`A pré-venda nº ${numero} já foi ${pre.status}`);
-      let novo: Carrinho = { ...novoCarrinho(), preVenda: { id: pre.id, numero: pre.numero } };
+      let novo: Carrinho = {
+        ...novoCarrinho(),
+        preVenda: { id: pre.id, numero: pre.numero },
+        taxaEntregaCentavos: paraCentavos(pre.taxa_entrega) ?? 0,
+      };
       for (const item of pre.itens) {
         // Busca o produto de novo para pegar o preço e o saldo de agora.
         const produto = item.ean
@@ -317,10 +321,20 @@ export default function Pdv() {
           : { ...(await api<Produto>(`/produtos/${item.produto_id}`)), saldo: item.quantidade };
         novo = adicionarProduto(novo, produto, Number(item.quantidade));
       }
+      // Pix do site já confirmado pela equipe: entra como pagamento, falta só finalizar.
+      const pagoAntes = paraCentavos(pre.pago_antecipado) ?? 0;
+      if (pagoAntes > 0) novo = { ...novo, pagamentos: [{ forma: "pix", centavos: pagoAntes }] };
       setCarrinho(novo);
       setSelecionado(0);
       mudarModo("venda");
-      setAviso({ tipo: "ok", texto: `Pré-venda nº ${numero} carregada (${pre.vendedor}). Confira e receba com F4.` });
+      const extra = [
+        pre.entrega ? `entrega ${reais(paraCentavos(pre.taxa_entrega) ?? 0)}` : "",
+        pagoAntes > 0 ? "Pix já pago pelo site" : "",
+      ].filter(Boolean).join(", ");
+      setAviso({
+        tipo: "ok",
+        texto: `Pré-venda nº ${numero} carregada (${pre.vendedor}${extra ? `; ${extra}` : ""}). Confira e receba com F4.`,
+      });
     } catch (e) {
       erro(mensagem(e));
     }
@@ -605,6 +619,9 @@ export default function Pdv() {
             <div>
               Pontos ({carrinho.pontosResgatados}) <span>-{reais(descontoPontos(carrinho))}</span>
             </div>
+          )}
+          {(carrinho.taxaEntregaCentavos ?? 0) > 0 && (
+            <div>Entrega <span>{reais(carrinho.taxaEntregaCentavos ?? 0)}</span></div>
           )}
           <div className="total">Total <span>{reais(total(carrinho))}</span></div>
           {carrinho.pagamentos.map((p, i) => (

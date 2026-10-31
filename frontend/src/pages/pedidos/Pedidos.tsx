@@ -47,8 +47,20 @@ function linkAviso(pedido: Pedido, farmacia: string): string | null {
     pronto: `${ola} Seu pedido nº ${pedido.numero} está pronto. Pode vir buscar no balcão.`,
     saiu: `${ola} Seu pedido nº ${pedido.numero} saiu para entrega.`,
   };
-  const texto = textos[pedido.status];
+  let texto = textos[pedido.status];
+  // Pix ainda não pago: a mensagem leva o código "copia e cola" com o valor certo.
+  if (texto && pedido.pix_copia_e_cola) {
+    texto += `\n\nPara pagar com Pix (${reais(pedido.total)}), copie o código abaixo no app do banco:\n\n${pedido.pix_copia_e_cola}`;
+  }
   return texto ? `https://wa.me/${numero}?text=${encodeURIComponent(texto)}` : null;
+}
+
+function linkPix(pedido: Pedido): string | null {
+  let numero = pedido.telefone.replace(/\D/g, "");
+  if (numero.length < 10 || !pedido.pix_copia_e_cola) return null;
+  if (numero.length <= 11) numero = `55${numero}`;
+  const texto = `Pix do pedido nº ${pedido.numero} (${reais(pedido.total)}). Copie o código abaixo no app do banco:\n\n${pedido.pix_copia_e_cola}`;
+  return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
 
 export default function Pedidos() {
@@ -138,6 +150,7 @@ export default function Pedidos() {
       <div className="pedidos-lista">
         {(lista?.pedidos ?? []).map((p) => {
           const aviso = linkAviso(p, farmacia);
+          const pix = linkPix(p);
           return (
             <article key={p.id} className={`cartao pedido pedido-${p.status}`}>
               <header>
@@ -157,8 +170,25 @@ export default function Pedidos() {
                     <strong>{p.nome}</strong> · {p.telefone}
                   </p>
                   <p>
-                    {p.entrega ? <>Entregar em: {p.endereco}</> : "Retira na loja"}
+                    {p.entrega ? (
+                      <>
+                        Entregar em: {p.endereco}
+                        {p.bairro && ` (${p.bairro})`} · entrega{" "}
+                        {Number(p.taxa_entrega) === 0 ? "grátis" : reais(p.taxa_entrega)}
+                      </>
+                    ) : (
+                      "Retira na loja"
+                    )}
                   </p>
+                  {p.forma_pagamento === "pix" && (p.pix_pago_em || p.pix_copia_e_cola) && (
+                    <p>
+                      {p.pix_pago_em ? (
+                        <span className="etiqueta ok">Pix recebido</span>
+                      ) : (
+                        <span className="etiqueta etiqueta-alerta">Pix: confira no extrato ({`PEDIDO${p.numero}`})</span>
+                      )}
+                    </p>
+                  )}
                   <p className="vazio">
                     {FORMAS[p.forma_pagamento]}
                     {p.troco_para && ` · troco para ${reais(p.troco_para)}`}
@@ -197,6 +227,17 @@ export default function Pedidos() {
                   <a className="botao-pequeno botao-whatsapp" href={aviso} target="_blank" rel="noreferrer">
                     Avisar no WhatsApp
                   </a>
+                )}
+                {p.canal !== "site" && pix && !["entregue", "cancelado"].includes(p.status) && (
+                  <a className="botao-pequeno botao-whatsapp" href={pix} target="_blank" rel="noreferrer">
+                    Mandar o Pix
+                  </a>
+                )}
+                {p.pix_copia_e_cola && (
+                  <button type="button" className="botao-pequeno" onClick={() => acao(p, "pix-recebido")}
+                    title="Confira no extrato do banco antes de marcar">
+                    Pix recebido
+                  </button>
                 )}
                 {["separando", "pronto", "saiu"].includes(p.status) && (
                   <button type="button" className="botao-pequeno" onClick={() => acao(p, "entregue")}
@@ -315,6 +356,7 @@ function FormularioPedido({ lojas, aoFechar, aoSalvar }: {
   const [telefone, setTelefone] = useState("");
   const [entrega, setEntrega] = useState(false);
   const [endereco, setEndereco] = useState("");
+  const [bairro, setBairro] = useState("");
   const [forma, setForma] = useState<FormaPedido>("pix");
   const [troco, setTroco] = useState("");
   const [observacao, setObservacao] = useState("");
@@ -353,6 +395,7 @@ function FormularioPedido({ lojas, aoFechar, aoSalvar }: {
           telefone: telefone.trim(),
           entrega,
           endereco: entrega ? endereco.trim() : null,
+          bairro: entrega && bairro.trim() ? bairro.trim() : null,
           forma_pagamento: forma,
           troco_para: forma === "dinheiro" && troco.trim() ? troco.replace(".", "").replace(",", ".") : null,
           observacao: observacao.trim() || null,
@@ -433,10 +476,17 @@ function FormularioPedido({ lojas, aoFechar, aoSalvar }: {
           <span>Entregar em casa</span>
         </label>
         {entrega && (
-          <label className="largo">
-            Endereço *
-            <input value={endereco} onChange={(e) => setEndereco(e.target.value)} required />
-          </label>
+          <>
+            <label>
+              Endereço *
+              <input value={endereco} onChange={(e) => setEndereco(e.target.value)} required />
+            </label>
+            <label>
+              Bairro
+              <input value={bairro} onChange={(e) => setBairro(e.target.value)} maxLength={60} />
+              <small>A taxa é a do bairro na lista; fora dela, a taxa padrão.</small>
+            </label>
+          </>
         )}
         <label>
           Pagamento

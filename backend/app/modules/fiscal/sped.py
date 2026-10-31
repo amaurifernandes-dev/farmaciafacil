@@ -187,7 +187,8 @@ def _montar(db: Session, loja: Loja, config: ConfiguracaoFiscal, inicio: date, f
         v = venda.venda
         sped("C100", "1", "0", "", "65", "00", nota.serie or "", nota.numero or "", nota.chave,
              _dia(nota.autorizada_em or v.finalizada_em), _dia(v.finalizada_em), _num(v.total), "0",
-             _num(v.subtotal - v.total), _num(ZERO), _num(v.subtotal), "9", _num(ZERO), _num(ZERO), _num(ZERO),
+             _num(v.desconto), _num(ZERO), _num(v.subtotal), "9", _num(ZERO), _num(ZERO),
+             _num(v.taxa_entrega),
              _num(ZERO), _num(ZERO), "", "", "", "", "", "", "")
         resumo_saida: dict[tuple[str, str], Decimal] = defaultdict(lambda: ZERO)
         for item in venda.itens:
