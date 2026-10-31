@@ -24,8 +24,13 @@ class ClienteDados(BaseModel):
     aceita_ofertas: bool = False
     observacoes: texto(500)
     limite_credito: Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)] | None = None
+    convenio_id: UUID | None = Field(default=None, description="Empresa conveniada em que o cliente trabalha")
+    convenio_matricula: texto(30)
+    convenio_limite: Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)] | None = Field(
+        default=None, description="Limite no convênio. Vazio: o limite padrão da empresa"
+    )
 
-    @field_validator("limite_credito", mode="before")
+    @field_validator("limite_credito", "convenio_limite", mode="before")
     @classmethod
     def _aceita_virgula(cls, valor):
         """A tela manda "150,00"; o padrão da API é "150.00"."""

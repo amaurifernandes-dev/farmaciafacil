@@ -501,3 +501,11 @@ button.vitrine-tirar { border: 0; color: var(--suave); font-size: 12px; padding:
 @media (max-width: 640px) { .pdv-receita .largo { grid-column: 1 / -1; } }
 .cartao-interno { padding: 14px; margin: 0 0 14px; border-radius: 8px; background: var(--fundo); }
 .erro-texto { color: var(--erro); font-weight: 600; }
+
+/* Convênios */
+.aviso-convenio { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; background: #fef3e2; border-color: transparent; color: #8a4b00; }
+.aviso-convenio svg { flex-shrink: 0; }
+.aviso-convenio p { margin: 0; }
+.linha-clicavel { cursor: pointer; }
+.linha-clicavel:hover td { background: var(--fundo); }
+.migalha { margin: 0 0 4px; font-size: 14px; color: var(--suave); }

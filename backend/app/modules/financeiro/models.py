@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKeyConstraint, Integer, Numeric, String
+from sqlalchemy import Date, ForeignKeyConstraint, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,6 +43,8 @@ class Conta(TabelaDaFarmacia, Base):
         ForeignKeyConstraint(["farmacia_id", "caixa_id"], ["caixas.farmacia_id", "caixas.id"]),
         ForeignKeyConstraint(["farmacia_id", "nota_entrada_id"], ["notas_entrada.farmacia_id", "notas_entrada.id"]),
         ForeignKeyConstraint(["farmacia_id", "venda_id"], ["vendas.farmacia_id", "vendas.id"]),
+        ForeignKeyConstraint(["farmacia_id", "convenio_id"], ["convenios.farmacia_id", "convenios.id"]),
+        UniqueConstraint("farmacia_id", "id"),
     )
 
     tipo: Mapped[str] = mapped_column(String(8))
@@ -63,6 +65,7 @@ class Conta(TabelaDaFarmacia, Base):
     caixa_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     nota_entrada_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     venda_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    convenio_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # fatura mensal de um convênio
     observacao: Mapped[str | None] = mapped_column(String(300))
     usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     baixada_por: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))

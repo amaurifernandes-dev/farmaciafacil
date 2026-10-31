@@ -92,7 +92,7 @@ export interface ResumoCaixa {
   diferenca: string | null;
 }
 
-export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix" | "prazo";
+export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix" | "prazo" | "convenio";
 
 export interface Venda {
   id: string;
@@ -470,6 +470,9 @@ export interface Cliente {
   consentimento_em: string | null;
   observacoes: string | null;
   limite_credito: string | null;
+  convenio_id: string | null;
+  convenio_matricula: string | null;
+  convenio_limite: string | null;
   ativo: boolean;
   criado_em: string;
   /** Só na listagem. */
@@ -824,4 +827,79 @@ export interface ResumoControlados {
   pendencias: { codigo: string; texto: string; bloqueia: boolean }[];
   saldos: SaldoControlado[];
   livro: LinhaLivro[];
+}
+
+// --- Convênios com empresas ---
+
+export interface Convenio {
+  id: string;
+  nome: string;
+  cnpj: string | null;
+  contato: string | null;
+  telefone: string | null;
+  email: string | null;
+  desconto: string;
+  limite_padrao: string;
+  dia_fechamento: number;
+  dias_para_pagar: number;
+  observacao: string | null;
+  ativo: boolean;
+  criado_em: string;
+  funcionarios: number;
+  em_aberto: string;
+  a_receber: string;
+  /** Último fechamento previsto: as compras até esta data vão para a fatura. */
+  fechamento: string;
+  pronto_para_fechar: boolean;
+}
+
+export interface FuncionarioConvenio {
+  cliente_id: string;
+  nome: string;
+  cpf: string | null;
+  matricula: string | null;
+  limite: string;
+  usado: string;
+  disponivel: string;
+  ativo: boolean;
+}
+
+export interface CompraConvenio {
+  id: string;
+  venda_id: string;
+  venda_numero: number;
+  cliente_id: string;
+  nome: string;
+  matricula: string | null;
+  data: string;
+  valor: string;
+  status: string;
+  conta_id: string | null;
+}
+
+export interface FaturaConvenio {
+  conta_id: string;
+  descricao: string;
+  valor: string;
+  vencimento: string;
+  status: "aberta" | "paga";
+  vencida: boolean;
+  pago_em: string | null;
+  compras: number;
+}
+
+export interface ConvenioDetalhe {
+  convenio: Convenio;
+  funcionarios: FuncionarioConvenio[];
+  compras_abertas: CompraConvenio[];
+  faturas: FaturaConvenio[];
+}
+
+export interface ConvenioDoCliente {
+  convenio_id: string;
+  nome: string;
+  desconto: string;
+  limite: string;
+  usado: string;
+  disponivel: string;
 }

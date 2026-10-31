@@ -17,6 +17,7 @@ import { useSessao } from "../../sessao";
 import {
   adicionarProduto,
   alterarQuantidade,
+  descontoConvenio,
   descontoPontos,
   descontoPromocoes,
   falta,
@@ -38,7 +39,7 @@ import {
   type Carrinho,
   type ItemCarrinho,
 } from "./carrinho";
-import type { Cliente as ClienteCadastro, CreditoCliente, Pontos } from "../../api/tipos";
+import type { Cliente as ClienteCadastro, ConvenioDoCliente, CreditoCliente, Pontos } from "../../api/tipos";
 import { lerEsteTerminal } from "../caixas/Caixas";
 import FecharCaixa from "./FecharCaixa";
 import ReceitaDaVenda from "./ReceitaDaVenda";
@@ -69,6 +70,7 @@ const FORMAS: { tecla: string; forma: FormaPagamento; nome: string }[] = [
   { tecla: "3", forma: "credito", nome: "Crédito" },
   { tecla: "4", forma: "pix", nome: "Pix" },
   { tecla: "5", forma: "prazo", nome: "A prazo" },
+  { tecla: "6", forma: "convenio", nome: "Convênio" },
 ];
 
 const CHAVE_VENDA = "ff.venda-em-andamento";
@@ -175,6 +177,28 @@ export default function Pdv() {
   function escolherForma(nova: FormaPagamento) {
     setForma(nova);
     if (nova === "prazo" && !carrinho.cliente) identificarCliente(true);
+    if (nova === "convenio") {
+      if (!carrinho.cliente) {
+        identificarCliente(false);
+        return setAviso({ tipo: "erro", texto: "Identifique o funcionário da empresa conveniada (CPF, telefone ou nome)" });
+      }
+      valorNoConvenio(carrinho);
+    }
+  }
+
+  /** Sugere no campo o que cabe no convênio do cliente, ou avisa que ele não é conveniado. */
+  function valorNoConvenio(atual: Carrinho) {
+    const convenio = atual.cliente?.convenio;
+    if (!convenio) {
+      setForma("dinheiro");
+      return erro(`${atual.cliente?.nome ?? "Este cliente"} não é de nenhuma empresa conveniada.`);
+    }
+    if (convenio.disponivelCentavos <= 0) {
+      setForma("dinheiro");
+      return erro(`${atual.cliente?.nome} já usou todo o limite do convênio ${convenio.nome}.`);
+    }
+    setTexto(textoValor(Math.min(falta(atual), convenio.disponivelCentavos)));
+    setAviso({ tipo: "ok", texto: `Convênio ${convenio.nome}: pode comprar até ${reais(convenio.disponivelCentavos)}.` });
   }
 
   async function buscarCliente(termo: string) {
@@ -193,9 +217,12 @@ export default function Pdv() {
 
   async function escolherCliente(cliente: ClienteCadastro) {
     try {
-      const [credito, pontos] = await Promise.all([
+      const [credito, pontos, convenio] = await Promise.all([
         api<CreditoCliente>(`/financeiro/clientes/${cliente.id}/credito`),
         api<Pontos>(`/clientes/${cliente.id}/pontos`),
+        cliente.convenio_id
+          ? api<ConvenioDoCliente>(`/convenios/cliente/${cliente.id}`).catch(() => null)
+          : Promise.resolve(null),
       ]);
       const temLimite = Number(credito.limite) > 0;
       const disponivel = temLimite ? Math.max(paraCentavos(credito.disponivel) ?? 0, 0) : 0;
@@ -209,6 +236,13 @@ export default function Pdv() {
           pontos: pontos.ativo
             ? { saldo: pontos.saldo, valorPonto: pontos.valor_ponto, minimo: pontos.minimo_resgate }
             : undefined,
+          convenio: convenio
+            ? {
+                nome: convenio.nome,
+                desconto: convenio.desconto,
+                disponivelCentavos: Math.max(paraCentavos(convenio.disponivel) ?? 0, 0),
+              }
+            : undefined,
         },
       };
       setCarrinho(atualizado);
@@ -218,10 +252,17 @@ export default function Pdv() {
         : "";
       const vencido = Number(credito.vencido) > 0 ? ` Atenção: ${reais(credito.vencido)} de fiado vencido.` : "";
 
+      const sobreConvenio = convenio
+        ? ` Convênio ${convenio.nome}${Number(convenio.desconto) ? ` (${Number(convenio.desconto).toLocaleString("pt-BR")}% de desconto)` : ""}.`
+        : "";
       if (!clienteParaPrazo) {
         setModo(voltarPara);
+        if (voltarPara === "pagamento" && forma === "convenio") return valorNoConvenio(atualizado);
         setTexto(voltarPara === "pagamento" ? textoValor(falta(atualizado)) : "");
-        return setAviso({ tipo: vencido ? "erro" : "ok", texto: `Cliente: ${cliente.nome}.${sobrePontos}${vencido}` });
+        return setAviso({
+          tipo: vencido ? "erro" : "ok",
+          texto: `Cliente: ${cliente.nome}.${sobreConvenio}${sobrePontos}${vencido}`,
+        });
       }
       setClienteParaPrazo(false);
       setModo("pagamento");
@@ -647,6 +688,11 @@ export default function Pdv() {
               Promoções <span>-{reais(descontoPromocoes(carrinho))}</span>
             </div>
           )}
+          {descontoConvenio(carrinho) > 0 && (
+            <div className="linha-promocao">
+              Convênio {carrinho.cliente?.convenio?.nome} <span>-{reais(descontoConvenio(carrinho))}</span>
+            </div>
+          )}
           {carrinho.descontoCentavos > 0 && <div>Desconto <span>-{reais(carrinho.descontoCentavos)}</span></div>}
           {descontoPontos(carrinho) > 0 && (
             <div>
@@ -706,6 +752,11 @@ export default function Pdv() {
                 {carrinho.pontosResgatados
                   ? ` · usando ${carrinho.pontosResgatados}`
                   : carrinho.cliente.pontos.saldo >= carrinho.cliente.pontos.minimo && " · F9 usar"}
+              </small>
+            )}
+            {carrinho.cliente.convenio && (
+              <small className="pontos">
+                Convênio {carrinho.cliente.convenio.nome} · pode usar {reais(carrinho.cliente.convenio.disponivelCentavos)}
               </small>
             )}
             {carrinho.cliente.disponivelCentavos > 0 && (
@@ -781,7 +832,7 @@ export default function Pdv() {
         <span>F1 Anotar falta</span>
         <span>F2 Buscar</span>
         <span>F3 Quantidade</span>
-        <span>F4 Pagamento (Alt+5 a prazo)</span>
+        <span>F4 Pagamento (Alt+5 a prazo, Alt+6 convênio)</span>
         <span>F5 Receita</span>
         <span>F6 Desconto</span>
         <span>F7 Receber pré-venda</span>

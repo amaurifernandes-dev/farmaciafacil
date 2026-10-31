@@ -34,6 +34,7 @@ import Promocoes from "./pages/promocoes/Promocoes";
 import Relatorios from "./pages/relatorios/Relatorios";
 import FechamentoFiscal from "./pages/fiscal/FechamentoFiscal";
 import Controlados from "./pages/controlados/Controlados";
+import Convenios from "./pages/convenios/Convenios";
 import PreVenda from "./pages/vendas/PreVenda";
 import Vendas from "./pages/vendas/Vendas";
 import { cuidaDoEstoque, ehAdmin, ehFarmaceutico, ehGerente, useSessao } from "./sessao";
@@ -98,6 +99,8 @@ export default function App() {
         <Route path="/pedidos" element={<Pedidos />} />
         <Route path="/promocoes" element={<SoGerente><Promocoes /></SoGerente>} />
         <Route path="/relatorios" element={<SoGerente><Relatorios /></SoGerente>} />
+        <Route path="/convenios" element={<SoGerente><Convenios /></SoGerente>} />
+        <Route path="/convenios/:id" element={<SoGerente><Convenios /></SoGerente>} />
         <Route path="/controlados" element={<SoFarmaceutico><Controlados /></SoFarmaceutico>} />
         <Route path="/fiscal" element={<SoGerente><FechamentoFiscal /></SoGerente>} />
         <Route path="/configuracoes" element={<ConfiguracoesInicio />} />

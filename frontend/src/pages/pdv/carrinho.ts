@@ -44,6 +44,15 @@ export interface ClienteVenda {
   /** Quanto ainda pode comprar a prazo (0 = não compra fiado). */
   disponivelCentavos: number;
   pontos?: PontosCliente;
+  /** Funcionário de empresa conveniada: desconto e quanto ainda pode comprar no convênio. */
+  convenio?: ConvenioCliente;
+}
+
+export interface ConvenioCliente {
+  nome: string;
+  /** Percentual, como vem da API (ex.: "10.00"). */
+  desconto: string;
+  disponivelCentavos: number;
 }
 
 export interface PontosCliente {
@@ -167,6 +176,14 @@ export function valorDosPontos(pontos: number, valorPonto: string): number {
   return Math.floor(Math.round(pontos * Number(valorPonto) * 1_000_000) / 10_000);
 }
 
+/** Desconto da empresa conveniada, sobre o que sobra depois das promoções. Mesma conta do servidor. */
+export function descontoConvenio(carrinho: Carrinho): number {
+  const percentual = Number(carrinho.cliente?.convenio?.desconto ?? 0);
+  if (!percentual) return 0;
+  const base = Math.max(subtotal(carrinho) - descontoPromocoes(carrinho), 0);
+  return Math.round((base * percentual) / 100 + 1e-9);
+}
+
 export function descontoPontos(carrinho: Carrinho): number {
   const pontos = carrinho.pontosResgatados ?? 0;
   if (!pontos || !carrinho.cliente?.pontos) return 0;
@@ -177,7 +194,10 @@ export function descontoPontos(carrinho: Carrinho): number {
 export function maximoDePontos(carrinho: Carrinho): number {
   const pontos = carrinho.cliente?.pontos;
   if (!pontos) return 0;
-  const restante = Math.max(subtotal(carrinho) - descontoPromocoes(carrinho) - carrinho.descontoCentavos, 0);
+  const restante = Math.max(
+    subtotal(carrinho) - descontoPromocoes(carrinho) - descontoConvenio(carrinho) - carrinho.descontoCentavos,
+    0,
+  );
   const porValor = Math.floor((restante / 100 + 1e-9) / Number(pontos.valorPonto));
   return Math.max(Math.min(pontos.saldo, porValor), 0);
 }
@@ -185,7 +205,11 @@ export function maximoDePontos(carrinho: Carrinho): number {
 export function total(carrinho: Carrinho): number {
   return (
     Math.max(
-      subtotal(carrinho) - descontoPromocoes(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho),
+      subtotal(carrinho) -
+        descontoPromocoes(carrinho) -
+        descontoConvenio(carrinho) -
+        carrinho.descontoCentavos -
+        descontoPontos(carrinho),
       0,
     ) + (carrinho.taxaEntregaCentavos ?? 0)
   );
@@ -239,12 +263,26 @@ export function problemaParaFinalizar(carrinho: Carrinho): string | null {
   if (troco(carrinho) > emDinheiro) return "Troco só pode sair de pagamento em dinheiro";
   const aPrazo = carrinho.pagamentos.filter((p) => p.forma === "prazo").reduce((soma, p) => soma + p.centavos, 0);
   if (aPrazo > 0 && !carrinho.cliente) return "Escolha o cliente da venda a prazo (Alt+5)";
+  const noConvenio = carrinho.pagamentos.filter((p) => p.forma === "convenio").reduce((soma, p) => soma + p.centavos, 0);
+  if (noConvenio > 0) {
+    const convenio = carrinho.cliente?.convenio;
+    if (!convenio) return "Escolha o funcionário da empresa conveniada (F8)";
+    if (noConvenio > convenio.disponivelCentavos) {
+      return `${carrinho.cliente?.nome} só pode comprar mais ${(convenio.disponivelCentavos / 100).toFixed(2).replace(".", ",")} no convênio`;
+    }
+  }
   const pontos = carrinho.pontosResgatados ?? 0;
   if (pontos > 0) {
     if (!carrinho.cliente?.pontos) return "Escolha o cliente para usar os pontos (F8)";
     if (pontos > carrinho.cliente.pontos.saldo) return `${carrinho.cliente.nome} tem só ${carrinho.cliente.pontos.saldo} pontos`;
     if (pontos < carrinho.cliente.pontos.minimo) return `O mínimo para trocar é ${carrinho.cliente.pontos.minimo} pontos`;
-    if (subtotal(carrinho) - descontoPromocoes(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho) < 0) {
+    const restante =
+      subtotal(carrinho) -
+      descontoPromocoes(carrinho) -
+      descontoConvenio(carrinho) -
+      carrinho.descontoCentavos -
+      descontoPontos(carrinho);
+    if (restante < 0) {
       return "Os pontos valem mais que a compra. Use menos pontos (F9).";
     }
   }

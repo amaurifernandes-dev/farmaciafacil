@@ -15,7 +15,7 @@ from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado
 
 CENTAVO = Decimal("0.01")
 # Código tPag da NFC-e para cada forma de pagamento do PDV.
-FORMA_PAGAMENTO = {"dinheiro": "01", "credito": "03", "debito": "04", "prazo": "05", "pix": "17"}
+FORMA_PAGAMENTO = {"dinheiro": "01", "credito": "03", "debito": "04", "prazo": "05", "convenio": "05", "pix": "17"}
 # A SEFAZ só aceita cancelar a NFC-e com justificativa de 15 a 255 caracteres.
 JUSTIFICATIVA_MINIMA = 15
 

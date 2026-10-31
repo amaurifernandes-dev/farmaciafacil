@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.clientes.models import Cliente
+from app.modules.convenios.models import Convenio
 from app.modules.clientes.schemas import (
     ClienteAtualizar,
     ClienteCriar,
@@ -111,7 +112,13 @@ def _salvar(db: Session) -> None:
         raise Conflito("Já existe cliente com este CPF")
 
 
+def _conferir_convenio(db: Session, convenio_id: UUID | None) -> None:
+    if convenio_id is not None and db.get(Convenio, convenio_id) is None:
+        raise NaoEncontrado("Convênio não encontrado")
+
+
 def criar(db: Session, dados: ClienteCriar) -> Cliente:
+    _conferir_convenio(db, dados.convenio_id)
     cliente = Cliente(**dados.model_dump(exclude={"aceita_ofertas"}), aceita_ofertas=False)
     _registrar_consentimento(cliente, dados.aceita_ofertas)
     db.add(cliente)
@@ -122,6 +129,7 @@ def criar(db: Session, dados: ClienteCriar) -> Cliente:
 def atualizar(db: Session, cliente_id: UUID, dados: ClienteAtualizar) -> Cliente:
     cliente = obter(db, cliente_id)
     alteracoes = dados.model_dump(exclude_unset=True)
+    _conferir_convenio(db, alteracoes.get("convenio_id"))
     aceita = alteracoes.pop("aceita_ofertas", None)
     if aceita is not None:
         _registrar_consentimento(cliente, aceita)
