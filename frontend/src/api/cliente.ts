@@ -81,6 +81,25 @@ export async function api<T>(caminho: string, opcoes: { metodo?: string; corpo?:
   return corpo as T;
 }
 
+/** Baixa um arquivo da API (ZIP, TXT) com o login e entrega ao navegador para salvar. */
+export async function baixar(caminho: string): Promise<void> {
+  const sessao = lerSessao();
+  const resposta = await fetch(`/api/v1${caminho}`, {
+    headers: sessao ? { Authorization: `Bearer ${sessao.access_token}` } : {},
+  });
+  if (!resposta.ok) {
+    const corpo = await resposta.json().catch(() => null);
+    throw new ErroApi(resposta.status, mensagemDoErro(corpo, resposta.status));
+  }
+  const nome = /filename="([^"]+)"/.exec(resposta.headers.get("Content-Disposition") ?? "")?.[1] ?? "arquivo";
+  const url = URL.createObjectURL(await resposta.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nome;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function mensagem(erro: unknown): string {
   return erro instanceof Error ? erro.message : String(erro);
 }

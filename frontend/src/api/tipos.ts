@@ -280,6 +280,7 @@ export interface Loja {
   endereco: string | null;
   bairro: string | null;
   cidade: string | null;
+  codigo_municipio: string | null;
   uf: string;
   responsavel_tecnico: string | null;
   crf: string | null;
@@ -682,4 +683,50 @@ export interface PedidoPublico {
   itens: ItemPedido[];
   criado_em: string;
   motivo_cancelamento: string | null;
+}
+
+export type Regime = "simples" | "presumido" | "real";
+
+export interface ConfiguracaoFiscal {
+  ambiente: "homologacao" | "producao";
+  emitir_automaticamente: boolean;
+  cfop_padrao: string;
+  icms_situacao_tributaria_padrao: string;
+  pis_cofins_situacao_tributaria_padrao: string;
+  regime: Regime;
+  perfil_efd: "A" | "B" | "C";
+  contador_nome: string | null;
+  contador_cpf: string | null;
+  contador_crc: string | null;
+  contador_email: string | null;
+}
+
+export interface LinhaCfop {
+  cfop: string;
+  cst: string;
+  valor: string;
+  icms: string;
+  icms_st: string;
+}
+
+export interface FechamentoFiscal {
+  mes: string;
+  inicio: string;
+  fim: string;
+  loja_id: string;
+  loja_nome: string;
+  cnpj: string;
+  regime: Regime;
+  saidas: {
+    vendas: number;
+    total_vendido: string;
+    nfce_autorizadas: number;
+    valor_nfce: string;
+    nfce_canceladas: number;
+    por_cfop: LinhaCfop[];
+  };
+  entradas: { notas: number; valor_total: string; icms: string; icms_st: string; ipi: string; por_cfop: LinhaCfop[] };
+  pgdas: { normal: string; icms_st: string; monofasico: string; st_e_monofasico: string; total: string };
+  pendencias: { tipo: string; texto: string; quantidade: number }[];
+  sped_disponivel: boolean;
 }

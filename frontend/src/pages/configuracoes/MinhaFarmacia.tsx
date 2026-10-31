@@ -16,6 +16,12 @@ const CAMPOS: Campo[] = [
   { nome: "telefone", rotulo: "Telefone", inputMode: "tel" },
   { nome: "email", rotulo: "E-mail", tipo: "email" },
   ...CAMPOS_ENDERECO.map((c) => (c.nome === "uf" ? { ...c, obrigatorio: true } : c)),
+  {
+    nome: "codigo_municipio",
+    rotulo: "Código do município (IBGE)",
+    inputMode: "numeric",
+    dica: "7 números. O contador sabe; vai no SPED Fiscal",
+  },
   { nome: "responsavel_tecnico", rotulo: "Farmacêutico responsável" },
   { nome: "crf", rotulo: "CRF / UF" },
 ];

@@ -8,6 +8,8 @@ from app.shared.campos import Cep, Cnpj, Email, Telefone, Uf, texto
 
 ModoCaixa = Literal["mono", "multi"]
 Nome = Annotated[str, Field(min_length=1, max_length=60)]
+# Código IBGE da cidade (7 dígitos), usado no SPED.
+CodigoMunicipio = Annotated[str, Field(pattern=r"^\d{7}$")] | None
 
 
 class LojaDados(BaseModel):
@@ -22,6 +24,7 @@ class LojaDados(BaseModel):
     endereco: texto(200)
     bairro: texto(100)
     cidade: texto(100)
+    codigo_municipio: CodigoMunicipio = None
     uf: Uf
     responsavel_tecnico: texto(120)
     crf: texto(20)
@@ -45,6 +48,7 @@ class LojaAtualizar(BaseModel):
     endereco: texto(200)
     bairro: texto(100)
     cidade: texto(100)
+    codigo_municipio: CodigoMunicipio = None
     uf: Uf | None = None
     responsavel_tecnico: texto(120)
     crf: texto(20)
@@ -69,6 +73,7 @@ class LojaSaida(BaseModel):
     endereco: str | None
     bairro: str | None
     cidade: str | None
+    codigo_municipio: str | None
     uf: str
     responsavel_tecnico: str | None
     crf: str | None
