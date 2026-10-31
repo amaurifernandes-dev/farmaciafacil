@@ -118,6 +118,7 @@ class VendaSaida(BaseModel):
     subtotal: Decimal
     desconto: Decimal
     total: Decimal
+    taxa_entrega: Decimal
     troco: Decimal
     cliente_cpf: str | None
     cliente_id: UUID | None = None
@@ -166,6 +167,9 @@ class PreVendaSaida(BaseModel):
     itens: list[ItemPreVendaSaida]
     total: Decimal
     cliente_cpf: str | None
+    entrega: bool
+    taxa_entrega: Decimal = Field(description="Já somada no total")
+    pago_antecipado: Decimal = Field(description="Pix do site já confirmado: receba como Pix")
     venda_id: UUID | None
     criado_em: datetime
     finalizada_em: datetime | None

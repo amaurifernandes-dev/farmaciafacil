@@ -52,7 +52,11 @@ O Vite repassa as chamadas `/api` para o backend. Telas:
 - **/loja/&lt;endereço&gt;** (pública, sem login): a loja online da farmácia, ligada em Configurações gerais.
   Mostra só os produtos marcados "Aparece na loja online" com estoque (remédio com receita fica de fora),
   com o preço da promoção; o cliente escolhe retirar ou receber em casa e acompanha o pedido por um link.
-  O pagamento é feito na retirada ou na entrega.
+  A taxa de entrega pode ser única ou por bairro (com a lista, o site só entrega nesses bairros), com entrega
+  grátis a partir de um valor; a taxa vai para a pré-venda, o caixa cobra junto e a NFC-e leva como outras
+  despesas. Com "Receber Pix pelo site" ligado, o cliente paga na hora por um QR Code Pix feito com a chave da
+  farmácia (sem banco intermediário); a equipe confere no extrato pelo identificador `PEDIDO<nº>` e marca
+  "Pix recebido", e o caixa recebe a pré-venda já com o Pix lançado. Sem isso, paga na retirada ou na entrega.
 - **/faltas**: faltas e encomendas. O balcão (ou o caixa, com F1) anota o que o cliente pediu e não tinha;
   com nome ou telefone vira encomenda, e quando o produto entra no estoque ela aparece em "Chegaram" com o
   botão para avisar no WhatsApp. A venda para o cliente da encomenda dá baixa nela sozinha.

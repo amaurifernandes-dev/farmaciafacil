@@ -15,11 +15,21 @@ interface ItemSacola {
   leveEPague: boolean;
 }
 
-const FORMAS: { valor: FormaPedido; nome: string }[] = [
-  { valor: "pix", nome: "Pix" },
-  { valor: "cartao", nome: "Cartão (na entrega ou no balcão)" },
-  { valor: "dinheiro", nome: "Dinheiro" },
-];
+function formas(pixNoSite: boolean): { valor: FormaPedido; nome: string }[] {
+  return [
+    { valor: "pix", nome: pixNoSite ? "Pix agora, pelo QR Code" : "Pix (na entrega ou no balcão)" },
+    { valor: "cartao", nome: "Cartão (na entrega ou no balcão)" },
+    { valor: "dinheiro", nome: "Dinheiro" },
+  ];
+}
+
+/** Taxa da entrega em reais, ou null enquanto o cliente não escolheu o bairro. */
+export function taxaDaEntrega(loja: LojaPublica, bairro: string, valorItens: number): number | null {
+  if (loja.entrega_gratis_acima !== null && valorItens >= Number(loja.entrega_gratis_acima)) return 0;
+  if (loja.bairros.length === 0) return Number(loja.entrega_taxa);
+  const achado = loja.bairros.find((b) => b.bairro === bairro);
+  return achado ? Number(achado.taxa) : null;
+}
 
 function chaveSacola(endereco: string) {
   return `ff.loja.${endereco}`;
@@ -155,7 +165,8 @@ export default function LojaOnline() {
             {loja.entrega
               ? `Retire na loja ou receba em casa${Number(loja.entrega_minimo) > 0 ? ` (pedido mínimo de ${reais(loja.entrega_minimo)} para entrega)` : ""}.`
               : "Faça o pedido e retire na loja."}{" "}
-            Você paga quando receber.
+            {loja.entrega && loja.entrega_gratis_acima !== null && `Entrega grátis acima de ${reais(loja.entrega_gratis_acima)}. `}
+            {loja.pix ? "Pague com Pix na hora ou quando receber." : "Você paga quando receber."}
           </small>
         </div>
 
@@ -262,6 +273,7 @@ function FecharPedido({
   const [telefone, setTelefone] = useState("");
   const [entrega, setEntrega] = useState(false);
   const [enderecoEntrega, setEnderecoEntrega] = useState("");
+  const [bairro, setBairro] = useState("");
   const [forma, setForma] = useState<FormaPedido>("pix");
   const [troco, setTroco] = useState("");
   const [observacao, setObservacao] = useState("");
@@ -269,6 +281,9 @@ function FecharPedido({
   const [enviando, setEnviando] = useState(false);
   const temLevePague = useMemo(() => sacola.some((i) => i.leveEPague), [sacola]);
   const abaixoDoMinimo = entrega && estimado < Number(loja.entrega_minimo);
+  const taxa = entrega ? taxaDaEntrega(loja, bairro, estimado) : 0;
+  const faltaGratis =
+    entrega && loja.entrega_gratis_acima !== null && taxa !== 0 ? Number(loja.entrega_gratis_acima) - estimado : 0;
 
   async function enviar(evento: FormEvent) {
     evento.preventDefault();
@@ -281,6 +296,7 @@ function FecharPedido({
           telefone: telefone.trim(),
           entrega,
           endereco: entrega ? enderecoEntrega.trim() : null,
+          bairro: entrega && bairro ? bairro : null,
           forma_pagamento: forma,
           troco_para: forma === "dinheiro" && troco.trim() ? troco.replace(".", "").replace(",", ".") : null,
           observacao: observacao.trim() || null,
@@ -320,8 +336,16 @@ function FecharPedido({
             </li>
           ))}
         </ul>
+        {entrega && (
+          <p className="vitrine-subtotal">
+            <span>Produtos {reais(estimado, false)}</span>
+            <span>
+              Entrega {taxa === null ? "(escolha o bairro)" : taxa === 0 ? "grátis" : reais(taxa, false)}
+            </span>
+          </p>
+        )}
         <p className="vitrine-total">
-          Total <strong>{reais(estimado, false)}</strong>
+          Total <strong>{reais(estimado + (taxa ?? 0), false)}</strong>
         </p>
         {temLevePague && <p className="vazio">O desconto do leve e pague entra no total confirmado.</p>}
 
@@ -364,6 +388,23 @@ function FecharPedido({
             {loja.entrega_area && <small>Entregamos em: {loja.entrega_area}</small>}
           </label>
         )}
+        {entrega && loja.bairros.length > 0 && (
+          <label>
+            Bairro
+            <select value={bairro} onChange={(e) => setBairro(e.target.value)} required>
+              <option value="">Escolha o bairro</option>
+              {loja.bairros.map((b) => (
+                <option key={b.bairro} value={b.bairro}>
+                  {b.bairro} · {Number(b.taxa) === 0 ? "entrega grátis" : `entrega ${reais(b.taxa, false)}`}
+                </option>
+              ))}
+            </select>
+            <small>Não achou o seu? Fale com a farmácia pelo WhatsApp.</small>
+          </label>
+        )}
+        {faltaGratis > 0 && (
+          <p className="vitrine-dica">Faltam {reais(faltaGratis, false)} para a entrega sair grátis.</p>
+        )}
         {abaixoDoMinimo && (
           <p className="erro">Para entrega, o pedido mínimo é {reais(loja.entrega_minimo)}.</p>
         )}
@@ -371,13 +412,16 @@ function FecharPedido({
         <label>
           Como vai pagar
           <select value={forma} onChange={(e) => setForma(e.target.value as FormaPedido)}>
-            {FORMAS.map((f) => (
+            {formas(loja.pix).map((f) => (
               <option key={f.valor} value={f.valor}>
                 {f.nome}
               </option>
             ))}
           </select>
         </label>
+        {forma === "pix" && loja.pix && (
+          <p className="vitrine-dica">Depois de enviar, aparece o QR Code e o código "copia e cola" do Pix.</p>
+        )}
         {forma === "dinheiro" && (
           <label>
             Troco para quanto? (opcional)

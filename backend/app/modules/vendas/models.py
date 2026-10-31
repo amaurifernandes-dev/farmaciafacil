@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKeyConstraint, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKeyConstraint, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,6 +50,9 @@ class Venda(TabelaDaFarmacia, Base):
     desconto: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     troco: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    # Pedido entregue em casa: a taxa entra no total (e na NFC-e como outras despesas).
+    entrega: Mapped[bool] = mapped_column(Boolean, default=False)
+    taxa_entrega: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     # Só preenchido se o cliente pedir CPF na nota (LGPD: não coletar sem motivo).
     cliente_cpf: Mapped[str | None] = mapped_column(String(11))
     # Obrigatório na venda a prazo: é quem fica devendo.
@@ -127,5 +130,10 @@ class PreVenda(TabelaDaFarmacia, Base):
     itens: Mapped[list[dict]] = mapped_column(JSONB)
     total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     cliente_cpf: Mapped[str | None] = mapped_column(String(11))
+    # Vindo de um pedido para entrega: a taxa é cobrada no caixa junto com os itens.
+    entrega: Mapped[bool] = mapped_column(Boolean, default=False)
+    taxa_entrega: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    # Já pago pelo cliente antes (Pix do site confirmado): o caixa recebe como Pix.
+    pago_antecipado: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     venda_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     finalizada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -3,7 +3,9 @@ import { Link, useParams } from "react-router-dom";
 
 import { api, mensagem } from "../../api/cliente";
 import type { LojaPublica, PedidoPublico, StatusPedido } from "../../api/tipos";
+import PixQrCode from "../../components/PixQrCode";
 import { quantidade, reais } from "../../formato";
+import Icone from "../../components/Icone";
 import { CabecalhoLoja, whatsappDaLoja } from "./LojaOnline";
 
 const PASSOS: { status: StatusPedido; nome: string; texto: (entrega: boolean) => string }[] = [
@@ -78,6 +80,13 @@ export default function AcompanharPedido() {
               </>
             )}
 
+            {pedido.pix_copia_e_cola && <PixQrCode codigo={pedido.pix_copia_e_cola} valor={reais(pedido.total)} />}
+            {pedido.pix_pago && (
+              <div className="vitrine-cartao vitrine-pix-pago">
+                <Icone nome="entrada" /> Pix recebido pela farmácia. Obrigado!
+              </div>
+            )}
+
             <div className="vitrine-cartao">
               <ul className="vitrine-itens">
                 {pedido.itens.map((i) => (
@@ -88,6 +97,12 @@ export default function AcompanharPedido() {
                     <span>{reais(i.total)}</span>
                   </li>
                 ))}
+                {pedido.entrega && (
+                  <li>
+                    <span>Entrega</span>
+                    <span>{Number(pedido.taxa_entrega) === 0 ? "grátis" : reais(pedido.taxa_entrega)}</span>
+                  </li>
+                )}
               </ul>
               <p className="vitrine-total">
                 Total <strong>{reais(pedido.total)}</strong>
@@ -95,7 +110,8 @@ export default function AcompanharPedido() {
               <p className="vazio">
                 {pedido.entrega ? "Entrega em casa" : "Retirar na loja"} · pagamento{" "}
                 {pedido.forma_pagamento === "pix" ? "por Pix" : pedido.forma_pagamento === "cartao" ? "no cartão" : "em dinheiro"}
-                {pedido.troco_para && ` (troco para ${reais(pedido.troco_para)})`} na hora de receber
+                {pedido.troco_para && ` (troco para ${reais(pedido.troco_para)})`}
+                {pedido.pix_pago ? " (já pago)" : pedido.pix_copia_e_cola ? " pelo QR Code acima" : " na hora de receber"}
               </p>
             </div>
 

@@ -192,6 +192,8 @@ def registrar_venda(
         cliente_cpf=dados.cliente_cpf,
         cliente_id=dados.cliente_id,
         finalizada_em=_agora(),
+        entrega=False,
+        taxa_entrega=Decimal(0),
     )
 
     # Caixas antigos, de antes das lojas, vendem do estoque da matriz.
@@ -248,7 +250,11 @@ def registrar_venda(
 
     venda.subtotal = subtotal
     venda.desconto = descontos
-    venda.total = subtotal - descontos
+    # A taxa de entrega vem do pedido (pela pré-venda), nunca do navegador.
+    if pre_venda is not None:
+        venda.entrega = pre_venda.entrega
+        venda.taxa_entrega = pre_venda.taxa_entrega
+    venda.total = subtotal - descontos + venda.taxa_entrega
 
     pago = sum((p.valor for p in dados.pagamentos), Decimal(0))
     em_dinheiro = sum((p.valor for p in dados.pagamentos if p.forma == "dinheiro"), Decimal(0))
@@ -348,7 +354,16 @@ def _descricao(produto: Produto) -> str:
     return produto.nome if not produto.apresentacao else f"{produto.nome} {produto.apresentacao}"
 
 
-def criar_pre_venda(db: Session, usuario: TokenDados, terminal: Terminal | None, dados: PreVendaCriar) -> PreVenda:
+def criar_pre_venda(
+    db: Session,
+    usuario: TokenDados,
+    terminal: Terminal | None,
+    dados: PreVendaCriar,
+    entrega: bool = False,
+    taxa_entrega: Decimal = Decimal(0),
+    pago_antecipado: Decimal = Decimal(0),
+) -> PreVenda:
+    """Pré-venda do balcão, ou de um pedido (com a taxa de entrega e o Pix já pago, se houver)."""
     if dados.loja_id is not None:
         loja = obter_loja(db, dados.loja_id)
     elif terminal is not None:
@@ -383,8 +398,11 @@ def criar_pre_venda(db: Session, usuario: TokenDados, terminal: Terminal | None,
         numero=numero,
         usuario_id=usuario.usuario_id,
         itens=itens,
-        total=total,
+        total=total + taxa_entrega,
         cliente_cpf=dados.cliente_cpf,
+        entrega=entrega,
+        taxa_entrega=taxa_entrega,
+        pago_antecipado=pago_antecipado,
     )
     db.add(pre_venda)
     db.commit()

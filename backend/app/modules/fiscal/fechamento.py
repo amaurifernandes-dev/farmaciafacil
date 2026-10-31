@@ -122,8 +122,9 @@ def vendas_do_mes(db: Session, loja: Loja, inicio: date, fim: date, config: Conf
         # O desconto dado no total da venda é dividido entre os itens, como na NFC-e.
         desconto_da_venda = venda.desconto - sum((i.desconto for i in venda.itens), ZERO)
         rateio = _ratear(desconto_da_venda, [i.total for i in venda.itens])
+        taxas = _ratear(venda.taxa_entrega, [i.total for i in venda.itens])  # entrega: outras despesas
         itens = []
-        for item, desconto in zip(venda.itens, rateio):
+        for item, desconto, taxa in zip(venda.itens, rateio, taxas):
             produto = produtos[item.produto_id]
             itens.append(
                 ItemVendido(
@@ -131,7 +132,7 @@ def vendas_do_mes(db: Session, loja: Loja, inicio: date, fim: date, config: Conf
                     cfop=produto.cfop or config.cfop_padrao,
                     cst_icms=produto.icms_origem + _situacao_icms(produto, config),
                     cst_pis_cofins=produto.pis_cofins_situacao_tributaria or config.pis_cofins_situacao_tributaria_padrao,
-                    valor=item.total - desconto,
+                    valor=item.total - desconto + taxa,
                 )
             )
         resultado.append(VendaDoMes(venda=venda, nota=notas.get(venda.id), itens=itens))

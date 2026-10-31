@@ -30,6 +30,8 @@ export interface Carrinho {
   cliente?: ClienteVenda;
   /** Pontos do cliente trocados por desconto nesta venda. */
   pontosResgatados?: number;
+  /** Taxa de entrega do pedido que virou a pré-venda (o servidor cobra a mesma). */
+  taxaEntregaCentavos?: number;
 }
 
 export interface ClienteVenda {
@@ -176,9 +178,11 @@ export function maximoDePontos(carrinho: Carrinho): number {
 }
 
 export function total(carrinho: Carrinho): number {
-  return Math.max(
-    subtotal(carrinho) - descontoPromocoes(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho),
-    0,
+  return (
+    Math.max(
+      subtotal(carrinho) - descontoPromocoes(carrinho) - carrinho.descontoCentavos - descontoPontos(carrinho),
+      0,
+    ) + (carrinho.taxaEntregaCentavos ?? 0)
   );
 }
 

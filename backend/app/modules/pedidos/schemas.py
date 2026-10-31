@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.modules.farmacias.schemas import TaxaBairro
+
 Canal = Literal["site", "whatsapp", "telefone"]
 Forma = Literal["dinheiro", "cartao", "pix"]
 Situacao = Literal["abertos", "novo", "separando", "pronto", "saiu", "entregue", "cancelado", "todos"]
@@ -21,6 +23,9 @@ class PedidoCriar(BaseModel):
     telefone: Annotated[str, Field(min_length=8, max_length=20, pattern=r"^[\d\s()+-]+$")]
     entrega: bool = False
     endereco: Annotated[str, Field(max_length=300)] | None = None
+    bairro: Annotated[str, Field(max_length=60)] | None = Field(
+        default=None, description="Obrigatório na entrega quando a farmácia cobra por bairro"
+    )
     forma_pagamento: Forma = "pix"
     troco_para: Annotated[Decimal, Field(gt=0, le=100_000, max_digits=12, decimal_places=2)] | None = None
     observacao: Annotated[str, Field(max_length=300)] | None = None
@@ -67,9 +72,13 @@ class PedidoSaida(BaseModel):
     forma_pagamento: str
     troco_para: Decimal | None
     observacao: str | None
+    bairro: str | None
+    taxa_entrega: Decimal
     total: Decimal
     status: str
     motivo_cancelamento: str | None
+    pix_copia_e_cola: str | None = Field(description="Pix com o valor do pedido, para mandar ao cliente")
+    pix_pago_em: datetime | None
     pre_venda_numero: int | None
     pago: bool = Field(description="O caixa já recebeu a pré-venda do pedido")
     itens: list[ItemPedidoSaida]
@@ -104,6 +113,10 @@ class LojaPublica(BaseModel):
     entrega: bool
     entrega_minimo: Decimal
     entrega_area: str | None
+    entrega_taxa: Decimal
+    entrega_gratis_acima: Decimal | None
+    bairros: list[TaxaBairro] = Field(description="Vazio: entrega em qualquer bairro, com a taxa padrão")
+    pix: bool = Field(description="Aceita Pix pelo site, com QR Code na hora")
 
 
 class ProdutoPublico(BaseModel):
@@ -129,7 +142,10 @@ class PedidoPublico(BaseModel):
     entrega: bool
     forma_pagamento: str
     troco_para: Decimal | None
+    taxa_entrega: Decimal
     total: Decimal
     itens: list[ItemPedidoSaida]
     criado_em: datetime
     motivo_cancelamento: str | None
+    pix_copia_e_cola: str | None = Field(description="Enquanto o Pix do site não foi confirmado pela farmácia")
+    pix_pago: bool

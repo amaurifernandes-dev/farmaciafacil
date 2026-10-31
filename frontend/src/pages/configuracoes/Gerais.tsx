@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { api, mensagem } from "../../api/cliente";
 import type { Configuracoes, Loja, ModoCaixa, Terminal } from "../../api/tipos";
+import Icone from "../../components/Icone";
 import { reais } from "../../formato";
 import { ehAdmin, useSessao } from "../../sessao";
 
@@ -358,6 +359,15 @@ function sugerirEndereco(nome: string): string {
     .slice(0, 40);
 }
 
+/** "8.5" (API) -> "8,50" para editar; "8,50" (digitado) -> "8.50". */
+function emTexto(valor: string): string {
+  return Number(valor).toFixed(2).replace(".", ",");
+}
+
+function paraApi(texto: string): string {
+  return texto.replace(/\./g, "").replace(",", ".").trim() || "0";
+}
+
 function LojaOnline({ podeEditar, lojas }: { podeEditar: boolean; lojas: Loja[] }) {
   const [config, setConfig] = useState<Configuracoes | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
@@ -367,7 +377,10 @@ function LojaOnline({ podeEditar, lojas }: { podeEditar: boolean; lojas: Loja[] 
     setConfig({
       ...dados,
       loja_online_endereco: dados.loja_online_endereco ?? (matriz ? sugerirEndereco(matriz.nome_fantasia) : ""),
-      entrega_minimo: String(Number(dados.entrega_minimo)).replace(".", ","),
+      entrega_minimo: emTexto(dados.entrega_minimo),
+      entrega_taxa: emTexto(dados.entrega_taxa),
+      entrega_gratis_acima: dados.entrega_gratis_acima === null ? "" : emTexto(dados.entrega_gratis_acima),
+      entrega_bairros: dados.entrega_bairros.map((b) => ({ ...b, taxa: emTexto(b.taxa) })),
     });
   }
 
@@ -393,8 +406,17 @@ function LojaOnline({ podeEditar, lojas }: { podeEditar: boolean; lojas: Loja[] 
             loja_online_mensagem: ouNulo(config.loja_online_mensagem),
             whatsapp: ouNulo(config.whatsapp),
             entrega_ativa: config.entrega_ativa,
-            entrega_minimo: config.entrega_minimo.replace(".", "").replace(",", ".") || "0",
+            entrega_minimo: paraApi(config.entrega_minimo),
             entrega_area: ouNulo(config.entrega_area),
+            entrega_taxa: paraApi(config.entrega_taxa),
+            entrega_gratis_acima: (config.entrega_gratis_acima ?? "").trim() ? paraApi(config.entrega_gratis_acima ?? "") : null,
+            entrega_bairros: config.entrega_bairros
+              .filter((b) => b.bairro.trim())
+              .map((b) => ({ bairro: b.bairro.trim(), taxa: paraApi(b.taxa) })),
+            pix_no_site: config.pix_no_site,
+            pix_chave: ouNulo(config.pix_chave),
+            pix_nome: ouNulo(config.pix_nome),
+            pix_cidade: ouNulo(config.pix_cidade),
           },
         }),
       );
@@ -505,8 +527,108 @@ function LojaOnline({ podeEditar, lojas }: { podeEditar: boolean; lojas: Loja[] 
                 placeholder="ex.: Centro, Jardim América e Vila Nova"
               />
             </label>
+            <label>
+              Taxa de entrega (R$)
+              <input
+                value={config.entrega_taxa}
+                onChange={(e) => setConfig({ ...config, entrega_taxa: e.target.value })}
+                inputMode="decimal"
+              />
+              <small>
+                {config.entrega_bairros.length
+                  ? "Vale para pedido do WhatsApp em bairro fora da lista."
+                  : "A mesma para qualquer bairro. Para cobrar por bairro, use a lista abaixo."}
+              </small>
+            </label>
+            <label>
+              Entrega grátis a partir de (R$)
+              <input
+                value={config.entrega_gratis_acima ?? ""}
+                onChange={(e) => setConfig({ ...config, entrega_gratis_acima: e.target.value })}
+                inputMode="decimal"
+                placeholder="vazio: sempre cobra"
+              />
+            </label>
+            <div className="largo bairros-entrega">
+              <span className="rotulo">Taxa por bairro</span>
+              <small>Com a lista preenchida, o site só entrega nesses bairros e o cliente escolhe o dele.</small>
+              {config.entrega_bairros.map((b, i) => (
+                <div key={i} className="bairro-linha">
+                  <input
+                    aria-label="Bairro"
+                    value={b.bairro}
+                    placeholder="Bairro"
+                    maxLength={60}
+                    onChange={(e) => setConfig({ ...config, entrega_bairros: config.entrega_bairros.map((x, j) => (j === i ? { ...x, bairro: e.target.value } : x)) })}
+                  />
+                  <input
+                    aria-label="Taxa"
+                    value={b.taxa}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    onChange={(e) => setConfig({ ...config, entrega_bairros: config.entrega_bairros.map((x, j) => (j === i ? { ...x, taxa: e.target.value } : x)) })}
+                  />
+                  <button
+                    type="button"
+                    className="botao-icone"
+                    title="Tirar o bairro"
+                    onClick={() => setConfig({ ...config, entrega_bairros: config.entrega_bairros.filter((_, j) => j !== i) })}
+                  >
+                    <Icone nome="x" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="botao-pequeno"
+                onClick={() => setConfig({ ...config, entrega_bairros: [...config.entrega_bairros, { bairro: "", taxa: "" }] })}
+              >
+                <Icone nome="mais" /> Adicionar bairro
+              </button>
+            </div>
           </>
         )}
+        <label className="checkbox caixa-marcacao largo">
+          <input
+            type="checkbox"
+            checked={config.pix_no_site}
+            onChange={(e) => setConfig({ ...config, pix_no_site: e.target.checked })}
+          />
+          <span>
+            Receber Pix pelo site
+            <small>
+              O cliente paga na hora pelo QR Code, direto na conta da farmácia (sem taxa de banco intermediário). A
+              equipe confere no extrato e marca "Pix recebido" em Pedidos.
+            </small>
+          </span>
+        </label>
+        <label>
+          Chave Pix
+          <input
+            value={config.pix_chave ?? ""}
+            onChange={(e) => setConfig({ ...config, pix_chave: e.target.value })}
+            placeholder="CNPJ, e-mail, celular com +55 ou chave aleatória"
+            maxLength={77}
+          />
+          <small>Também é usada no Pix dos pedidos do WhatsApp.</small>
+        </label>
+        <label>
+          Nome de quem recebe
+          <input
+            value={config.pix_nome ?? ""}
+            onChange={(e) => setConfig({ ...config, pix_nome: e.target.value })}
+            maxLength={25}
+            placeholder="como aparece no banco"
+          />
+        </label>
+        <label>
+          Cidade
+          <input
+            value={config.pix_cidade ?? ""}
+            onChange={(e) => setConfig({ ...config, pix_cidade: e.target.value })}
+            maxLength={15}
+          />
+        </label>
         {podeEditar && (
           <div className="acoes largo">
             <button type="submit">Salvar</button>

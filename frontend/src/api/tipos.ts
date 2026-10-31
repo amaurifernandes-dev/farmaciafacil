@@ -98,6 +98,7 @@ export interface Venda {
   desconto: string;
   total: string;
   troco: string;
+  taxa_entrega?: string;
   cliente_id?: string | null;
   pontos_ganhos?: number;
   pontos_resgatados?: number;
@@ -326,6 +327,18 @@ export interface Configuracoes {
   entrega_ativa: boolean;
   entrega_minimo: string;
   entrega_area: string | null;
+  entrega_taxa: string;
+  entrega_gratis_acima: string | null;
+  entrega_bairros: TaxaBairro[];
+  pix_chave: string | null;
+  pix_nome: string | null;
+  pix_cidade: string | null;
+  pix_no_site: boolean;
+}
+
+export interface TaxaBairro {
+  bairro: string;
+  taxa: string;
 }
 
 export interface ItemPreVenda {
@@ -346,6 +359,11 @@ export interface PreVenda {
   itens: ItemPreVenda[];
   total: string;
   cliente_cpf: string | null;
+  entrega: boolean;
+  /** Já somada no total. */
+  taxa_entrega: string;
+  /** Pix do site já confirmado: o caixa recebe como Pix. */
+  pago_antecipado: string;
   criado_em: string;
 }
 
@@ -633,9 +651,13 @@ export interface Pedido {
   forma_pagamento: FormaPedido;
   troco_para: string | null;
   observacao: string | null;
+  bairro: string | null;
+  taxa_entrega: string;
   total: string;
   status: StatusPedido;
   motivo_cancelamento: string | null;
+  pix_copia_e_cola: string | null;
+  pix_pago_em: string | null;
   pre_venda_numero: number | null;
   pago: boolean;
   itens: ItemPedido[];
@@ -659,6 +681,10 @@ export interface LojaPublica {
   entrega: boolean;
   entrega_minimo: string;
   entrega_area: string | null;
+  entrega_taxa: string;
+  entrega_gratis_acima: string | null;
+  bairros: TaxaBairro[];
+  pix: boolean;
 }
 
 export interface ProdutoPublico {
@@ -679,10 +705,13 @@ export interface PedidoPublico {
   entrega: boolean;
   forma_pagamento: FormaPedido;
   troco_para: string | null;
+  taxa_entrega: string;
   total: string;
   itens: ItemPedido[];
   criado_em: string;
   motivo_cancelamento: string | null;
+  pix_copia_e_cola: string | null;
+  pix_pago: boolean;
 }
 
 export type Regime = "simples" | "presumido" | "real";
