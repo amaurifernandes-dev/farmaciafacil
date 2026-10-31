@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import Layout from "./components/Layout";
 import Caixas from "./pages/caixas/Caixas";
@@ -23,6 +23,9 @@ import Fluxo from "./pages/financeiro/Fluxo";
 import Estoque from "./pages/gestao/Estoque";
 import Saldos from "./pages/gestao/Saldos";
 import Transferencia from "./pages/gestao/Transferencia";
+import Contagem from "./pages/inventario/Contagem";
+import Inventario from "./pages/inventario/Inventario";
+import Inventarios from "./pages/inventario/Inventarios";
 import Inicio from "./pages/Inicio";
 import Login from "./pages/Login";
 import Pdv from "./pages/pdv/Pdv";
@@ -47,7 +50,9 @@ import { cuidaDoEstoque, ehAdmin, ehFarmaceutico, ehGerente, useSessao } from ".
 
 function Protegido({ children }: { children: ReactNode }) {
   const { sessao } = useSessao();
-  return sessao ? children : <Navigate to="/login" replace />;
+  const { pathname, search } = useLocation();
+  // Guarda para onde ia (ex.: o QR Code da contagem) e volta para lá depois de entrar.
+  return sessao ? children : <Navigate to="/login" replace state={{ voltar: pathname + search }} />;
 }
 
 function SoAdmin({ children }: { children: ReactNode }) {
@@ -78,6 +83,7 @@ export default function App() {
       <Route path="/loja/:endereco" element={<LojaOnline />} />
       <Route path="/loja/:endereco/pedido/:codigo" element={<AcompanharPedido />} />
       <Route path="/pdv" element={<Protegido><Pdv /></Protegido>} />
+      <Route path="/inventario/:id/contar" element={<Protegido><Contagem /></Protegido>} />
       <Route path="/etiquetas/imprimir" element={<Protegido><ImprimirEtiquetas /></Protegido>} />
       <Route path="/popular/comprovante/:vendaId" element={<Protegido><ComprovantePopular /></Protegido>} />
       <Route element={<Protegido><Layout /></Protegido>}>
@@ -92,6 +98,8 @@ export default function App() {
           <Route path="saldos" element={<Saldos />} />
           <Route path="entrada" element={<Entrada />} />
           <Route path="transferencia" element={<Transferencia />} />
+          <Route path="inventario" element={<Inventarios />} />
+          <Route path="inventario/:id" element={<SoEstoque><Inventario /></SoEstoque>} />
         </Route>
         <Route path="/compras" element={<SoEstoque><Compras /></SoEstoque>}>
           <Route index element={<Notas />} />

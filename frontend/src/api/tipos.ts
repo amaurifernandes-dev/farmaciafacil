@@ -1046,3 +1046,50 @@ export interface MetasDoMes {
   lojas: Andamento[];
   vendedores: Andamento[];
 }
+
+export type EscopoInventario = "geral" | "parcial";
+
+export interface Inventario {
+  id: string;
+  loja_id: string;
+  loja_nome: string;
+  descricao: string;
+  escopo: EscopoInventario;
+  status: "aberto" | "finalizado" | "cancelado";
+  aberto_por: string;
+  criado_em: string;
+  finalizado_por: string | null;
+  finalizado_em: string | null;
+  produtos_ajustados: number | null;
+  valor_sobra: string | null;
+  valor_falta: string | null;
+}
+
+export interface ItemInventario {
+  produto_id: string;
+  nome: string;
+  apresentacao: string | null;
+  ean: string | null;
+  quantidade: string;
+  contado: boolean;
+  saldo_sistema: string | null;
+  diferenca: string | null;
+  custo_unitario: string | null;
+  valor_diferenca: string | null;
+  atualizado_em: string;
+}
+
+export interface InventarioDetalhe extends Inventario {
+  resumo: {
+    produtos_contados: number;
+    unidades_contadas: string;
+    com_diferenca: number | null;
+    valor_sobra: string | null;
+    valor_falta: string | null;
+    sem_custo: number | null;
+    nao_contados: number | null;
+  };
+  itens: ItemInventario[];
+  nao_contados: ItemInventario[] | null;
+  ve_saldo: boolean;
+}
