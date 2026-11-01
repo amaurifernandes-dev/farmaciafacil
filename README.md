@@ -6,6 +6,18 @@ Sistema web de gestão e vendas para farmácias pequenas (SaaS).
 - **Banco:** PostgreSQL (Neon em produção), multi-tenant com `farmacia_id` e Row Level Security
 - **Frontend:** React + Vite + TypeScript
 
+## Duas formas de instalar: na nuvem ou na farmácia
+
+O mesmo código serve as duas versões. A variável `INSTALACAO` do `.env` escolhe:
+
+- **`nuvem`** (FarmáciaFácil Online, o padrão): servidor na internet, várias farmácias no mesmo banco, separadas pelo RLS.
+- **`farmacia`** (FarmáciaFácil On-premise): instalado num computador da farmácia, com o banco dela. Os outros
+  computadores usam esse pela rede da loja. Só existe uma farmácia (o script de cadastro recusa a segunda) e a loja
+  online e o Pix pelo site ficam fora, porque o sistema não está na internet. NFC-e e assistente de IA continuam,
+  enquanto houver internet.
+
+A tela pergunta o modo em `GET /api/v1/instalacao` (público) e esconde o que não se aplica.
+
 ## Rodando o backend localmente
 
 Requisitos: Python 3.12+, [uv](https://docs.astral.sh/uv/) e Docker.

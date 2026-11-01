@@ -6,6 +6,7 @@ import type { Configuracoes, Loja, ModoCaixa, Papel, Terminal } from "../../api/
 import type { StatusAssistente } from "../../components/assistente/visivel";
 import Icone from "../../components/Icone";
 import { reais } from "../../formato";
+import { useInstalacao } from "../../instalacao";
 import { ehAdmin, NOMES_PAPEIS, useSessao } from "../../sessao";
 
 export default function Gerais() {
@@ -14,6 +15,7 @@ export default function Gerais() {
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [terminais, setTerminais] = useState<Terminal[]>([]);
   const [erro, setErro] = useState("");
+  const instalacao = useInstalacao();
 
   function carregar() {
     // A lista de PDVs é só para gerentes; os demais veem as lojas sem ela.
@@ -63,7 +65,16 @@ export default function Gerais() {
       <RegrasGerais podeEditar={podeEditar} />
       <AssistenteIA podeEditar={podeEditar} />
       <ProgramaDePontos podeEditar={podeEditar} />
-      <LojaOnline podeEditar={podeEditar} lojas={lojas} />
+      {instalacao?.loja_online && <LojaOnline podeEditar={podeEditar} lojas={lojas} />}
+      {instalacao?.modo === "farmacia" && (
+        <div className="cartao cartao-separado">
+          <h2>Loja online</h2>
+          <p className="vazio">
+            Este sistema está instalado na farmácia, e não na internet, então a loja online e o Pix pelo site não
+            aparecem. Os pedidos do WhatsApp e do telefone continuam na tela Pedidos.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

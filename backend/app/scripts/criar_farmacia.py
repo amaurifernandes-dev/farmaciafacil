@@ -11,7 +11,7 @@ porque ainda não existe farmácia para o RLS liberar o cadastro.
 import argparse
 import getpass
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -33,6 +33,8 @@ def criar_farmacia(
     admin_email: str,
     admin_senha: str,
 ) -> tuple[Farmacia, Usuario]:
+    if get_settings().instalacao == "farmacia" and db.scalar(select(func.count()).select_from(Farmacia)):
+        raise SystemExit("Instalado na farmácia, o sistema guarda uma farmácia só, e ela já foi criada.")
     farmacia = Farmacia(cnpj=cnpj, razao_social=razao_social, nome_fantasia=nome_fantasia, uf=uf.upper())
     db.add(farmacia)
     db.flush()
