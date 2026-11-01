@@ -27,6 +27,9 @@ class ContaCriar(BaseModel):
     cliente_id: UUID | None = None
     documento: str | None = Field(default=None, max_length=60)
     observacao: str | None = Field(default=None, max_length=300)
+    codigo_barras: str | None = Field(
+        default=None, max_length=80, description="Boleto: linha digitável ou código de barras (só conta a pagar)"
+    )
 
 
 class ContaAtualizar(BaseModel):
@@ -38,6 +41,7 @@ class ContaAtualizar(BaseModel):
     vencimento: date | None = None
     documento: str | None = Field(default=None, max_length=60)
     observacao: str | None = Field(default=None, max_length=300)
+    codigo_barras: str | None = Field(default=None, max_length=80, description="Boleto; texto vazio tira o boleto")
 
 
 class ContaBaixar(BaseModel):
@@ -74,6 +78,8 @@ class ContaSaida(BaseModel):
     venda_id: UUID | None
     convenio_id: UUID | None = None
     observacao: str | None
+    codigo_barras: str | None = None
+    linha_digitavel: str | None = None
     criado_em: datetime
 
 
@@ -133,3 +139,38 @@ class Categoria(BaseModel):
 class Categorias(BaseModel):
     pagar: list[Categoria]
     receber: list[Categoria]
+
+
+class BoletoLer(BaseModel):
+    codigo: Annotated[str, Field(min_length=1, max_length=80)]
+
+
+class BoletoLido(BaseModel):
+    """O que o boleto diz, e se ele (ou uma conta parecida, sem boleto) já está lançado."""
+
+    tipo: Literal["bancario", "arrecadacao"]
+    codigo_barras: str
+    linha_digitavel: str
+    valor: Decimal | None
+    vencimento: date | None
+    banco: str | None
+    banco_nome: str | None
+    segmento: str | None
+    ja_lancada: ContaSaida | None = None
+    # Contas a pagar em aberto, sem boleto, com o mesmo valor e vencimento perto (ex.: parcela de uma nota).
+    parecidas: list[ContaSaida] = []
+
+
+class DiaAPagar(BaseModel):
+    dia: date
+    total: Decimal
+    contas: list[ContaSaida]
+
+
+class SemanaAPagar(BaseModel):
+    """O que pagar: as atrasadas e os próximos 7 dias, dia a dia."""
+
+    vencidas: list[ContaSaida]
+    total_vencidas: Decimal
+    dias: list[DiaAPagar]
+    total_semana: Decimal

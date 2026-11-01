@@ -8,6 +8,8 @@ from app.core.deps import DB, Gerente, Operador, UsuarioAtual
 from app.modules.financeiro import service
 from app.modules.financeiro.models import CATEGORIAS
 from app.modules.financeiro.schemas import (
+    BoletoLer,
+    BoletoLido,
     Categoria,
     Categorias,
     ContaAtualizar,
@@ -17,6 +19,7 @@ from app.modules.financeiro.schemas import (
     CreditoCliente,
     FluxoCaixa,
     PaginaContas,
+    SemanaAPagar,
     Situacao,
     Tipo,
 )
@@ -33,6 +36,18 @@ def categorias(_: UsuarioAtual) -> Categorias:
     return Categorias(
         **{tipo: [Categoria(id=c, nome=n) for c, n in itens.items()] for tipo, itens in CATEGORIAS.items()}
     )
+
+
+@router.post("/boletos/ler")
+def ler_boleto(db: DB, _: Gerente, dados: BoletoLer) -> BoletoLido:
+    """Confere a linha digitável (ou o código de barras) e diz banco, valor e vencimento."""
+    return service.ler_boleto(db, dados.codigo)
+
+
+@router.get("/semana")
+def semana(db: DB, _: Gerente, loja_id: UUID | None = None) -> SemanaAPagar:
+    """O que pagar: as contas atrasadas e as dos próximos 7 dias."""
+    return service.semana_a_pagar(db, loja_id)
 
 
 @router.get("/contas")

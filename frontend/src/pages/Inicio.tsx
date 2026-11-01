@@ -557,6 +557,13 @@ function Atencao({ painel }: { painel: Painel }) {
       texto: "O servidor não aceitou ao chegar. Resolva para o caixa fechar certo.",
       para: "/vendas-offline",
     });
+  if (g?.pagar_semana && g.pagar_semana.quantidade > 0)
+    avisos.push({
+      icone: "recibo",
+      titulo: `${reais(g.pagar_semana.total)} a pagar nos próximos dias`,
+      texto: `${g.pagar_semana.quantidade} conta(s) vencem até o fim da semana. Veja o que pagar e copie os códigos dos boletos.`,
+      para: "/financeiro",
+    });
   if (g && g.receber_vencidas.quantidade > 0)
     avisos.push({
       icone: "dinheiro",

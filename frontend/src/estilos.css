@@ -951,3 +951,37 @@ a.indicador-link:hover { border-color: var(--primaria); box-shadow: 0 4px 14px r
 .modulo-off { background: var(--fundo); }
 .modulo-off h2, .modulo-off p { color: var(--suave); }
 .modulo-aviso { display: inline-flex; align-items: center; gap: 6px; color: #b54708; }
+
+/* Boletos */
+.lancar-boleto { display: flex; flex-direction: column; gap: 12px; min-width: min(560px, 100%); }
+.campo-boleto { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.campo-boleto input { font-size: 17px; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; }
+.campo-boleto small { font-weight: 400; color: var(--suave); }
+.boleto-lido { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 14px; border: 1px solid var(--borda); border-radius: 10px; background: var(--primaria-suave); }
+.boleto-lido > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.boleto-lido small { color: var(--suave); }
+.boleto-lido strong { font-size: 17px; }
+.linha-digitavel { grid-column: 1 / -1; font-size: 13px; word-break: break-all; color: var(--suave); }
+.aviso-boleto { display: flex; gap: 8px; align-items: flex-start; background: #fff4e5; color: #b54708; padding: 10px 12px; border-radius: 8px; margin: 0; }
+.parecidas { border: 1px dashed var(--borda); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.parecidas p { margin: 0; }
+.parecida { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.parecida small, .semana-conta small { display: block; color: var(--suave); font-size: 12px; }
+.codigo-copiar { width: 100%; font-size: 12px; margin-top: 4px; }
+.etiqueta-boleto { margin-left: 6px; }
+.semana-pagar { margin-bottom: 16px; }
+.semana-dias { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.semana-dia { border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.semana-dia.atrasado { border-color: #f4c7c3; background: var(--erro-fundo); }
+.semana-dia-topo { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px; }
+.semana-dia.atrasado .semana-dia-topo { color: var(--erro); }
+.semana-dia ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.semana-dia li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+.semana-dia li .acoes-tabela { grid-column: 1 / -1; justify-content: flex-end; }
+@media (max-width: 600px) {
+  .boleto-lido { grid-template-columns: 1fr 1fr; }
+  .lancar-boleto { min-width: 0; }
+}
+.filtros-contas { flex-wrap: wrap; }
+.filtros-contas input { min-width: 0; flex: 1 1 220px; }
+.semana-dias { grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); }

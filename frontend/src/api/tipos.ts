@@ -414,6 +414,8 @@ export interface PainelEstoque {
 export interface PainelGestao {
   pagar_vencidas: Soma;
   pagar_hoje: Soma;
+  /** De amanhã até daqui a 6 dias. */
+  pagar_semana?: Soma | null;
   receber_vencidas: Soma;
   envios_recusados: number;
 }
@@ -553,6 +555,9 @@ export interface Conta {
   venda_id: string | null;
   observacao: string | null;
   criado_em: string;
+  /** Boleto: os 44 números do código de barras e a linha digitável formatada. */
+  codigo_barras?: string | null;
+  linha_digitavel?: string | null;
 }
 
 export interface TotaisContas {
@@ -1400,4 +1405,25 @@ export interface PainelOffline {
   vendas: VendaOffline[];
   sem_estoque: ItemSemEstoque[];
   recusas: EnvioRecusado[];
+}
+
+/** O que o boleto diz, e se ele (ou uma conta parecida, sem boleto) já está lançado. */
+export interface BoletoLido {
+  tipo: "bancario" | "arrecadacao";
+  codigo_barras: string;
+  linha_digitavel: string;
+  valor: string | null;
+  vencimento: string | null;
+  banco: string | null;
+  banco_nome: string | null;
+  segmento: string | null;
+  ja_lancada: Conta | null;
+  parecidas: Conta[];
+}
+
+export interface SemanaAPagar {
+  vencidas: Conta[];
+  total_vencidas: string;
+  dias: { dia: string; total: string; contas: Conta[] }[];
+  total_semana: string;
 }

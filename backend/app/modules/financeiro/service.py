@@ -13,7 +13,9 @@ from app.modules.clientes.models import Cliente
 from app.modules.compras.nfe_xml import ler_nfe
 from app.modules.convenios.models import Convenio
 from app.modules.financeiro.models import CATEGORIAS, Conta
+from app.modules.financeiro import boleto as boletos
 from app.modules.financeiro.schemas import (
+    BoletoLido,
     ContaAtualizar,
     ContaBaixar,
     ContaCriar,
@@ -21,7 +23,9 @@ from app.modules.financeiro.schemas import (
     CreditoCliente,
     DiaFluxo,
     FluxoCaixa,
+    DiaAPagar,
     PaginaContas,
+    SemanaAPagar,
     Totais,
 )
 from app.modules.devolucoes.models import Devolucao
@@ -60,6 +64,13 @@ def criar(db: Session, usuario: TokenDados, dados: ContaCriar) -> list[Conta]:
         raise NaoEncontrado("Fornecedor não encontrado")
     if dados.cliente_id and db.get(Cliente, dados.cliente_id) is None:
         raise NaoEncontrado("Cliente não encontrado")
+    codigo = None
+    if dados.codigo_barras:
+        if dados.tipo != "pagar":
+            raise ErroDeNegocio("Boleto é só para conta a pagar")
+        if dados.parcelas > 1:
+            raise ErroDeNegocio("Cada boleto é uma parcela: lance um boleto por vez")
+        codigo = _codigo_livre(db, dados.codigo_barras)
 
     contas = [
         Conta(
@@ -75,6 +86,7 @@ def criar(db: Session, usuario: TokenDados, dados: ContaCriar) -> list[Conta]:
             valor=valor,
             vencimento=mais_meses(dados.primeiro_vencimento, numero - 1),
             observacao=dados.observacao,
+            codigo_barras=codigo,
             usuario_id=usuario.usuario_id,
         )
         for numero, valor in enumerate(_dividir(dados.valor_total, dados.parcelas), start=1)
@@ -220,6 +232,7 @@ def saidas(db: Session, contas: list[Conta]) -> list[ContaSaida]:
                 "pessoa": PAGADOR_POPULAR if c.categoria == "popular"
                 else nomes.get(c.fornecedor_id or c.cliente_id or c.convenio_id),
                 "vencida": c.status == "aberta" and c.vencimento < dia,
+                "linha_digitavel": _linha(c.codigo_barras),
             }
         )
         for c in contas
@@ -349,6 +362,11 @@ def atualizar(db: Session, conta_id: UUID, dados: ContaAtualizar) -> Conta:
         raise ErroDeNegocio("A Farmácia Popular é lançada pela tela Farmácia Popular")
     if conta.convenio_id and "valor" in alteracoes:
         raise ErroDeNegocio("O valor da fatura do convênio vem das compras. Desfaça a fatura em Convênios para mudar.")
+    if "codigo_barras" in alteracoes:
+        codigo = (alteracoes["codigo_barras"] or "").strip()
+        if codigo and conta.tipo != "pagar":
+            raise ErroDeNegocio("Boleto é só para conta a pagar")
+        alteracoes["codigo_barras"] = _codigo_livre(db, codigo, conta.id) if codigo else None
     for campo, valor in alteracoes.items():
         setattr(conta, campo, valor)
     db.commit()
@@ -505,4 +523,92 @@ def fluxo(db: Session, inicio: date, fim: date, loja_id: UUID | None) -> FluxoCa
         resultado=entradas - saidas,
         vencido_receber=vencido["receber"],
         vencido_pagar=vencido["pagar"],
+    )
+
+
+# --- Boletos ---
+
+def _linha(codigo_barras: str | None) -> str | None:
+    if not codigo_barras:
+        return None
+    try:
+        return boletos.ler(codigo_barras).linha_digitavel
+    except boletos.BoletoInvalido:
+        return None
+
+
+def _ler_boleto(codigo: str) -> boletos.Boleto:
+    try:
+        return boletos.ler(codigo)
+    except boletos.BoletoInvalido as e:
+        raise ErroDeNegocio(str(e))
+
+
+def _ja_lancada(db: Session, codigo_barras: str, menos: UUID | None = None) -> Conta | None:
+    filtro = select(Conta).where(Conta.codigo_barras == codigo_barras, Conta.status != "cancelada")
+    if menos:
+        filtro = filtro.where(Conta.id != menos)
+    return db.scalars(filtro.limit(1)).first()
+
+
+def _codigo_livre(db: Session, codigo: str, menos: UUID | None = None) -> str:
+    """Confere o boleto e que ele ainda não foi lançado; devolve os 44 números do código de barras."""
+    barras = _ler_boleto(codigo).codigo_barras
+    outra = _ja_lancada(db, barras, menos)
+    if outra:
+        raise Conflito(f"Este boleto já foi lançado: {outra.descricao}, vencimento {outra.vencimento:%d/%m/%Y}")
+    return barras
+
+
+def ler_boleto(db: Session, codigo: str) -> BoletoLido:
+    lido = _ler_boleto(codigo)
+    ja = _ja_lancada(db, lido.codigo_barras)
+    parecidas: list[Conta] = []
+    if ja is None and lido.valor:
+        filtro = select(Conta).where(
+            Conta.tipo == "pagar",
+            Conta.status == "aberta",
+            Conta.codigo_barras.is_(None),
+            Conta.valor == lido.valor,
+        )
+        if lido.vencimento:
+            filtro = filtro.where(Conta.vencimento.between(lido.vencimento - timedelta(days=5), lido.vencimento + timedelta(days=5)))
+        parecidas = list(db.scalars(filtro.order_by(Conta.vencimento).limit(5)))
+    return BoletoLido(
+        tipo=lido.tipo,
+        codigo_barras=lido.codigo_barras,
+        linha_digitavel=lido.linha_digitavel,
+        valor=lido.valor,
+        vencimento=lido.vencimento,
+        banco=lido.banco,
+        banco_nome=lido.banco_nome,
+        segmento=lido.segmento,
+        ja_lancada=saida(db, ja) if ja else None,
+        parecidas=saidas(db, parecidas),
+    )
+
+
+def semana_a_pagar(db: Session, loja_id: UUID | None) -> SemanaAPagar:
+    """Contas a pagar atrasadas e as dos próximos 7 dias (hoje incluído), dia a dia."""
+    dia = hoje()
+    filtro = select(Conta).where(
+        Conta.tipo == "pagar", Conta.status == "aberta", Conta.vencimento <= dia + timedelta(days=6)
+    )
+    if loja_id:
+        filtro = filtro.where(Conta.loja_id == loja_id)
+    contas = saidas(db, list(db.scalars(filtro.order_by(Conta.vencimento, Conta.descricao))))
+    vencidas = [c for c in contas if c.vencimento < dia]
+    por_dia: dict[date, list[ContaSaida]] = defaultdict(list)
+    for c in contas:
+        if c.vencimento >= dia:
+            por_dia[c.vencimento].append(c)
+    dias = [
+        DiaAPagar(dia=d, total=sum((c.valor for c in lista), Decimal(0)), contas=lista)
+        for d, lista in sorted(por_dia.items())
+    ]
+    return SemanaAPagar(
+        vencidas=vencidas,
+        total_vencidas=sum((c.valor for c in vencidas), Decimal(0)),
+        dias=dias,
+        total_semana=sum((d.total for d in dias), Decimal(0)),
     )
