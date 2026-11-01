@@ -1,128 +1,188 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
-import type { Sessao } from "../api/tipos";
-import { cuidaDoEstoque, ehAdmin, ehFarmaceutico, ehGerente, NOMES_PAPEIS, useSessao } from "../sessao";
+import { ehAdmin, NOMES_PAPEIS, useSessao } from "../sessao";
+import { ativa, GRUPOS, type Grupo, telaAtual, telasDe } from "../telas";
 import Assistente from "./assistente/Assistente";
-import Icone, { type NomeIcone } from "./Icone";
+import { useAssistente } from "./assistente/visivel";
+import BuscaTelas from "./BuscaTelas";
+import Icone from "./Icone";
 
-interface ItemMenu {
-  para: string;
-  rotulo: string;
-  icone: NomeIcone;
-  pode?: (sessao: Sessao | null) => boolean;
-  /** Fica marcado também nas páginas abaixo deste caminho. */
-  agrupa?: boolean;
-}
-
-const MENU: ItemMenu[] = [
-  { para: "/", rotulo: "Visão geral", icone: "painel" },
-  { para: "/vendas", rotulo: "Vendas / PDV", icone: "carrinho", agrupa: true },
-  { para: "/devolucoes", rotulo: "Trocas e devoluções", icone: "troca", pode: ehGerente },
-  { para: "/pedidos", rotulo: "Pedidos", icone: "recibo" },
-  { para: "/caixas", rotulo: "Caixas", icone: "caixa" },
-  { para: "/vendas-offline", rotulo: "Vendas sem internet", icone: "alerta", pode: ehGerente },
-  { para: "/clientes", rotulo: "Clientes", icone: "pessoa", agrupa: true },
-  { para: "/convenios", rotulo: "Convênios", icone: "loja", agrupa: true, pode: ehGerente },
-  { para: "/popular", rotulo: "Farmácia Popular", icone: "remedio", pode: ehGerente },
-  { para: "/servicos", rotulo: "Serviços farmacêuticos", icone: "estetoscopio", pode: ehFarmaceutico },
-  { para: "/faltas", rotulo: "Faltas e encomendas", icone: "sino" },
-  { para: "/estoque", rotulo: "Estoque", icone: "pacote", agrupa: true },
-  { para: "/etiquetas", rotulo: "Etiquetas de preço", icone: "etiqueta" },
-  { para: "/controlados", rotulo: "Controlados", icone: "remedio", pode: ehFarmaceutico },
-  { para: "/compras", rotulo: "Compras", icone: "caminhao", agrupa: true, pode: cuidaDoEstoque },
-  { para: "/financeiro", rotulo: "Financeiro", icone: "dinheiro", agrupa: true, pode: ehGerente },
-  { para: "/promocoes", rotulo: "Promoções", icone: "etiqueta", pode: ehGerente },
-  { para: "/relatorios", rotulo: "Relatórios", icone: "grafico", pode: ehGerente },
-  { para: "/metas", rotulo: "Metas de vendas", icone: "alvo", pode: ehGerente },
-  { para: "/comissoes", rotulo: "Comissões", icone: "pessoas", pode: ehGerente },
-  { para: "/comissoes", rotulo: "Minhas vendas", icone: "grafico", pode: (s) => !ehGerente(s) },
-  { para: "/fiscal", rotulo: "Fechamento fiscal", icone: "recibo", pode: ehGerente },
-  { para: "/configuracoes", rotulo: "Configurações", icone: "engrenagem", agrupa: true },
-];
-
-export const CONFIGURACOES: (ItemMenu & { descricao: string })[] = [
-  { para: "/configuracoes/fornecedores", rotulo: "Fornecedores", icone: "caminhao", descricao: "Distribuidoras e contatos de compra" },
-  { para: "/configuracoes/produtos", rotulo: "Produtos", icone: "pacote", descricao: "Preços, códigos de barras e dados fiscais" },
-  { para: "/configuracoes/usuarios", rotulo: "Usuários", icone: "pessoas", descricao: "Quem acessa o sistema e o que pode fazer", pode: ehAdmin },
-  { para: "/configuracoes/farmacia", rotulo: "Minha farmácia", icone: "loja", descricao: "Dados da farmácia, matriz e filiais" },
-  { para: "/configuracoes/gerais", rotulo: "Configurações gerais", icone: "ajustes", descricao: "Monocaixa ou multicaixa, descontos, alertas e pontos" },
-];
+const CHAVE_ABERTOS = "ff.menu.abertos";
+// Na primeira vez, só o dia a dia fica aberto; os outros grupos abrem com um clique (e a escolha fica lembrada).
+const ABERTOS_PADRAO: Grupo[] = ["dia"];
 
 function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/);
   return ((partes[0]?.[0] ?? "") + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase();
 }
 
-function ativo(item: ItemMenu, pathname: string): boolean {
-  return item.agrupa ? pathname === item.para || pathname.startsWith(`${item.para}/`) : pathname === item.para;
+function lerAbertos(): Grupo[] {
+  try {
+    const salvo = JSON.parse(localStorage.getItem(CHAVE_ABERTOS) ?? "null");
+    return Array.isArray(salvo) ? salvo : ABERTOS_PADRAO;
+  } catch {
+    return ABERTOS_PADRAO;
+  }
 }
 
 export default function Layout() {
   const { sessao, sair } = useSessao();
   const { pathname } = useLocation();
-  const itens = MENU.filter((item) => !item.pode || item.pode(sessao));
-  const subitens = CONFIGURACOES.filter((item) => !item.pode || item.pode(sessao));
-  const atual =
-    subitens.find((item) => pathname.startsWith(item.para)) ?? itens.find((item) => ativo(item, pathname)) ?? itens[0];
-  const emConfiguracoes = pathname.startsWith("/configuracoes");
+  const telas = telasDe(sessao);
+  const noMenu = telas.filter((t) => !t.aba);
+  const atual = telaAtual(telas, pathname);
+  const [abertos, setAbertos] = useState<Grupo[]>(lerAbertos);
+  const [buscando, setBuscando] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
+  const assistente = useAssistente(sessao);
+
+  // Ctrl+K (ou Cmd+K no Mac) abre a busca de telas de qualquer lugar.
+  useEffect(() => {
+    function tecla(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setBuscando((b) => !b);
+      }
+    }
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, []);
+
+  // No celular, escolher uma tela fecha o menu.
+  useEffect(() => {
+    setMenuAberto(false);
+  }, [pathname]);
+
+  function alternarGrupo(grupo: Grupo) {
+    const novos = abertos.includes(grupo) ? abertos.filter((g) => g !== grupo) : [...abertos, grupo];
+    setAbertos(novos);
+    try {
+      localStorage.setItem(CHAVE_ABERTOS, JSON.stringify(novos));
+    } catch {
+      // só não lembra a escolha
+    }
+  }
+
+  const grupoAtual = atual?.grupo;
+  const trilhaGrupo = GRUPOS.find((g) => g.id === grupoAtual)?.rotulo;
 
   return (
     <div className="layout">
-      <aside className="lateral">
-        <div className="marca">
-          <span className="marca-icone">
-            <Icone nome="mais" />
-          </span>
-          <span>
-            farmácia<strong>fácil</strong>
-          </span>
+      <aside className={menuAberto ? "lateral aberta" : "lateral"}>
+        <div className="lateral-topo">
+          <Link to="/" className="marca">
+            <span className="marca-icone">
+              <Icone nome="mais" />
+            </span>
+            <span>
+              farmácia<strong>fácil</strong>
+            </span>
+          </Link>
+          <button
+            type="button"
+            className="botao-icone menu-celular"
+            aria-expanded={menuAberto}
+            aria-controls="menu-principal"
+            onClick={() => setMenuAberto((a) => !a)}
+          >
+            <Icone nome={menuAberto ? "x" : "menu"} />
+            <span>Menu</span>
+          </button>
         </div>
-        <p className="lateral-titulo">Principal</p>
-        <nav>
-          {itens.map((item) => (
-            <div key={item.para} className="menu-grupo">
-              <NavLink to={item.para} className={() => (ativo(item, pathname) ? "active" : "")}>
-                <Icone nome={item.icone} />
-                {item.rotulo}
-              </NavLink>
-              {item.para === "/configuracoes" && emConfiguracoes && (
-                <div className="submenu">
-                  {subitens.map((sub) => (
-                    <NavLink key={sub.para} to={sub.para}>
-                      {sub.rotulo}
+        <button type="button" className="buscar-tela" onClick={() => setBuscando(true)}>
+          <Icone nome="busca" tamanho={16} />
+          <span>Buscar tela</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <nav id="menu-principal" aria-label="Telas">
+          {GRUPOS.map((grupo) => {
+            const itens = noMenu.filter((t) => t.grupo === grupo.id);
+            if (!itens.length) return null;
+            // O grupo da tela aberta fica sempre aberto, para a pessoa ver onde está.
+            const aberto = grupo.id === grupoAtual || abertos.includes(grupo.id);
+            return (
+              <div key={grupo.id} className="menu-secao">
+                <button
+                  type="button"
+                  className={aberto ? "menu-secao-titulo aberta" : "menu-secao-titulo"}
+                  aria-expanded={aberto}
+                  onClick={() => alternarGrupo(grupo.id)}
+                  disabled={grupo.id === grupoAtual}
+                  title={grupo.id === grupoAtual ? "Você está numa tela deste grupo" : undefined}
+                >
+                  <span>{grupo.rotulo}</span>
+                  <Icone nome="abaixo" tamanho={14} />
+                </button>
+                {aberto &&
+                  itens.map((t) => (
+                    <NavLink
+                      key={`${t.para}-${t.rotulo}`}
+                      to={t.para}
+                      className={() => (ativa(t, pathname) || atual?.para.startsWith(`${t.para}/`) ? "active" : "")}
+                    >
+                      <Icone nome={t.icone} />
+                      {t.rotulo}
                     </NavLink>
                   ))}
-                </div>
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </nav>
-        <p className="lateral-rodape">FarmáciaFácil v0.2</p>
+        <p className="lateral-rodape">FarmáciaFácil v0.3</p>
       </aside>
       <div className="principal">
         <header className="topo">
           <span className="trilha">
-            Workspace / {emConfiguracoes && atual.para !== "/configuracoes" && "Configurações / "}
-            <strong>{atual.rotulo}</strong>
+            {trilhaGrupo && `${trilhaGrupo} / `}
+            <strong>{atual?.rotulo ?? "FarmáciaFácil"}</strong>
           </span>
-          {sessao && (
-            <span className="usuario">
-              <span className="avatar">{iniciais(sessao.nome)}</span>
-              <span>
-                <strong>{sessao.nome}</strong>
-                <small>{NOMES_PAPEIS[sessao.papel]}</small>
-              </span>
-              <button type="button" className="botao-icone" onClick={sair} title="Sair">
-                <Icone nome="sair" />
+          <span className="topo-direita">
+            {assistente.disponivel ? (
+              <button
+                type="button"
+                className={assistente.visivel ? "interruptor-ia ligado" : "interruptor-ia"}
+                role="switch"
+                aria-checked={assistente.visivel}
+                onClick={assistente.alternar}
+                title={assistente.visivel ? "Esconder o assistente de IA" : "Mostrar o assistente de IA"}
+              >
+                <Icone nome="brilho" tamanho={16} />
+                <span className="interruptor-rotulo">Assistente IA</span>
+                <span className="interruptor-trilho" aria-hidden="true">
+                  <span />
+                </span>
               </button>
-            </span>
-          )}
+            ) : (
+              ehAdmin(sessao) &&
+              assistente.status &&
+              !assistente.status.ligado && (
+                <Link to="/configuracoes/gerais#assistente" className="interruptor-ia desligado" title={assistente.status.mensagem ?? ""}>
+                  <Icone nome="brilho" tamanho={16} />
+                  <span className="interruptor-rotulo">IA sem chave</span>
+                </Link>
+              )
+            )}
+            {sessao && (
+              <span className="usuario">
+                <span className="avatar">{iniciais(sessao.nome)}</span>
+                <span className="usuario-nome">
+                  <strong>{sessao.nome}</strong>
+                  <small>{NOMES_PAPEIS[sessao.papel]}</small>
+                </span>
+                <button type="button" className="botao-icone" onClick={sair} title="Sair">
+                  <Icone nome="sair" />
+                </button>
+              </span>
+            )}
+          </span>
         </header>
         <main className="conteudo">
           <Outlet />
         </main>
       </div>
-      <Assistente />
+      {assistente.visivel && <Assistente abrir={assistente.abrirAgora} />}
+      {buscando && <BuscaTelas telas={telas} aoFechar={() => setBuscando(false)} />}
     </div>
   );
 }

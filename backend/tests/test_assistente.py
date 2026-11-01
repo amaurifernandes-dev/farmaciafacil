@@ -64,7 +64,9 @@ def _perguntar(client, farmacia, mensagem, historico=()):
 
 def test_desligado_sem_chave(client, farmacia_a):
     h = farmacia_a["headers"]
-    assert client.get(f"{API}/assistente/status", headers=h).json() == {"ligado": False}
+    assert client.get(f"{API}/assistente/status", headers=h).json() == {
+        "ligado": False, "permitido": True, "mensagem": "Falta a chave da Anthropic (ANTHROPIC_API_KEY) no servidor.",
+    }
     resposta = client.post(f"{API}/assistente", json={"mensagem": "oi"}, headers=h)
     assert resposta.status_code == 503
     assert "ANTHROPIC_API_KEY" in resposta.json()["detail"]
@@ -374,3 +376,89 @@ def test_caixa_nao_monta_pedido(client, engine_dono, farmacia_a, modelo):
     assert "sugerir_compra" not in {t["name"] for t in m.chamadas[0]["tools"]}
     conteudo, erro = _resultado(m.chamadas[1]["messages"])
     assert erro and "estoque" in conteudo and r["cartoes"] == []
+
+
+def test_admin_escolhe_quais_perfis_usam_o_assistente(client, farmacia_a, modelo, monkeypatch):
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "anthropic_api_key", "chave-de-teste")
+    h = farmacia_a["headers"]
+    dados = {"nome": "Julia", "email": "julia@farmacia.com", "papel": "caixa", "senha": "senha-boa-123"}
+    assert client.post(f"{API}/usuarios", json=dados, headers=h).status_code == 201
+    login = client.post(f"{API}/auth/login", json={"email": dados["email"], "senha": dados["senha"]}).json()
+    caixa = {"Authorization": f"Bearer {login['access_token']}"}
+
+    # Por padrão todos os perfis podem usar.
+    assert client.get(f"{API}/configuracoes", headers=h).json()["assistente_perfis"] == [
+        "admin", "gerente", "farmaceutico", "caixa", "atendente", "estoque"]
+    assert client.get(f"{API}/assistente/status", headers=caixa).json()["permitido"] is True
+
+    # O administrador deixa só gerência: o caixa deixa de ver e de conseguir perguntar.
+    resposta = client.patch(f"{API}/configuracoes", json={"assistente_perfis": ["gerente", "admin", "admin"]}, headers=h)
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["assistente_perfis"] == ["admin", "gerente"]
+    status = client.get(f"{API}/assistente/status", headers=caixa).json()
+    assert status == {"ligado": True, "permitido": False,
+                      "mensagem": "O administrador não liberou o assistente para o seu perfil."}
+    modelo(_texto("oi"))
+    assert client.post(f"{API}/assistente", json={"mensagem": "oi"}, headers=caixa).status_code == 403
+    assert _perguntar(client, farmacia_a, "oi")["resposta"] == "oi"
+
+    # Só o administrador muda; perfil que não existe é recusado.
+    assert client.patch(f"{API}/configuracoes", json={"assistente_perfis": []}, headers=caixa).status_code == 403
+    assert client.patch(f"{API}/configuracoes", json={"assistente_perfis": ["dono"]}, headers=h).status_code == 422
+
+    # Lista vazia desliga para todos.
+    client.patch(f"{API}/configuracoes", json={"assistente_perfis": []}, headers=h)
+    assert client.get(f"{API}/assistente/status", headers=h).json()["permitido"] is False
+
+
+def _erro_da_anthropic(classe, codigo):
+    import httpx
+
+    resposta = httpx.Response(codigo, request=httpx.Request("GET", "https://api.anthropic.com/v1/models/x"))
+    return classe("erro", response=resposta, body=None)
+
+
+def test_testar_a_chave(client, farmacia_a):
+    import anthropic
+
+    from app.main import app
+
+    h = farmacia_a["headers"]
+    pedidos = []
+
+    def cliente(erro=None):
+        def retrieve(modelo):
+            pedidos.append(modelo)
+            if erro:
+                raise erro
+            return SimpleNamespace(id=modelo)
+
+        return SimpleNamespace(models=SimpleNamespace(retrieve=retrieve))
+
+    try:
+        app.dependency_overrides[get_cliente_ia] = lambda: cliente()
+        resposta = client.post(f"{API}/assistente/testar", headers=h)
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["ok"] is True and "funcionando" in resposta.json()["mensagem"]
+        assert pedidos == ["claude-opus-5-5"]
+
+        app.dependency_overrides[get_cliente_ia] = lambda: cliente(_erro_da_anthropic(anthropic.AuthenticationError, 401))
+        assert client.post(f"{API}/assistente/testar", headers=h).json() == {
+            "ok": False, "mensagem": "A Anthropic recusou a chave. Confira a ANTHROPIC_API_KEY no servidor."}
+        app.dependency_overrides[get_cliente_ia] = lambda: cliente(_erro_da_anthropic(anthropic.NotFoundError, 404))
+        assert "não foi encontrado" in client.post(f"{API}/assistente/testar", headers=h).json()["mensagem"]
+
+        # Só o administrador testa.
+        dados = {"nome": "Bia", "email": "bia@farmacia.com", "papel": "gerente", "senha": "senha-boa-123"}
+        client.post(f"{API}/usuarios", json=dados, headers=h)
+        login = client.post(f"{API}/auth/login", json={"email": dados["email"], "senha": dados["senha"]}).json()
+        gerente = {"Authorization": f"Bearer {login['access_token']}"}
+        assert client.post(f"{API}/assistente/testar", headers=gerente).status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_cliente_ia, None)
+
+    # Sem chave no servidor, o teste já diz o que falta.
+    resposta = client.post(f"{API}/assistente/testar", headers=h)
+    assert resposta.status_code == 503 and "ANTHROPIC_API_KEY" in resposta.json()["detail"]

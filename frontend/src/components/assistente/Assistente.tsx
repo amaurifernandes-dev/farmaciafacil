@@ -56,12 +56,12 @@ function lerPreferencia(): boolean {
 }
 
 /** Botão "Assistente" em todas as telas da gestão, a conversa e o passo a passo do guia aberto. */
-export default function Assistente() {
+export default function Assistente({ abrir = false }: { abrir?: boolean }) {
   const navegar = useNavigate();
   const { sessao } = useSessao();
   const sugestoes = ehGerente(sessao) ? SUGESTOES_GERENCIA : SUGESTOES;
   const { pathname } = useLocation();
-  const [aberto, setAberto] = useState(false);
+  const [aberto, setAberto] = useState(abrir);
   const [ligado, setLigado] = useState<boolean | null>(null);
   const [conversa, setConversa] = useState<Conversa>(() => lerConversa());
   const [texto, setTexto] = useState("");

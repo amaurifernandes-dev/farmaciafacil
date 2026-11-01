@@ -35,6 +35,8 @@ def atualizar(db: DB, usuario: Admin, dados: ConfiguracoesAtualizar) -> Configur
         farmacia.entrega_bairros = [
             {"bairro": b.bairro.strip(), "taxa": str(b.taxa)} for b in dados.entrega_bairros
         ]
+    if dados.assistente_perfis is not None:
+        farmacia.assistente_perfis = sorted(set(dados.assistente_perfis))
     if farmacia.pix_chave:
         farmacia.pix_chave = normalizar_chave(farmacia.pix_chave)
     if farmacia.pix_no_site and not (farmacia.pix_chave and farmacia.pix_nome and farmacia.pix_cidade):

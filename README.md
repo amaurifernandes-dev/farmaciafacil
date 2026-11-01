@@ -82,6 +82,13 @@ Programa de pontos (ligado em Configurações gerais): o cliente identificado no
 por real gasto e troca por desconto numa próxima compra (F9). Os pontos podem expirar depois de alguns
 meses sem compras, e cancelar a venda desfaz os pontos dela.
 
+## Menu e busca de telas
+
+O menu lateral é dividido em grupos (Dia a dia, Farmácia, Estoque e compras, Gestão, Configurações), que abrem e
+fecham com um clique. Cada perfil só vê as telas que pode usar. "Buscar tela" (ou `Ctrl+K` de qualquer lugar) acha
+qualquer tela ou aba pelo nome ou por palavras do dia a dia ("boleto", "xml", "sngpc", "pedido compra"). A lista
+de telas fica em `frontend/src/telas.ts`. No celular, o menu fica atrás do botão "Menu".
+
 ## Caixas: monocaixa, multicaixa e PDVs registrados
 
 Cada loja escolhe, em Configurações gerais:
@@ -116,7 +123,8 @@ A venda em andamento fica salva no navegador até ser finalizada.
 
 ## Assistente de IA
 
-O botão "Assistente", no canto de todas as telas da gestão, conversa por texto ou pelo microfone
+O assistente começa escondido: cada pessoa liga ou desliga no botão "Assistente IA", no topo da tela (a escolha
+fica lembrada no navegador). Ligado, o botão "Assistente" no canto de todas as telas da gestão conversa por texto ou pelo microfone
 (reconhecimento de voz do navegador, melhor no Chrome e no Edge). Ele usa o Claude, da Anthropic, com
 ferramentas que rodam no servidor com o login de quem pergunta:
 
@@ -131,6 +139,9 @@ ferramentas que rodam no servidor com o login de quem pergunta:
   (os guias ficam em `backend/app/modules/assistente/guias.py`).
 
 Para ligar: `ANTHROPIC_API_KEY` no `.env` do servidor (chave criada em console.anthropic.com, cobrada por uso).
+Sem a chave, o botão não aparece (o administrador vê "IA sem chave"). Em Configurações gerais › Assistente de IA,
+o administrador testa a chave (o sistema pergunta à Anthropic pelo modelo configurado, sem gastar tokens) e escolhe
+quais perfis podem usar; o servidor recusa perguntas de perfis não liberados.
 `ASSISTENTE_MODELO` troca o modelo. A conversa fica só na aba do navegador e some ao sair.
 
 ## Pedidos de compra

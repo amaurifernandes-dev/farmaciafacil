@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,6 +15,9 @@ EnderecoLoja = Annotated[str, Field(min_length=3, max_length=40, pattern=r"^[a-z
 ValidadeReceita = Annotated[int, Field(ge=30, le=365)]
 IntervaloPopular = Annotated[int, Field(ge=0, le=90)]
 Valor = Annotated[Decimal, Field(ge=0, le=100_000, max_digits=12, decimal_places=2)]
+
+
+Papel = Literal["admin", "gerente", "farmaceutico", "caixa", "atendente", "estoque"]
 
 
 class TaxaBairro(BaseModel):
@@ -51,6 +54,7 @@ class Configuracoes(BaseModel):
     popular_validade_receita: ValidadeReceita = 180
     popular_intervalo_dias: IntervaloPopular = 30
     comissao_padrao: PercentualDesconto = Decimal(0)
+    assistente_perfis: list[Papel] = Field(default_factory=list, description="Perfis que podem usar o assistente de IA")
 
 
 class ConfiguracoesAtualizar(BaseModel):
@@ -86,6 +90,9 @@ class ConfiguracoesAtualizar(BaseModel):
         default=None, description="Dias até o paciente levar o mesmo remédio de novo. 0 não confere"
     )
     comissao_padrao: PercentualDesconto | None = Field(default=None, description="% de comissão dos vendedores")
+    assistente_perfis: Annotated[list[Papel], Field(max_length=6)] | None = Field(
+        default=None, description="Perfis que podem usar o assistente de IA. Lista vazia desliga para todos"
+    )
 
 
 # Campos que aceitam vazio (null apaga o valor).
