@@ -734,3 +734,12 @@ button.servico-opcao:disabled { opacity: 0.55; cursor: not-allowed; border-color
   .codigo-vale { font-size: 26px; }
   .devolucao-total strong { font-size: 22px; }
 }
+
+/* Caixa sem internet */
+.pdv-offline { padding: 3px 10px; border-radius: 999px; background: #b54708; color: #fff; font-size: 13px; font-weight: 600; }
+.pdv-guardadas { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 8px; background: #fff4e5; border: 1px solid #f5c58a; font-size: 14px; margin-bottom: 10px; }
+.pdv-guardadas p { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.pdv-guardadas small { color: var(--suave); }
+.pdv-guardada-problema { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid #f5c58a; }
+.pdv-guardada-problema small { color: #b42318; }
+.pdv-guardada-problema button { align-self: flex-start; }

@@ -29,6 +29,7 @@ from app.modules.produtos.router import router as produtos_router
 from app.modules.promocoes.router import router as promocoes_router
 from app.modules.relatorios.router import router as relatorios_router
 from app.modules.servicos.router import router as servicos_router
+from app.modules.vendas.catalogo import router as catalogo_pdv_router
 from app.modules.vendas.router import caixas as caixas_router
 from app.modules.vendas.router import pre_vendas as pre_vendas_router
 from app.modules.vendas.router import vendas as vendas_router
@@ -65,6 +66,7 @@ app.include_router(metas_router, prefix="/api/v1")
 app.include_router(inventario_router, prefix="/api/v1")
 app.include_router(servicos_router, prefix="/api/v1")
 app.include_router(devolucoes_router, prefix="/api/v1")
+app.include_router(catalogo_pdv_router, prefix="/api/v1")
 app.include_router(vales_router, prefix="/api/v1")
 app.include_router(pedidos_router, prefix="/api/v1")
 app.include_router(loja_online_router, prefix="/api/v1")

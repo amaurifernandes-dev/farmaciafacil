@@ -243,16 +243,19 @@ def baixar_fefo(
     usuario_id: UUID,
     referencia: Referencia,
     tipo: str = "venda",
+    permitir_faltar: bool = False,
 ) -> list[MovimentoEstoque]:
     """Tira `quantidade` do estoque da loja, começando pelo lote que vence antes.
 
+    Com `permitir_faltar` (venda feita sem internet, que já aconteceu no balcão), tira o que tiver
+    e não reclama do resto: quem chama confere quanto saiu de fato.
     Não faz commit: quem chama (a venda) decide, para tudo entrar numa transação só.
     """
     lotes = db.scalars(
         _lotes_vendaveis(loja_id).where(Lote.produto_id == produto.id).with_for_update(of=Lote)
     ).all()
     disponivel = sum((lote.quantidade for lote in lotes), Decimal(0))
-    if disponivel < quantidade:
+    if disponivel < quantidade and not permitir_faltar:
         raise EstoqueInsuficiente(
             f"Estoque insuficiente de {produto.nome}: disponível {disponivel.normalize()}"
         )

@@ -8,6 +8,8 @@ import {
   interpretarEntrada,
   maximoDePontos,
   montarVenda,
+  montarVendaOffline,
+  problemaOffline,
   novoCarrinho,
   paraCentavos,
   parteDoGoverno,
@@ -266,5 +268,31 @@ describe("promoções", () => {
     // Só item fora do programa: não dá para vender pela Farmácia Popular.
     const fora = { ...c, itens: c.itens.slice(2), pagamentos: [] };
     expect(problemaParaFinalizar(fora)).toMatch(/Nenhum remédio/);
+  });
+});
+
+describe("venda sem internet", () => {
+  const promocao: PromocaoPDV = {
+    id: "promo1", nome: "10%", tipo: "percentual", percentual: "10", preco: null, leve: null, pague: null,
+    so_clientes: false, resumo: "10% off",
+  };
+
+  it("leva o preço e a promoção que o caixa usou", () => {
+    const carrinho = adicionarProduto(novoCarrinho(), produto({ preco_venda: "10.00", promocoes: [promocao] }), 2);
+    const agora = new Date("2026-11-01T12:00:00Z");
+    const venda = montarVendaOffline({ ...carrinho, pagamentos: [{ forma: "dinheiro", centavos: 1800 }] }, "cx1", agora);
+    expect(venda.itens).toEqual([
+      { produto_id: "p1", quantidade: "2", preco_unitario: "10.00", desconto_promocao: "2.00", promocao_id: "promo1" },
+    ]);
+    expect([venda.offline_em, venda.caixa_id, venda.chave_idempotencia]).toEqual([agora.toISOString(), "cx1", carrinho.chave]);
+  });
+
+  it("só aceita dinheiro, cartão e Pix, e respeita o limite de desconto", () => {
+    const base = adicionarProduto(novoCarrinho(), produto({ preco_venda: "100.00" }), 1);
+    expect(problemaOffline({ ...base, pagamentos: [{ forma: "pix", centavos: 10000 }] }, 10, false)).toBeNull();
+    expect(problemaOffline({ ...base, pagamentos: [{ forma: "prazo", centavos: 10000 }] }, 10, false)).toContain("dinheiro, cartão ou Pix");
+    expect(problemaOffline({ ...base, pontosResgatados: 50 }, 10, false)).toContain("pontos");
+    expect(problemaOffline({ ...base, descontoCentavos: 1500 }, 10, false)).toContain("gerente");
+    expect(problemaOffline({ ...base, descontoCentavos: 1500 }, 10, true)).toBeNull();
   });
 });

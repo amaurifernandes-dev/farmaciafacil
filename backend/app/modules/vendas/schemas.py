@@ -61,6 +61,10 @@ class ItemVendaCriar(BaseModel):
     produto_id: UUID
     quantidade: Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=3)]
     desconto: Dinheiro = Decimal(0)
+    # Só na venda offline: o preço e a promoção que o caixa usou (da cópia do catálogo).
+    preco_unitario: DinheiroPositivo | None = None
+    desconto_promocao: Dinheiro | None = None
+    promocao_id: UUID | None = None
 
 
 class PagamentoCriar(BaseModel):
@@ -88,6 +92,10 @@ class VendaCriar(BaseModel):
     pre_venda_id: UUID | None = Field(default=None, description="Pré-venda que está sendo recebida")
     receita: ReceitaDados | None = Field(default=None, description="Obrigatória quando a venda tem remédio controlado")
     popular: PopularDados | None = Field(default=None, description="Venda pela Farmácia Popular")
+    offline_em: datetime | None = Field(
+        default=None, description="Venda feita no caixa sem internet: a hora em que foi feita lá"
+    )
+    caixa_id: UUID | None = Field(default=None, description="Só na venda offline: o caixa em que ela foi feita")
 
 
 class VendaCancelar(BaseModel):
@@ -106,6 +114,7 @@ class ItemVendaSaida(BaseModel):
     total: Decimal
     promocao_id: UUID | None = None
     desconto_promocao: Decimal = Decimal(0)
+    sem_estoque: Decimal = Decimal(0)
 
 
 class PagamentoSaida(BaseModel):
@@ -123,6 +132,7 @@ class VendaSaida(BaseModel):
     caixa_id: UUID
     usuario_id: UUID
     status: str
+    offline: bool = False
     subtotal: Decimal
     desconto: Decimal
     total: Decimal
