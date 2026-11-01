@@ -819,3 +819,20 @@ button.assistente-microfone:disabled { opacity: 0.5; cursor: not-allowed; }
 @media print {
   .assistente-botao, .assistente, .guia-na-tela { display: none; }
 }
+.assistente-periodo { margin: -4px 0 10px; }
+.assistente-indicadores { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.assistente-indicadores span { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; background: var(--fundo); }
+.assistente-indicadores small { color: var(--suave); font-size: 12px; }
+.assistente-indicadores strong { font-variant-numeric: tabular-nums; font-size: 15px; }
+.assistente-variacao { display: flex; align-items: flex-start; gap: 4px; margin: 10px 0 0; font-size: 13px; color: var(--suave); }
+.assistente-variacao svg { flex-shrink: 0; margin-top: 2px; }
+.assistente-variacao.subiu { color: var(--ok); }
+.assistente-variacao.caiu { color: var(--erro); }
+.assistente-subtitulo { margin: 12px 0 4px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--suave); }
+.assistente-lista li span { font-variant-numeric: tabular-nums; }
+.assistente-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+.assistente-tabela th { padding: 6px 6px; border-bottom: 1px solid var(--borda); color: var(--suave); font-weight: 600; text-align: left; white-space: nowrap; }
+.assistente-tabela td { padding: 6px 6px; border-bottom: 1px solid var(--borda); }
+.assistente-tabela tr:last-child td { border-bottom: none; }
+.assistente-tabela td.num, .assistente-tabela th.num { text-align: right; white-space: nowrap; }
+.assistente-link { margin-top: 10px; }

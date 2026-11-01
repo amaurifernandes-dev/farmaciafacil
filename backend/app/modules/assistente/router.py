@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from app.core.config import get_settings
 from app.core.deps import DB, UsuarioAtual
 from app.modules.assistente import service
-from app.modules.assistente.ferramentas import Contexto
+from app.modules.assistente.contexto import Contexto
 from app.modules.auth.models import Usuario
 from app.modules.lojas.deps import TerminalAtual
 
