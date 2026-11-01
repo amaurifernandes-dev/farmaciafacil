@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { ehAdmin, NOMES_PAPEIS, useSessao } from "../sessao";
+import { useLicenca } from "../licenca";
 import { MODULOS, useModulos } from "../modulos";
 import { ativa, GRUPOS, type Grupo, moduloDoEndereco, telaAtual, telasDe } from "../telas";
 import Assistente from "./assistente/Assistente";
@@ -40,6 +41,8 @@ export default function Layout() {
   const [buscando, setBuscando] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const assistente = useAssistente(sessao);
+  const licenca = useLicenca(sessao);
+  const avisoLicenca = licenca?.situacao && ["avisando", "tolerancia"].includes(licenca.situacao.estado) ? licenca.situacao : null;
 
   // Ctrl+K (ou Cmd+K no Mac) abre a busca de telas de qualquer lugar.
   useEffect(() => {
@@ -182,6 +185,13 @@ export default function Layout() {
           </span>
         </header>
         <main className="conteudo">
+          {avisoLicenca && (
+            <div className={`faixa-licenca ${avisoLicenca.estado}`} role="status">
+              <Icone nome="relogio" tamanho={16} />
+              <span>{avisoLicenca.mensagem}.</span>
+              {ehAdmin(sessao) && <Link to="/configuracoes/licenca">Ver a licença</Link>}
+            </div>
+          )}
           {moduloDesligado ? (
             <div className="pagina">
               <section className="cartao modulo-desligado">

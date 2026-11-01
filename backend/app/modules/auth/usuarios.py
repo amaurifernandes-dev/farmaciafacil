@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import DB, Admin
 from app.core.security import TokenDados, gerar_hash_senha
 from app.modules.auth.models import Usuario
+from app.modules.licenca.service import conferir_limite
 from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado
 
 Papel = Literal["admin", "gerente", "farmaceutico", "caixa", "atendente", "estoque"]
@@ -78,7 +79,8 @@ def listar(db: DB, _: Admin) -> list[UsuarioSaida]:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def criar(db: DB, _: Admin, dados: UsuarioCriar) -> UsuarioSaida:
+def criar(db: DB, eu: Admin, dados: UsuarioCriar) -> UsuarioSaida:
+    conferir_limite(db, eu.farmacia_id, "usuarios")
     usuario = Usuario(
         nome=dados.nome.strip(),
         email=dados.email.lower(),
@@ -97,6 +99,8 @@ def atualizar(db: DB, eu: Admin, usuario_id: UUID, dados: UsuarioAtualizar) -> U
     usuario = _obter(db, usuario_id)
     alteracoes = dados.model_dump(exclude_unset=True, exclude_none=True)
     _proteger_proprio_acesso(usuario, eu, alteracoes)
+    if alteracoes.get("ativo") and not usuario.ativo:
+        conferir_limite(db, eu.farmacia_id, "usuarios")
     if "senha" in alteracoes:
         usuario.senha_hash = gerar_hash_senha(alteracoes.pop("senha"))
     if "email" in alteracoes:

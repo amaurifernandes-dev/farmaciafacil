@@ -72,9 +72,10 @@ function lerDesligados(sessao: Sessao): Promise<string[]> {
       farmacia: sessao.farmacia_id,
       lista: sessao.offline
         ? Promise.resolve(guardado(sessao.farmacia_id))
-        : api<{ modulos_desligados?: string[] }>("/configuracoes")
+        : api<{ modulos_desligados?: string[]; modulos_fora_da_licenca?: string[] }>("/configuracoes")
             .then((c) => {
-              const lista = c.modulos_desligados ?? [];
+              // O que a licença não inclui fica desligado como o que o administrador desligou.
+              const lista = [...(c.modulos_desligados ?? []), ...(c.modulos_fora_da_licenca ?? [])];
               guardar(sessao.farmacia_id, lista);
               return lista;
             })

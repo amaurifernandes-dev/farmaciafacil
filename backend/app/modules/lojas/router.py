@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 
 from app.core.deps import DB, Admin, Gerente, UsuarioAtual
+from app.modules.licenca.service import conferir_limite
 from app.modules.lojas import service
 from app.modules.lojas.deps import TerminalAtual
 from app.modules.lojas.models import Loja
@@ -59,12 +60,15 @@ def este(db: DB, terminal: TerminalAtual) -> EsteTerminal:
 
 
 @terminais.post("", status_code=status.HTTP_201_CREATED)
-def criar_terminal(db: DB, _: Gerente, dados: TerminalCriar) -> TerminalSaida:
+def criar_terminal(db: DB, eu: Gerente, dados: TerminalCriar) -> TerminalSaida:
+    conferir_limite(db, eu.farmacia_id, "caixas")
     return service.saida_terminal(db, service.criar_terminal(db, dados.loja_id, dados.nome))
 
 
 @terminais.patch("/{terminal_id}")
-def atualizar_terminal(db: DB, _: Gerente, terminal_id: UUID, dados: TerminalAtualizar) -> TerminalSaida:
+def atualizar_terminal(db: DB, eu: Gerente, terminal_id: UUID, dados: TerminalAtualizar) -> TerminalSaida:
+    if dados.ativo and not service.obter_terminal(db, terminal_id).ativo:
+        conferir_limite(db, eu.farmacia_id, "caixas")
     terminal = service.atualizar_terminal(db, terminal_id, dados.nome, dados.ativo)
     return service.saida_terminal(db, terminal)
 

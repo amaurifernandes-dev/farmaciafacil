@@ -85,6 +85,7 @@ export const TELAS: Tela[] = [
   { para: "/configuracoes/usuarios", rotulo: "Usuários", icone: "pessoas", grupo: "config", pode: ehAdmin, descricao: "Quem acessa o sistema e o que pode fazer", palavras: "usuario senha perfil acesso funcionario" },
   { para: "/configuracoes/farmacia", rotulo: "Minha farmácia", icone: "loja", grupo: "config", pode: ehGerente, descricao: "Dados da farmácia, matriz e filiais", palavras: "loja filial matriz cnpj" },
   { para: "/configuracoes/telas", rotulo: "Gerenciamento de telas", icone: "painel", grupo: "config", pode: ehAdmin, descricao: "Ligar e desligar funções do sistema para todos", palavras: "modulos funcoes ligar desligar esconder habilitar telas" },
+  { para: "/configuracoes/licenca", rotulo: "Licença", icone: "recibo", grupo: "config", pode: ehAdmin, descricao: "Validade, limites e renovação da licença do sistema", palavras: "licenca chave ativacao renovar vencimento contrato plano" },
   { para: "/configuracoes/gerais", rotulo: "Configurações gerais", icone: "ajustes", grupo: "config", pode: ehGerente, descricao: "Caixas, descontos, pontos, loja online e assistente de IA", palavras: "configuracao regras ia assistente pontos loja online" },
 ];
 

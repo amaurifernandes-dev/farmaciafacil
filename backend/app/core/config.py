@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     assistente_modelo: str = "claude-opus-5-5"
 
+    # Licença. Com a chave pública preenchida, o sistema só funciona com uma licença válida da central.
+    # Vazia (desenvolvimento e testes): não confere licença.
+    licenca_chave_publica: str = ""
+    # Endereço da central de licenças, para ativar e renovar sozinho pela internet. Vazio: só com código colado.
+    licencas_url: str = ""
+
     @property
     def loja_online_disponivel(self) -> bool:
         """A loja online e o Pix pelo site precisam do sistema na internet; instalado na farmácia, ficam fora."""

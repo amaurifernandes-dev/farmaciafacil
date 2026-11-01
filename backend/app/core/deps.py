@@ -35,9 +35,21 @@ def get_db(usuario: Annotated[TokenDados, Depends(get_usuario_atual)]) -> Iterat
     """Sessão de banco já presa à farmácia do usuário logado."""
     db = SessionLocal(info={"farmacia_id": usuario.farmacia_id})
     try:
+        _conferir_licenca(db, usuario)
         yield db
     finally:
         db.close()
+
+
+def _conferir_licenca(db: Session, usuario: TokenDados) -> None:
+    """Licença encerrada (ou de outro servidor): responde 402 e a tela abre a página da licença."""
+    from app.modules.farmacias.models import Farmacia
+    from app.modules.licenca import service as licenca
+
+    if licenca.exigida():
+        farmacia = db.get(Farmacia, usuario.farmacia_id)
+        if farmacia is not None:
+            licenca.conferir(db, farmacia.cnpj)
 
 
 UsuarioAtual = Annotated[TokenDados, Depends(get_usuario_atual)]
@@ -72,10 +84,15 @@ def exigir_modulo(modulo: str):
 
     def _verificar(db: DB, usuario: UsuarioAtual) -> None:
         from app.modules.farmacias.models import Farmacia
+        from app.modules.licenca.service import modulos_fora
         from app.shared.modulos import NOMES, desligado
 
         farmacia = db.get(Farmacia, usuario.farmacia_id)
-        if farmacia is not None and desligado(farmacia.modulos_desligados, modulo):
+        if farmacia is None:
+            return
+        if modulo in modulos_fora(db, farmacia.cnpj):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, f"{NOMES[modulo]} não faz parte da licença desta farmácia")
+        if desligado(farmacia.modulos_desligados, modulo):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 f"{NOMES[modulo]} está desligado. O administrador pode ligar em Configurações > Gerenciamento de telas",

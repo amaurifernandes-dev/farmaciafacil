@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central de licenças · FarmáciaFácil</title>
+<style>
+:root {
+  --fundo: #f3f6f5; --cartao: #ffffff; --texto: #17302a; --suave: #5b6f69; --linha: #dbe4e1;
+  --marca: #0f7a5c; --marca-escura: #0b5c45; --marca-clara: #e3f3ed;
+  --aviso: #9a6400; --aviso-fundo: #fff4dc; --perigo: #b42318; --perigo-fundo: #fde8e6;
+  --raio: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #0f1715; --cartao: #17221f; --texto: #e4eeea; --suave: #9db1aa; --linha: #2a3a35;
+    --marca: #3cc597; --marca-escura: #6fd8b3; --marca-clara: #173a2f;
+    --aviso: #f3c062; --aviso-fundo: #3a2e12; --perigo: #ff8a80; --perigo-fundo: #3d1b18;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fundo); color: var(--texto); font: 15px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; }
+header { background: var(--cartao); border-bottom: 1px solid var(--linha); padding: 12px max(16px, env(safe-area-inset-left)); display: flex; gap: 12px; align-items: center; }
+header h1 { font-size: 17px; margin: 0; flex: 1; }
+header h1 small { color: var(--suave); font-weight: 400; }
+main { max-width: 1180px; margin: 0 auto; padding: 20px max(16px, env(safe-area-inset-left)); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { border: 1px solid var(--linha); background: var(--cartao); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+button:hover { border-color: var(--marca); }
+button.principal { background: var(--marca); color: #fff; border-color: var(--marca); }
+button.principal:hover { background: var(--marca-escura); }
+button.perigo { color: var(--perigo); }
+button:disabled { opacity: .55; cursor: default; }
+input, select, textarea { width: 100%; border: 1px solid var(--linha); border-radius: 8px; padding: 8px 10px; background: var(--fundo); }
+label { display: grid; gap: 4px; font-size: 13px; color: var(--suave); }
+.cartao { background: var(--cartao); border: 1px solid var(--linha); border-radius: var(--raio); padding: 18px; }
+.entrar { max-width: 360px; margin: 10vh auto; display: grid; gap: 14px; }
+.entrar h2 { margin: 0; }
+.erro { color: var(--perigo); background: var(--perigo-fundo); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.barra { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.barra input { flex: 1; min-width: 200px; }
+.grade { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grade { grid-template-columns: minmax(0, 1fr); } }
+.lista { display: grid; gap: 8px; }
+.item { text-align: left; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 12px 14px; }
+.item.ativo { border-color: var(--marca); box-shadow: 0 0 0 2px var(--marca-clara); }
+.item b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item small { color: var(--suave); grid-column: 1; }
+.selo { font-size: 12px; border-radius: 99px; padding: 2px 9px; background: var(--marca-clara); color: var(--marca-escura); white-space: nowrap; align-self: center; grid-row: span 2; }
+.selo.avisando, .selo.tolerancia { background: var(--aviso-fundo); color: var(--aviso); }
+.selo.encerrada, .selo.outro_servidor { background: var(--perigo-fundo); color: var(--perigo); }
+.detalhe { display: grid; gap: 16px; }
+.detalhe h2 { margin: 0; font-size: 19px; }
+.chave button { font: 14px system-ui, "Segoe UI", sans-serif; letter-spacing: normal; }
+.chave { font: 600 17px ui-monospace, Consolas, monospace; letter-spacing: .04em; background: var(--fundo); border: 1px dashed var(--linha); border-radius: 8px; padding: 10px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; word-break: break-all; }
+.campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.modulos { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 12px; }
+.modulos label { display: flex; gap: 6px; align-items: center; color: var(--texto); font-size: 14px; }
+.modulos input { width: auto; }
+.acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.codigo { font: 13px ui-monospace, Consolas, monospace; word-break: break-all; background: var(--fundo); border-radius: 8px; padding: 10px; }
+.historico { margin: 0; padding-left: 18px; color: var(--suave); font-size: 13px; }
+.vazio { color: var(--suave); text-align: center; padding: 40px 10px; }
+.titulo-secao { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); margin: 0 0 6px; }
+dialog { border: 1px solid var(--linha); border-radius: var(--raio); background: var(--cartao); color: var(--texto); width: min(560px, calc(100% - 32px)); padding: 20px; }
+dialog::backdrop { background: rgb(0 0 0 / .35); }
+.aviso { background: var(--aviso-fundo); color: var(--aviso); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FarmáciaFácil <small>· Central de licenças</small></h1>
+  <span id="quem"></span>
+  <button id="sair" hidden>Sair</button>
+</header>
+<main id="tela"></main>
+
+<dialog id="janela-nova">
+  <form id="form-nova" class="detalhe" method="dialog">
+    <h2>Nova licença</h2>
+    <div class="campos">
+      <label>CNPJ<input name="cnpj" required inputmode="numeric" placeholder="00.000.000/0000-00"></label>
+      <label style="grid-column: span 2">Nome da farmácia<input name="nome" required></label>
+      <label>Instalação<select name="tipo"><option value="farmacia">Na farmácia</option><option value="nuvem">Online</option></select></label>
+      <label>Plano<select name="plano"><option value="mensal">Mensal (31 dias)</option><option value="anual">Anual (365 dias)</option><option value="vitalicio">Vitalício</option></select></label>
+      <label>Começa em<input name="inicio" type="date"></label>
+      <label>Tolerância (dias)<input name="tolerancia_dias" type="number" min="0" max="365" value="7"></label>
+      <label>Máx. usuários<input name="max_usuarios" type="number" min="1" placeholder="Sem limite"></label>
+      <label>Máx. caixas<input name="max_caixas" type="number" min="1" placeholder="Sem limite"></label>
+      <label style="grid-column: 1 / -1">Contato<input name="contato" placeholder="Telefone ou e-mail do dono"></label>
+    </div>
+    <div>
+      <p class="titulo-secao">Módulos incluídos</p>
+      <div class="modulos" data-modulos></div>
+    </div>
+    <div class="erro" id="erro-nova" hidden></div>
+    <div class="acoes"><button class="principal" value="ok">Cadastrar</button><button value="cancelar" formnovalidate>Cancelar</button></div>
+  </form>
+</dialog>
+
+<script>
+const API = "./api";
+let token = sessionStorage.getItem("central.token");
+let modulos = [];
+let licencas = [];
+let aberta = null;
+const $ = (s, el = document) => el.querySelector(s);
+const tela = $("#tela");
+const NOMES_PLANO = { mensal: "Mensal", anual: "Anual", vitalicio: "Vitalício" };
+const NOMES_TIPO = { farmacia: "Na farmácia", nuvem: "Online" };
+const NOMES_ESTADO = { normal: "Em dia", avisando: "Vence logo", tolerancia: "Em tolerância", encerrada: "Encerrada", outro_servidor: "Outro servidor", sem_licenca: "Sem licença", relogio: "Relógio" };
+
+function esc(t) { return String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]); }
+function data(d) { return d ? d.split("-").reverse().join("/") : "—"; }
+function cnpj(c) { return c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5"); }
+
+async function api(caminho, opcoes = {}) {
+  const resposta = await fetch(API + caminho, {
+    ...opcoes,
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
+    body: opcoes.body ? JSON.stringify(opcoes.body) : undefined,
+  });
+  if (resposta.status === 401 && caminho !== "/entrar") { sair(); throw new Error("Entre de novo"); }
+  const dados = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) {
+    const d = dados.detail;
+    throw new Error(Array.isArray(d) ? d.map((e) => e.msg.replace("Value error, ", "")).join(". ") : d || "Não deu certo");
+  }
+  return dados;
+}
+
+function sair() {
+  token = null;
+  sessionStorage.removeItem("central.token");
+  $("#sair").hidden = true;
+  $("#quem").textContent = "";
+  mostrarEntrar();
+}
+$("#sair").onclick = sair;
+
+function mostrarEntrar() {
+  tela.innerHTML = `
+    <form class="cartao entrar" id="form-entrar">
+      <h2>Entrar</h2>
+      <label>E-mail<input name="email" type="email" required autocomplete="username"></label>
+      <label>Senha<input name="senha" type="password" required autocomplete="current-password"></label>
+      <div class="erro" hidden></div>
+      <button class="principal">Entrar</button>
+    </form>`;
+  $("#form-entrar").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    try {
+      const r = await api("/entrar", { method: "POST", body: { email: f.get("email"), senha: f.get("senha") } });
+      token = r.access_token;
+      sessionStorage.setItem("central.token", token);
+      sessionStorage.setItem("central.nome", r.nome);
+      iniciar();
+    } catch (erro) { const el = $(".erro", e.target); el.hidden = false; el.textContent = erro.message; }
+  };
+}
+
+function caixasModulos(alvo, marcados) {
+  alvo.innerHTML = modulos.map((m) => `<label><input type="checkbox" value="${m.id}" ${!marcados || marcados.includes(m.id) ? "checked" : ""}> ${esc(m.nome)}</label>`).join("");
+}
+function lerModulos(alvo) {
+  const marcados = [...alvo.querySelectorAll("input:checked")].map((i) => i.value);
+  return marcados.length === modulos.length ? null : marcados;
+}
+
+async function iniciar() {
+  $("#sair").hidden = false;
+  $("#quem").textContent = sessionStorage.getItem("central.nome") || "";
+  tela.innerHTML = `
+    <div class="barra">
+      <input id="busca" type="search" placeholder="Buscar por nome ou CNPJ">
+      <button class="principal" id="nova">+ Nova licença</button>
+    </div>
+    <div class="grade"><div class="lista" id="lista"></div><div id="painel"></div></div>`;
+  $("#nova").onclick = abrirNova;
+  let espera;
+  $("#busca").oninput = () => { clearTimeout(espera); espera = setTimeout(carregar, 250); };
+  try { modulos = await api("/modulos"); } catch { return; }
+  await carregar();
+}
+
+async function carregar() {
+  const busca = $("#busca")?.value.trim();
+  licencas = await api("/licencas" + (busca ? "?busca=" + encodeURIComponent(busca) : ""));
+  desenharLista();
+  if (aberta) { const atual = licencas.find((l) => l.id === aberta); if (atual) mostrar(atual); }
+  else $("#painel").innerHTML = `<div class="cartao vazio">Escolha uma licença na lista para ver a chave, renovar ou gerar o código.</div>`;
+}
+
+function desenharLista() {
+  const lista = $("#lista");
+  if (!licencas.length) { lista.innerHTML = `<div class="cartao vazio">Nenhuma licença ainda. Clique em “Nova licença”.</div>`; return; }
+  lista.innerHTML = licencas.map((l) => `
+    <button class="cartao item ${l.id === aberta ? "ativo" : ""}" data-id="${l.id}">
+      <b>${esc(l.nome)}</b>
+      <span class="selo ${l.suspensa ? "encerrada" : l.situacao.estado}">${l.suspensa ? "Suspensa" : NOMES_ESTADO[l.situacao.estado]}</span>
+      <small>${cnpj(l.cnpj)} · ${NOMES_TIPO[l.tipo]} · ${NOMES_PLANO[l.plano]}${l.vence ? " · vence " + data(l.vence) : ""}</small>
+    </button>`).join("");
+  lista.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => { aberta = Number(b.dataset.id); desenharLista(); mostrar(licencas.find((l) => l.id === aberta)); }));
+}
+
+async function copiar(texto, botao) {
+  try { await navigator.clipboard.writeText(texto); botao.textContent = "Copiado"; }
+  catch { botao.textContent = "Selecione e copie"; }
+  setTimeout(() => (botao.textContent = "Copiar"), 1800);
+}
+
+async function mostrar(l) {
+  const painel = $("#painel");
+  painel.innerHTML = `
+    <div class="cartao detalhe">
+      <div>
+        <h2>${esc(l.nome)}</h2>
+        <div style="color: var(--suave)">${cnpj(l.cnpj)} · Licença nº ${l.id} · ${NOMES_TIPO[l.tipo]}</div>
+      </div>
+      <div class="${l.suspensa || l.situacao.bloqueia ? "erro" : l.situacao.estado === "normal" ? "" : "aviso"}" ${!l.suspensa && l.situacao.estado === "normal" ? "hidden" : ""}>${esc(l.suspensa ? "Suspensa: o servidor não consegue renovar. O código já instalado vale até vencer." : l.situacao.mensagem)}</div>
+      <div>
+        <p class="titulo-secao">Chave de ativação</p>
+        <div class="chave"><span>${esc(l.chave_ativacao)}</span><button type="button" data-copiar>Copiar</button></div>
+        <small style="color: var(--suave)">${l.tipo === "farmacia" ? (l.maquina ? "Ativada no servidor " + esc(l.maquina) : "Ainda não ativada em nenhum servidor") : "Online: o administrador digita esta chave em Configurações > Licença"}${l.ultima_consulta_em ? " · última consulta " + new Date(l.ultima_consulta_em).toLocaleString("pt-BR") : ""}</small>
+      </div>
+      <div class="acoes">
+        ${l.vence ? `<button class="principal" data-acao="renovar">Renovar mais ${l.plano === "anual" ? "365" : "31"} dias</button>` : ""}
+        ${l.tipo === "farmacia" && l.maquina ? `<button data-acao="liberar-troca">Liberar troca de computador</button>` : ""}
+        ${l.suspensa ? `<button data-acao="reativar">Reativar</button>` : `<button class="perigo" data-acao="suspender">Suspender</button>`}
+      </div>
+      <form class="detalhe" id="form-editar">
+        <p class="titulo-secao">Contrato</p>
+        <div class="campos">
+          <label>Plano<select name="plano">${Object.entries(NOMES_PLANO).map(([v, n]) => `<option value="${v}" ${v === l.plano ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+          <label>Vence em<input name="vence" type="date" value="${l.vence ?? ""}" ${l.plano === "vitalicio" ? "disabled" : ""}></label>
+          <label>Tolerância (dias)<input name="tolerancia_dias" type="number" min="0" max="365" value="${l.tolerancia_dias}"></label>
+          <label>Máx. usuários<input name="max_usuarios" type="number" min="1" value="${l.max_usuarios ?? ""}" placeholder="Sem limite"></label>
+          <label>Máx. caixas<input name="max_caixas" type="number" min="1" value="${l.max_caixas ?? ""}" placeholder="Sem limite"></label>
+          <label>Contato<input name="contato" value="${esc(l.contato)}"></label>
+        </div>
+        <div><p class="titulo-secao">Módulos incluídos</p><div class="modulos" data-modulos></div></div>
+        <label>Observação<textarea name="observacao" rows="2">${esc(l.observacao)}</textarea></label>
+        <div class="acoes"><button class="principal">Salvar</button><span data-salvo style="color: var(--suave); align-self: center"></span></div>
+        <small style="color: var(--suave)">O que mudar aqui chega no servidor na próxima renovação automática, ou com um código novo.</small>
+      </form>
+      <div>
+        <p class="titulo-secao">Código para servidor sem internet</p>
+        <form class="barra" id="form-codigo" style="margin: 0">
+          ${l.tipo === "farmacia" ? `<input name="maquina" placeholder="Código do servidor (ex.: 4F2A-9C1B-77D0-E35A)" value="${esc(l.maquina ?? "")}">` : ""}
+          <button>Gerar código</button>
+        </form>
+        <div data-codigo></div>
+      </div>
+      <div class="erro" data-erro hidden></div>
+      <div><p class="titulo-secao">Histórico</p><ul class="historico" data-historico></ul></div>
+    </div>`;
+  const erro = $("[data-erro]", painel);
+  const falhou = (e) => { erro.hidden = false; erro.textContent = e.message; };
+  caixasModulos($("[data-modulos]", painel), l.modulos);
+  $("[data-copiar]", painel).onclick = (e) => copiar(l.chave_ativacao, e.target);
+  painel.querySelectorAll("[data-acao]").forEach((b) => (b.onclick = async () => {
+    try { await api(`/licencas/${l.id}/${b.dataset.acao}`, { method: "POST" }); await carregar(); } catch (e) { falhou(e); }
+  }));
+  $("#form-editar").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const numero = (n) => (f.get(n) ? Number(f.get(n)) : null);
+    const corpo = { plano: f.get("plano"), tolerancia_dias: numero("tolerancia_dias"), max_usuarios: numero("max_usuarios"), max_caixas: numero("max_caixas"), contato: f.get("contato") || null, observacao: f.get("observacao") || null, modulos: lerModulos($("[data-modulos]", painel)) };
+    if (f.get("vence")) corpo.vence = f.get("vence");
+    try { await api(`/licencas/${l.id}`, { method: "PATCH", body: corpo }); await carregar(); $("[data-salvo]", $("#painel")).textContent = "Salvo"; } catch (e) { falhou(e); }
+  };
+  $("#form-codigo").onsubmit = async (e) => {
+    e.preventDefault();
+    const maquina = new FormData(e.target).get("maquina");
+    try {
+      const r = await api(`/licencas/${l.id}/codigo`, { method: "POST", body: { maquina: maquina || null } });
+      const alvo = $("[data-codigo]", painel);
+      alvo.innerHTML = `<div class="codigo">${esc(r.codigo)}</div><div class="acoes" style="margin-top: 8px"><button type="button">Copiar</button><small style="color: var(--suave); align-self: center">Vale até ${data(r.vence) === "—" ? "sempre" : data(r.vence)}. Mande por WhatsApp e cole na tela Licença do servidor.</small></div>`;
+      $("button", alvo).onclick = (ev) => copiar(r.codigo, ev.target);
+      erro.hidden = true;
+    } catch (e) { falhou(e); }
+  };
+  try {
+    const eventos = await api(`/licencas/${l.id}/historico`);
+    $("[data-historico]", painel).innerHTML = eventos.map((e) => `<li>${new Date(e.quando).toLocaleString("pt-BR")} · ${esc(e.quem)}: ${esc(e.o_que)}</li>`).join("");
+  } catch {}
+}
+
+function abrirNova() {
+  const janela = $("#janela-nova");
+  const form = $("#form-nova");
+  form.reset();
+  $("#erro-nova").hidden = true;
+  caixasModulos($("[data-modulos]", form), null);
+  janela.showModal();
+}
+$("#form-nova").onsubmit = async (e) => {
+  if (e.submitter?.value === "cancelar") return;
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const numero = (n) => (f.get(n) ? Number(f.get(n)) : null);
+  const corpo = { cnpj: f.get("cnpj"), nome: f.get("nome"), tipo: f.get("tipo"), plano: f.get("plano"), inicio: f.get("inicio") || null, tolerancia_dias: numero("tolerancia_dias") ?? 7, max_usuarios: numero("max_usuarios"), max_caixas: numero("max_caixas"), contato: f.get("contato") || null, modulos: lerModulos($("[data-modulos]", e.target)) };
+  try {
+    const nova = await api("/licencas", { method: "POST", body: corpo });
+    $("#janela-nova").close();
+    aberta = nova.id;
+    await carregar();
+  } catch (erro) { const el = $("#erro-nova"); el.hidden = false; el.textContent = erro.message; }
+};
+
+if (token) iniciar(); else mostrarEntrar();
+</script>
+</body>
+</html>
