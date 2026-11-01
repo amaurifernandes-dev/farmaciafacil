@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.deps import DB, Atendimento, UsuarioAtual
 from app.modules.farmacias.models import Farmacia
@@ -95,7 +96,15 @@ def _farmacia(db: Session) -> Farmacia:
     return db.get(Farmacia, db.info["farmacia_id"])
 
 
-loja = APIRouter(prefix="/loja/{endereco}", tags=["loja online"])
+def _loja_online_disponivel() -> None:
+    """Instalado na farmácia, o sistema não fica na internet: a loja online não existe."""
+    if not get_settings().loja_online_disponivel:
+        raise NaoEncontrado("Loja não encontrada")
+
+
+loja = APIRouter(
+    prefix="/loja/{endereco}", tags=["loja online"], dependencies=[Depends(_loja_online_disponivel)]
+)
 
 
 @loja.get("")

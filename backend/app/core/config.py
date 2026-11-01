@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_expira_horas: int = 12
 
+    # Onde o sistema está instalado. "nuvem": servidor na internet, várias farmácias no mesmo banco.
+    # "farmacia": instalado num computador da própria farmácia, com o banco dela (on-premise).
+    instalacao: Literal["nuvem", "farmacia"] = "nuvem"
+
     # NFC-e. "desligado" não emite; "falso" simula a SEFAZ (desenvolvimento e testes).
     nfce_provedor: Literal["desligado", "falso", "focus"] = "desligado"
     # Tokens da Focus NFe, um por ambiente. O certificado A1 e o CSC ficam no painel da Focus.
@@ -31,6 +35,11 @@ class Settings(BaseSettings):
     # Assistente de IA (Claude, da Anthropic). Sem a chave, o assistente fica desligado.
     anthropic_api_key: str = ""
     assistente_modelo: str = "claude-opus-5-5"
+
+    @property
+    def loja_online_disponivel(self) -> bool:
+        """A loja online e o Pix pelo site precisam do sistema na internet; instalado na farmácia, ficam fora."""
+        return self.instalacao == "nuvem"
 
     @field_validator("database_url", "migration_database_url")
     @classmethod

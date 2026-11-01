@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.core.config import get_settings
 from app.modules import todos_os_modelos  # noqa: F401  (registra as tabelas)
 from app.modules.assistente.router import router as assistente_router
 from app.modules.auth.router import router as auth_router
@@ -76,6 +77,13 @@ app.include_router(vales_router, prefix="/api/v1")
 app.include_router(pedidos_router, prefix="/api/v1")
 app.include_router(loja_online_router, prefix="/api/v1")
 app.include_router(assistente_router, prefix="/api/v1")
+
+
+@app.get("/api/v1/instalacao", tags=["infra"])
+def instalacao() -> dict:
+    """Pública: a tela pergunta onde o sistema está instalado para esconder o que não se aplica."""
+    settings = get_settings()
+    return {"modo": settings.instalacao, "loja_online": settings.loja_online_disponivel}
 
 
 @app.get("/api/saude", tags=["infra"])

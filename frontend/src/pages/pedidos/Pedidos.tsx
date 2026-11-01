@@ -6,6 +6,7 @@ import { Janela } from "../../components/Cadastro";
 import Icone from "../../components/Icone";
 import SeletorLoja from "../../components/SeletorLoja";
 import { quantidade, reais } from "../../formato";
+import { useInstalacao } from "../../instalacao";
 import { useLojas } from "../../lojas";
 
 const SITUACOES = [
@@ -64,6 +65,7 @@ function linkPix(pedido: Pedido): string | null {
 }
 
 export default function Pedidos() {
+  const instalacao = useInstalacao();
   const lojas = useLojas();
   const [situacao, setSituacao] = useState("abertos");
   const [lojaId, setLojaId] = useState("");
@@ -111,7 +113,7 @@ export default function Pedidos() {
           <p className="sobretitulo">Vendas</p>
           <h1>Pedidos</h1>
           <p className="vazio">
-            Pedidos da loja online, do WhatsApp e do telefone. Ao aceitar, o pedido vira pré-venda: separe os produtos e
+            {instalacao?.loja_online === false ? "Pedidos do WhatsApp e do telefone" : "Pedidos da loja online, do WhatsApp e do telefone"}. Ao aceitar, o pedido vira pré-venda: separe os produtos e
             o caixa recebe com F7 quando o cliente pagar.
           </p>
         </div>
