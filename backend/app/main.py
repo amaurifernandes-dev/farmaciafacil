@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.modules import todos_os_modelos  # noqa: F401  (registra as tabelas)
+from app.modules.assistente.router import router as assistente_router
 from app.modules.auth.router import router as auth_router
 from app.modules.auth.usuarios import router as usuarios_router
 from app.modules.clientes.router import router as clientes_router
@@ -74,6 +75,7 @@ app.include_router(painel_offline_router, prefix="/api/v1")
 app.include_router(vales_router, prefix="/api/v1")
 app.include_router(pedidos_router, prefix="/api/v1")
 app.include_router(loja_online_router, prefix="/api/v1")
+app.include_router(assistente_router, prefix="/api/v1")
 
 
 @app.get("/api/saude", tags=["infra"])
