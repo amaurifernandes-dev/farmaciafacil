@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from tests.test_vendas import _abrir_caixa, _produto_com_estoque, _registrar_pdv, _saldo
@@ -12,7 +12,7 @@ def _offline(produto, quantidade, preco, pagamentos, caixa_id, quando=None, **ex
         "chave_idempotencia": str(uuid.uuid4()),
         "itens": [{"produto_id": produto["id"], "quantidade": str(quantidade), "preco_unitario": preco}],
         "pagamentos": pagamentos,
-        "offline_em": (quando or datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+        "offline_em": (quando or datetime.now(UTC) - timedelta(hours=1)).isoformat(),
         "caixa_id": caixa_id,
         **extra,
     }
@@ -42,7 +42,7 @@ def test_venda_feita_sem_internet_entra_depois(client, farmacia_a):
     # Enquanto o caixa estava offline, o preço mudou no sistema: vale o da cópia.
     client.patch(f"{API}/produtos/{produto['id']}", json={"preco_venda": "12.00"}, headers=h)
 
-    quando = datetime.now(timezone.utc) - timedelta(minutes=40)
+    quando = datetime.now(UTC) - timedelta(minutes=40)
     corpo = _offline(produto, 3, "10.00", [{"forma": "dinheiro", "valor": "50.00"}], caixa["id"], quando)
     resposta = client.post(f"{API}/vendas", json=corpo, headers=h)
     assert resposta.status_code == 201, resposta.text
@@ -74,9 +74,9 @@ def test_regras_da_venda_offline(client, farmacia_a, farmacia_b):
 
     erro = enviar(_offline(produto, 1, "5.00", [{"forma": "prazo", "valor": "5.00"}], caixa["id"]), 400)
     assert "dinheiro, cartão ou Pix" in erro["detail"]
-    velha = datetime.now(timezone.utc) - timedelta(days=8)
+    velha = datetime.now(UTC) - timedelta(days=8)
     assert "7 dias" in enviar(_offline(produto, 1, "5.00", pix, caixa["id"], velha), 400)["detail"]
-    futuro = datetime.now(timezone.utc) + timedelta(hours=2)
+    futuro = datetime.now(UTC) + timedelta(hours=2)
     assert "relógio" in enviar(_offline(produto, 1, "5.00", pix, caixa["id"], futuro), 400)["detail"]
     enviar(_offline(produto, 1, "5.00", pix, str(uuid.uuid4())), 404)
     enviar(_offline(produto, 1, "5.00", pix, caixa["id"], pontos_resgatados=10), 400)
