@@ -32,7 +32,35 @@ export type Cartao =
       itens: { descricao: string; quantidade: string; total: string }[];
     }
   | { tipo: "cliente"; id: string; nome: string }
-  | CartaoGuia;
+  | CartaoGuia
+  | CartaoVendas
+  | CartaoTabela;
+
+/** Resumo das vendas de um período. Os valores já vêm formatados do servidor. */
+export interface CartaoVendas {
+  tipo: "vendas";
+  titulo: string;
+  periodo: string;
+  indicadores: { rotulo: string; valor: string }[];
+  /** % em relação ao período anterior de mesmo tamanho; null se não houve venda nele. */
+  variacao: number | null;
+  anterior: string;
+  comparado_com: string;
+  formas: { forma: string; valor: string }[];
+  vendedores: { nome: string; vendas: number; total: string }[];
+  rota: string;
+}
+
+export interface CartaoTabela {
+  tipo: "tabela";
+  titulo: string;
+  subtitulo: string;
+  colunas: { rotulo: string; num: boolean }[];
+  linhas: string[][];
+  vazio: string;
+  rota: string;
+  rotulo_rota?: string;
+}
 
 /** Mensagem no formato da API do Claude: a tela guarda e manda de volta sem mexer. */
 export interface MensagemModelo {

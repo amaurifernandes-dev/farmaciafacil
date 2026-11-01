@@ -207,3 +207,79 @@ def test_para_de_chamar_ferramentas_no_limite(client, farmacia_a, modelo):
     assert len(m.chamadas) == 8
     assert m.chamadas[-1]["tool_choice"] == {"type": "none"}
     assert "tool_choice" not in m.chamadas[0]
+
+
+# --- Relatórios -------------------------------------------------------------------------------------
+
+
+def test_periodos_falados():
+    from datetime import date
+
+    from app.modules.assistente.contexto import ErroDaFerramenta
+    from app.modules.assistente.relatorios import resolver_periodo
+
+    domingo = date(2026, 11, 1)
+    assert resolver_periodo("hoje", None, None, domingo)[:2] == (domingo, domingo)
+    assert resolver_periodo("esta_semana", None, None, domingo)[:2] == (date(2026, 10, 26), domingo)
+    assert resolver_periodo("semana_passada", None, None, domingo)[:2] == (date(2026, 10, 19), date(2026, 10, 25))
+    assert resolver_periodo("mes_passado", None, None, domingo)[:2] == (date(2026, 10, 1), date(2026, 10, 31))
+    assert resolver_periodo("mes_passado", None, None, date(2026, 3, 15))[:2] == (date(2026, 2, 1), date(2026, 2, 28))
+    assert resolver_periodo("personalizado", "2026-10-05", "2026-10-10", domingo)[2] == "05/10/2026 a 10/10/2026"
+    with pytest.raises(ErroDaFerramenta):
+        resolver_periodo("personalizado", "ontem", None, domingo)
+
+
+def test_quanto_vendi_hoje_e_mais_vendidos(client, farmacia_a, modelo):
+    from tests.test_promocoes_relatorios import _vender
+    from tests.test_vendas import _abrir_caixa
+
+    dipirona = _produto(client, farmacia_a, "Dipirona 500mg", "10.00", custo="4.00")
+    vitamina = _produto(client, farmacia_a, "Vitamina C 1g", "30.00", custo="12.00")
+    _abrir_caixa(client, farmacia_a)
+    _vender(client, farmacia_a, [(dipirona, 3)], [{"forma": "pix", "valor": "30.00"}])
+    _vender(client, farmacia_a, [(vitamina, 1), (dipirona, 1)], [{"forma": "dinheiro", "valor": "40.00"}])
+
+    m = modelo(_ferramenta("relatorio_vendas", {"periodo": "hoje", "inicio": None, "fim": None}), _texto("R$ 70 hoje."))
+    r = _perguntar(client, farmacia_a, "quanto vendi hoje?")
+    [cartao] = r["cartoes"]
+    assert cartao["tipo"] == "vendas" and cartao["titulo"] == "Vendas de hoje"
+    assert cartao["indicadores"][0] == {"rotulo": "Faturamento", "valor": "R$ 70,00"}
+    assert cartao["indicadores"][1]["valor"] == "2"
+    assert cartao["variacao"] is None  # ontem não vendeu
+    assert {f["forma"] for f in cartao["formas"]} == {"Pix", "Dinheiro"}
+    resultado, erro = _resultado(m.chamadas[1]["messages"])
+    assert not erro and resultado["lucro_bruto"] == "R$ 42,00" and resultado["margem"] == "60,0%"
+    nomes = [t["name"] for t in m.chamadas[0]["tools"]]
+    assert {"relatorio_vendas", "mais_vendidos", "produtos_parados", "alertas_estoque"} <= set(nomes)
+
+    modelo(
+        _ferramenta("mais_vendidos", {"periodo": "este_mes", "inicio": None, "fim": None,
+                                      "ordenar_por": "quantidade", "limite": 5}),
+        _texto("A dipirona."),
+    )
+    r = _perguntar(client, farmacia_a, "o que mais vendeu no mês?")
+    tabela = r["cartoes"][0]
+    assert tabela["tipo"] == "tabela"
+    assert [linha[:3] for linha in tabela["linhas"]] == [["Dipirona 500mg", "4", "R$ 40,00"], ["Vitamina C 1g", "1", "R$ 30,00"]]
+
+
+def test_caixa_nao_ve_vendas_mas_ve_estoque(client, engine_dono, farmacia_a, modelo):
+    from tests.test_vendas import _login_caixa
+
+    produto = _produto(client, farmacia_a, "Soro fisiológico", "5.00", quantidade=2)
+    client.patch(f"{API}/produtos/{produto['id']}", json={"estoque_minimo": "10"}, headers=farmacia_a["headers"])
+    caixa = {"headers": _login_caixa(client, engine_dono, farmacia_a)}
+
+    m = modelo(
+        _ferramenta("relatorio_vendas", {"periodo": "hoje", "inicio": None, "fim": None}),
+        _ferramenta("alertas_estoque", {"tipo": "acabando", "dias": 60}, "t2"),
+        _texto("ok"),
+    )
+    r = _perguntar(client, caixa, "quanto vendemos hoje e o que está acabando?")
+    nomes = {t["name"] for t in m.chamadas[0]["tools"]}
+    assert "relatorio_vendas" not in nomes and "alertas_estoque" in nomes
+    conteudo, erro = _resultado(m.chamadas[1]["messages"])
+    assert erro and "gerente" in conteudo
+    [tabela] = r["cartoes"]
+    assert tabela["titulo"].startswith("Acabando")
+    assert tabela["linhas"][0][0] == "Soro fisiológico" and tabela["linhas"][0][2:] == ["2", "10"]

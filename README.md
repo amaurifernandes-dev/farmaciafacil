@@ -123,6 +123,8 @@ ferramentas que rodam no servidor com o login de quem pergunta:
 - procurar produtos (menor preço final primeiro, com a promoção do dia e o estoque da loja);
 - abrir pré-venda com os produtos pedidos;
 - procurar e cadastrar cliente com os dados falados (repete os dados e espera a confirmação);
+- responder sobre o movimento: vendas do período com comparação, mais vendidos e o que dá mais lucro,
+  produtos parados (só gerente e administrador) e o que está acabando, vencendo ou vencido (todos);
 - mostrar o passo a passo de uma tarefa, com o botão "Começar" que abre a tela certa
   (os guias ficam em `backend/app/modules/assistente/guias.py`).
 

@@ -1,22 +1,24 @@
 """Ferramentas do assistente: cada uma usa os serviços do sistema com o login de quem pergunta."""
 
 import json
-from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
 from pydantic import ValidationError
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session
 
-from app.core.security import TokenDados
+from app.modules.assistente.contexto import Contexto, ErroDaFerramenta
 from app.modules.assistente.guias import POR_ID, lista_para_ferramenta
+from app.modules.assistente.relatorios import (
+    EXECUTORES_RELATORIOS,
+    FERRAMENTAS_ESTOQUE,
+    FERRAMENTAS_GERENCIA,
+)
 from app.modules.clientes import service as clientes
 from app.modules.clientes.models import Cliente
 from app.modules.clientes.schemas import ClienteCriar
 from app.modules.estoque.service import _lotes_vendaveis
-from app.modules.lojas.models import Terminal
 from app.modules.lojas.service import matriz
 from app.modules.produtos.models import Produto
 from app.modules.promocoes.service import melhor, resumo, vigentes_por_produto
@@ -136,18 +138,6 @@ FERRAMENTAS: list[dict] = [
         },
     },
 ]
-
-
-@dataclass
-class Contexto:
-    db: Session
-    usuario: TokenDados
-    terminal: Terminal | None
-    cartoes: list[dict] = field(default_factory=list)  # o que a tela mostra junto da resposta
-
-
-class ErroDaFerramenta(Exception):
-    """Volta para o modelo como tool_result com is_error."""
 
 
 def _sem_acento(coluna):
@@ -290,7 +280,13 @@ EXECUTORES = {
     "buscar_cliente": buscar_cliente,
     "cadastrar_cliente": cadastrar_cliente,
     "mostrar_guia": mostrar_guia,
+    **EXECUTORES_RELATORIOS,
 }
+
+
+def ferramentas_para(ctx: Contexto) -> list[dict]:
+    """O modelo só conhece as ferramentas que o perfil pode usar (os números de vendas são da gerência)."""
+    return [*FERRAMENTAS, *FERRAMENTAS_ESTOQUE, *(FERRAMENTAS_GERENCIA if ctx.gerente else [])]
 
 
 def executar(ctx: Contexto, nome: str, entrada: dict) -> tuple[str, bool]:

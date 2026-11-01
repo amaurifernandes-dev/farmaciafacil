@@ -5,7 +5,8 @@ from typing import Any
 import anthropic
 
 from app.core.config import get_settings
-from app.modules.assistente.ferramentas import FERRAMENTAS, Contexto, executar
+from app.modules.assistente.contexto import Contexto
+from app.modules.assistente.ferramentas import executar, ferramentas_para
 from app.shared.datas import hoje
 from app.shared.erros import ErroDeNegocio
 
@@ -33,6 +34,11 @@ disser que aceita receber ofertas.
 - Explicar como fazer algo no sistema (mostrar_guia). Quando perguntarem "como faço...", escolha o guia certo; \
 a tela mostra os passos e o botão "Começar", que abre a tela certa. Responda só com uma frase de apresentação. \
 Se nenhum guia servir, explique em poucas linhas com o que você sabe, sem inventar telas.
+- Responder sobre o movimento da farmácia: vendas de um período (relatorio_vendas), mais vendidos e o que \
+dá mais lucro (mais_vendidos), produtos parados (produtos_parados), e o que está acabando, vencendo ou vencido \
+(alertas_estoque). A tela mostra os números num cartão; responda com uma ou duas frases que tragam o que importa \
+(ex.: subiu ou caiu em relação ao período anterior, o produto que puxou as vendas, o que repor primeiro). Se o \
+perfil não tiver a ferramenta de vendas, diga que só gerente vê esses números.
 
 Regras:
 - Nunca invente produto, preço, estoque ou promoção: use só o que as ferramentas devolveram.
@@ -70,14 +76,16 @@ def _texto(blocos: list[dict]) -> str:
     return "\n\n".join(b["text"] for b in blocos if b.get("type") == "text" and b.get("text")).strip()
 
 
-def _chamar(cliente: anthropic.Anthropic, sistema: list[dict], historico: list[dict], ultima: bool):
+def _chamar(
+    cliente: anthropic.Anthropic, sistema: list[dict], ferramentas: list[dict], historico: list[dict], ultima: bool
+):
     extras: dict[str, Any] = {"tool_choice": {"type": "none"}} if ultima else {}
     try:
         return cliente.beta.messages.create(
             model=get_settings().assistente_modelo,
             max_tokens=16000,
             system=sistema,
-            tools=FERRAMENTAS,
+            tools=ferramentas,
             messages=historico,
             output_config={"effort": "low"},
             cache_control={"type": "ephemeral"},
@@ -105,9 +113,10 @@ def conversar(
         {"type": "text", "text": SISTEMA},
         {"type": "text", "text": f"Usuário: {nome_usuario} (perfil {ctx.usuario.papel}). Hoje é {hoje():%d/%m/%Y}."},
     ]
+    ferramentas = ferramentas_para(ctx)
     novo = [*historico, {"role": "user", "content": [{"type": "text", "text": mensagem}]}]
     for volta in range(MAX_VOLTAS):
-        resposta = _chamar(cliente, sistema, novo, ultima=volta == MAX_VOLTAS - 1)
+        resposta = _chamar(cliente, sistema, ferramentas, novo, ultima=volta == MAX_VOLTAS - 1)
         if resposta.stop_reason == "refusal":
             # Não guarda a pergunta recusada, para a conversa poder seguir.
             return historico, RECUSA

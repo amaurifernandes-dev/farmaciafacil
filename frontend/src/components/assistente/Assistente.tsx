@@ -16,13 +16,23 @@ import {
   salvarConversa,
   salvarGuia,
 } from "./conversa";
-import type { Cartao, CartaoGuia, Fala, RespostaAssistente } from "./tipos";
+import { ehGerente, useSessao } from "../../sessao";
+import type { Cartao, CartaoGuia, CartaoTabela, CartaoVendas, Fala, RespostaAssistente } from "./tipos";
 import { calar, falar, ouvir, temMicrofone } from "./voz";
 
 const SUGESTOES = [
   "Mostra os protetores solares mais baratos e em promoção",
   "Abre uma pré-venda com 2 dipironas",
   "Quero cadastrar um cliente",
+  "O que está acabando no estoque?",
+  "Como faço para incluir os produtos que chegaram do fornecedor?",
+];
+
+const SUGESTOES_GERENCIA = [
+  "Quanto vendi hoje?",
+  "O que mais vendeu este mês?",
+  "O que está acabando ou vencendo?",
+  "Mostra os protetores solares mais baratos e em promoção",
   "Como faço para incluir os produtos que chegaram do fornecedor?",
 ];
 
@@ -39,6 +49,8 @@ function lerPreferencia(): boolean {
 /** Botão "Assistente" em todas as telas da gestão, a conversa e o passo a passo do guia aberto. */
 export default function Assistente() {
   const navegar = useNavigate();
+  const { sessao } = useSessao();
+  const sugestoes = ehGerente(sessao) ? SUGESTOES_GERENCIA : SUGESTOES;
   const { pathname } = useLocation();
   const [aberto, setAberto] = useState(false);
   const [ligado, setLigado] = useState<boolean | null>(null);
@@ -161,7 +173,7 @@ export default function Assistente() {
               </span>
               <span>
                 <strong>Assistente</strong>
-                <small>Procure produtos, abra pré-venda, cadastre cliente ou pergunte como fazer</small>
+                <small>Produtos, pré-venda, clientes, números da farmácia e como usar o sistema</small>
               </span>
             </span>
             <span className="assistente-acoes">
@@ -186,7 +198,7 @@ export default function Assistente() {
             {conversa.falas.length === 0 && (
               <div className="assistente-boas-vindas">
                 <p>Olá! Fale ou digite o que precisa. Por exemplo:</p>
-                {SUGESTOES.map((s) => (
+                {sugestoes.map((s) => (
                   <button key={s} type="button" className="assistente-sugestao" onClick={() => void enviar(s)}>
                     {s}
                   </button>
@@ -342,6 +354,8 @@ function CartaoAssistente({
       </div>
     );
   }
+  if (cartao.tipo === "vendas") return <CartaoDeVendas cartao={cartao} aoAbrir={aoAbrir} />;
+  if (cartao.tipo === "tabela") return <CartaoDeTabela cartao={cartao} aoAbrir={aoAbrir} />;
   if (cartao.tipo === "cliente") {
     return (
       <div className="assistente-cartao">
@@ -365,6 +379,107 @@ function CartaoAssistente({
       <button type="button" className="botao" onClick={() => aoComecar(cartao)}>
         Começar <Icone nome="seta" />
       </button>
+    </div>
+  );
+}
+
+function CartaoDeVendas({ cartao, aoAbrir }: { cartao: CartaoVendas; aoAbrir: () => void }) {
+  const subiu = cartao.variacao !== null && cartao.variacao >= 0;
+  return (
+    <div className="assistente-cartao">
+      <p className="assistente-cartao-titulo">
+        <Icone nome="grafico" /> {cartao.titulo}
+      </p>
+      <p className="assistente-dica assistente-periodo">{cartao.periodo}</p>
+      <div className="assistente-indicadores">
+        {cartao.indicadores.map((i) => (
+          <span key={i.rotulo}>
+            <small>{i.rotulo}</small>
+            <strong>{i.valor}</strong>
+          </span>
+        ))}
+      </div>
+      <p className={`assistente-variacao ${cartao.variacao === null ? "" : subiu ? "subiu" : "caiu"}`}>
+        {cartao.variacao === null ? (
+          `Sem vendas em ${cartao.comparado_com} para comparar.`
+        ) : (
+          <>
+            <Icone nome={subiu ? "subida" : "descida"} tamanho={14} />
+            <span>
+              {subiu ? "+" : ""}
+              {cartao.variacao.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% em relação a{" "}
+              {cartao.comparado_com} ({cartao.anterior})
+            </span>
+          </>
+        )}
+      </p>
+      {cartao.formas.length > 0 && (
+        <>
+          <p className="assistente-subtitulo">Por forma de pagamento</p>
+          <ul className="assistente-lista">
+            {cartao.formas.map((f) => (
+              <li key={f.forma}>
+                {f.forma} <span>{f.valor}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {cartao.vendedores.length > 0 && (
+        <>
+          <p className="assistente-subtitulo">Por vendedor</p>
+          <ul className="assistente-lista">
+            {cartao.vendedores.map((v) => (
+              <li key={v.nome}>
+                {v.nome} · {v.vendas} {v.vendas === 1 ? "venda" : "vendas"} <span>{v.total}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <Link to={cartao.rota} className="botao-contorno assistente-link" onClick={aoAbrir}>
+        Abrir relatórios
+      </Link>
+    </div>
+  );
+}
+
+function CartaoDeTabela({ cartao, aoAbrir }: { cartao: CartaoTabela; aoAbrir: () => void }) {
+  return (
+    <div className="assistente-cartao">
+      <p className="assistente-cartao-titulo">{cartao.titulo}</p>
+      <p className="assistente-dica assistente-periodo">{cartao.subtitulo}</p>
+      {cartao.linhas.length === 0 ? (
+        <p className="vazio">{cartao.vazio}</p>
+      ) : (
+        <div className="tabela-rolagem">
+          <table className="assistente-tabela">
+            <thead>
+              <tr>
+                {cartao.colunas.map((c) => (
+                  <th key={c.rotulo} className={c.num ? "num" : ""}>
+                    {c.rotulo}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {cartao.linhas.map((linha, i) => (
+                <tr key={i}>
+                  {linha.map((valor, j) => (
+                    <td key={j} className={cartao.colunas[j]?.num ? "num" : ""}>
+                      {valor}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Link to={cartao.rota} className="botao-contorno assistente-link" onClick={aoAbrir}>
+        {cartao.rotulo_rota ?? "Abrir relatórios"}
+      </Link>
     </div>
   );
 }
