@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
 import { api, lerChaveTerminal, lerSessao, salvarSessao } from "./api/cliente";
+import { esquecerConversa } from "./components/assistente/conversa";
 import type { Sessao } from "./api/tipos";
 import { cifrar, entrarSemInternet, guardarAcesso } from "./offline/acesso";
 import { ehFalhaDeRede } from "./offline/catalogo";
@@ -44,6 +45,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   }
 
   function sair() {
+    esquecerConversa();
     salvarSessao(null);
     setSessao(null);
   }

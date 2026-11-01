@@ -114,6 +114,21 @@ Perfis: administrador, gerente, farmacêutico, operador de caixa, atendente (só
 
 A venda em andamento fica salva no navegador até ser finalizada.
 
+## Assistente de IA
+
+O botão "Assistente", no canto de todas as telas da gestão, conversa por texto ou pelo microfone
+(reconhecimento de voz do navegador, melhor no Chrome e no Edge). Ele usa o Claude, da Anthropic, com
+ferramentas que rodam no servidor com o login de quem pergunta:
+
+- procurar produtos (menor preço final primeiro, com a promoção do dia e o estoque da loja);
+- abrir pré-venda com os produtos pedidos;
+- procurar e cadastrar cliente com os dados falados (repete os dados e espera a confirmação);
+- mostrar o passo a passo de uma tarefa, com o botão "Começar" que abre a tela certa
+  (os guias ficam em `backend/app/modules/assistente/guias.py`).
+
+Para ligar: `ANTHROPIC_API_KEY` no `.env` do servidor (chave criada em console.anthropic.com, cobrada por uso).
+`ASSISTENTE_MODELO` troca o modelo. A conversa fica só na aba do navegador e some ao sair.
+
 ## NFC-e
 
 A emissão passa pela [Focus NFe](https://focusnfe.com.br), que assina o XML e fala com a SEFAZ.

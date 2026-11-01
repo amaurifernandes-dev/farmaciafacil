@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     focus_nfe_token_homologacao: str = ""
     focus_nfe_token_producao: str = ""
 
+    # Assistente de IA (Claude, da Anthropic). Sem a chave, o assistente fica desligado.
+    anthropic_api_key: str = ""
+    assistente_modelo: str = "claude-opus-5-5"
+
     @field_validator("database_url", "migration_database_url")
     @classmethod
     def _driver(cls, valor: str) -> str:

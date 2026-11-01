@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import type { Sessao } from "../api/tipos";
 import { cuidaDoEstoque, ehAdmin, ehFarmaceutico, ehGerente, NOMES_PAPEIS, useSessao } from "../sessao";
+import Assistente from "./assistente/Assistente";
 import Icone, { type NomeIcone } from "./Icone";
 
 interface ItemMenu {
@@ -121,6 +122,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      <Assistente />
     </div>
   );
 }
