@@ -6,6 +6,8 @@ import Caixas from "./pages/caixas/Caixas";
 import Compras from "./pages/compras/Compras";
 import Nota from "./pages/compras/Nota";
 import Notas from "./pages/compras/Notas";
+import PedidoCompra from "./pages/compras/PedidoCompra";
+import PedidosCompra from "./pages/compras/PedidosCompra";
 import Sugestao from "./pages/compras/Sugestao";
 import Clientes from "./pages/clientes/Clientes";
 import FichaCliente from "./pages/clientes/Ficha";
@@ -113,6 +115,8 @@ export default function App() {
         <Route path="/compras" element={<SoEstoque><Compras /></SoEstoque>}>
           <Route index element={<Notas />} />
           <Route path="sugestao" element={<Sugestao />} />
+          <Route path="pedidos" element={<PedidosCompra />} />
+          <Route path="pedidos/:id" element={<PedidoCompra />} />
           <Route path="notas/:id" element={<Nota />} />
         </Route>
         <Route path="/financeiro" element={<SoGerente><Financeiro /></SoGerente>}>

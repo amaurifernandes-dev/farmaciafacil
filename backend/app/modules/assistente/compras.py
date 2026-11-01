@@ -1,9 +1,9 @@
 """Pedido de compra pelo assistente: parte da sugestão de compras e separa por fornecedor.
 
-O pedido não fica gravado: o cartão mostra o texto pronto para copiar, mandar no WhatsApp ou por e-mail.
+O cartão mostra o texto pronto para copiar, mandar no WhatsApp ou por e-mail, e o botão "Salvar pedido"
+grava cada fornecedor em Compras > Pedidos, para conferir quando a nota chegar.
 """
 
-import re
 from collections import defaultdict
 from decimal import Decimal
 from uuid import UUID
@@ -13,6 +13,7 @@ from sqlalchemy import select
 from app.modules.assistente.contexto import Contexto, ErroDaFerramenta
 from app.modules.assistente.relatorios import reais
 from app.modules.compras import service as compras
+from app.modules.compras.pedidos import whatsapp
 from app.modules.farmacias.models import Farmacia
 from app.modules.fornecedores.models import Fornecedor
 from app.modules.lojas.models import Loja
@@ -91,14 +92,6 @@ def _uuid(valor: str | None, o_que: str) -> UUID | None:
         return UUID(valor)
     except ValueError:
         raise ErroDaFerramenta(f"{o_que} inválido: {valor}. Use os ids que vieram das ferramentas.")
-
-
-def whatsapp(telefone: str | None) -> str | None:
-    """Número no formato do wa.me: só dígitos, com o 55 do Brasil."""
-    digitos = re.sub(r"\D", "", telefone or "")
-    if len(digitos) in (10, 11):
-        digitos = "55" + digitos
-    return digitos if len(digitos) in (12, 13) else None
 
 
 def sugerir_compra(ctx: Contexto, dias_cobertura: int, dias_historico: int) -> dict:
@@ -180,6 +173,7 @@ def montar_pedido_compra(ctx: Contexto, itens: list[dict]) -> dict:
             "ean": produto.ean,
             "quantidade": quantidade,
             "custo": reais(custo) if custo is not None else "-",
+            "custo_unitario": str(custo) if custo is not None else None,
             "total": reais(custo * quantidade) if custo is not None else "-",
             "_total": (custo or Decimal(0)) * quantidade,
             "_sem_custo": custo is None,
@@ -213,6 +207,7 @@ def montar_pedido_compra(ctx: Contexto, itens: list[dict]) -> dict:
     ctx.cartoes.append({
         "tipo": "pedido_compra",
         "loja": loja.nome if loja else None,
+        "loja_id": str(loja.id) if loja else None,
         "data": f"{hoje():%d/%m/%Y}",
         "grupos": saida,
         "total": reais(total_geral),
@@ -226,8 +221,9 @@ def montar_pedido_compra(ctx: Contexto, itens: list[dict]) -> dict:
         ],
         "total_estimado": reais(total_geral),
         "aviso": (
-            "A tela já mostra o pedido com os botões de copiar, WhatsApp e e-mail. O pedido não é enviado nem "
-            "gravado sozinho: resuma em uma frase e diga que dá para ajustar falando (tirar, pôr ou trocar itens)."
+            "A tela já mostra o pedido com os botões de copiar, WhatsApp, e-mail e salvar. O pedido não é enviado "
+            "sozinho: resuma em uma frase e diga que dá para ajustar falando (tirar, pôr ou trocar itens) e que o "
+            "botão Salvar pedido guarda em Compras > Pedidos para conferir quando a nota chegar."
         ),
     }
 

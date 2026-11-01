@@ -37,10 +37,11 @@ export type Cartao =
   | CartaoTabela
   | CartaoPedidoCompra;
 
-/** Pedido de compra separado por fornecedor. Não fica gravado: o usuário copia ou envia. */
+/** Pedido de compra separado por fornecedor. O usuário copia, envia ou salva em Compras > Pedidos. */
 export interface CartaoPedidoCompra {
   tipo: "pedido_compra";
   loja: string | null;
+  loja_id?: string | null;
   data: string;
   total: string;
   itens: number;
@@ -53,7 +54,16 @@ export interface CartaoPedidoCompra {
     total: string;
     sem_custo: number;
     texto: string;
-    itens: { produto_id: string; nome: string; ean: string | null; quantidade: number; custo: string; total: string }[];
+    itens: {
+      produto_id: string;
+      nome: string;
+      ean: string | null;
+      quantidade: number;
+      custo: string;
+      /** Custo como número decimal ("3.0000"), para gravar no pedido. */
+      custo_unitario?: string | null;
+      total: string;
+    }[];
   }[];
 }
 

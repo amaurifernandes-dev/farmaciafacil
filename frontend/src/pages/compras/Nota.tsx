@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { api, mensagem } from "../../api/cliente";
-import type { ItemNotaEntrada, NotaEntrada, Produto } from "../../api/tipos";
+import type { ConferenciaPedido, ItemNotaEntrada, NotaEntrada, PedidoCompraResumo, Produto, SituacaoConferencia } from "../../api/tipos";
 import BuscaProduto from "../../components/BuscaProduto";
 import { Janela } from "../../components/Cadastro";
 import { data, quantidade, reais } from "../../formato";
@@ -88,6 +88,18 @@ export default function Nota() {
       {erro && <p className="erro">{erro}</p>}
       {ok && <p className="ok">{ok}</p>}
 
+      <ConferenciaComPedido
+        nota={nota}
+        aoTrocar={async (pedidoId) => {
+          setErro("");
+          try {
+            setNota(await api<NotaEntrada>(`/compras/notas/${id}/pedido`, { metodo: "PATCH", corpo: { pedido_id: pedidoId } }));
+          } catch (e) {
+            setErro(mensagem(e));
+          }
+        }}
+      />
+
       <section className="cartao espaco-acima">
         <div className="tabela-rolagem">
           <table className="tabela tabela-nota">
@@ -170,6 +182,110 @@ export default function Nota() {
         />
       )}
     </div>
+  );
+}
+
+const SITUACAO: Record<SituacaoConferencia, { rotulo: string; classe: string }> = {
+  ok: { rotulo: "Certo", classe: "etiqueta ok" },
+  faltou: { rotulo: "Veio a menos", classe: "etiqueta etiqueta-alerta" },
+  sobrou: { rotulo: "Veio a mais", classe: "etiqueta etiqueta-alerta" },
+  nao_veio: { rotulo: "Não veio", classe: "etiqueta erro-etiqueta" },
+  fora_do_pedido: { rotulo: "Fora do pedido", classe: "etiqueta etiqueta-neutra" },
+};
+
+/** Compara o que veio na nota com o pedido de compra do mesmo fornecedor. */
+function ConferenciaComPedido({ nota, aoTrocar }: { nota: NotaEntrada; aoTrocar: (pedidoId: string | null) => void }) {
+  const pendente = nota.status === "pendente";
+  const [abertos, setAbertos] = useState<PedidoCompraResumo[]>([]);
+  const [trocando, setTrocando] = useState(false);
+
+  useEffect(() => {
+    if (!pendente) return;
+    api<PedidoCompraResumo[]>(`/compras/pedidos?status=abertos&fornecedor_id=${nota.fornecedor_id}`)
+      .then(setAbertos)
+      .catch(() => setAbertos([]));
+  }, [pendente, nota.fornecedor_id]);
+
+  const conferencia: ConferenciaPedido | null = nota.pedido;
+  if (!conferencia && (!pendente || abertos.length === 0)) return null;
+
+  const seletor = pendente && (trocando || !conferencia) && (
+    <label className="seletor-pedido">
+      {conferencia ? "Conferir com" : "Conferir com o pedido"}
+      <select
+        value={conferencia?.pedido_id ?? ""}
+        onChange={(e) => {
+          aoTrocar(e.target.value || null);
+          setTrocando(false);
+        }}
+      >
+        <option value="">Nenhum pedido</option>
+        {abertos.map((p) => (
+          <option key={p.id} value={p.id}>
+            nº {p.numero} de {data(p.criado_em)} · {p.quantidade_itens} itens{p.loja_nome ? ` · ${p.loja_nome}` : ""}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
+  if (!conferencia) {
+    return (
+      <section className="cartao espaco-acima conferencia-pedido">
+        <p className="vazio">Há pedido em aberto para este fornecedor. Escolha qual esta nota atende para conferir.</p>
+        {seletor}
+      </section>
+    );
+  }
+
+  const problemas = conferencia.linhas.filter((l) => l.situacao !== "ok").length;
+  return (
+    <section className="cartao espaco-acima conferencia-pedido">
+      <div className="cartao-cabecalho">
+        <h2>
+          Conferência com o <Link to={`/compras/pedidos/${conferencia.pedido_id}`}>pedido nº {conferencia.numero}</Link>
+        </h2>
+        {pendente && !trocando && (
+          <button type="button" className="botao-pequeno" onClick={() => setTrocando(true)}>
+            Trocar pedido
+          </button>
+        )}
+      </div>
+      {seletor}
+      <p className={conferencia.tudo_certo ? "ok" : "aviso-conferencia"}>
+        {conferencia.tudo_certo
+          ? "Veio tudo o que foi pedido, nas quantidades certas."
+          : `${problemas === 1 ? "1 produto não bate" : `${problemas} produtos não batem`} com o pedido. Confira com o fornecedor antes de confirmar.`}
+      </p>
+      <div className="tabela-rolagem">
+        <table className="tabela">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th className="num">Faltava receber</th>
+              <th className="num">Veio na nota</th>
+              <th>Situação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {conferencia.linhas.map((l) => (
+              <tr key={l.produto_id}>
+                <td>{l.nome}</td>
+                <td className="num">{Number(l.pedido) ? quantidade(l.pedido) : "-"}</td>
+                <td className="num">{Number(l.na_nota) ? quantidade(l.na_nota) : "-"}</td>
+                <td>
+                  <span className={SITUACAO[l.situacao].classe}>{SITUACAO[l.situacao].rotulo}</span>
+                  {(l.situacao === "faltou" || l.situacao === "sobrou") && (
+                    <small> {quantidade(Math.abs(Number(l.na_nota) - Number(l.pedido)))} un.</small>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {pendente && <p className="nota">Ao confirmar a entrada, o que veio é abatido do pedido.</p>}
+    </section>
   );
 }
 

@@ -2,7 +2,16 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, ForeignKeyConstraint, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Date,
+    DateTime,
+    ForeignKeyConstraint,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, deferred, mapped_column, relationship
 
@@ -31,12 +40,17 @@ class NotaEntrada(TabelaDaFarmacia, Base):
     status: Mapped[str] = mapped_column(String(10), default="pendente")
     usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     confirmada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Pedido de compra que esta nota atende (ligado sozinho na importação, pode ser trocado na conferência).
+    pedido_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     # O XML original fica guardado (a farmácia precisa mantê-lo por 5 anos).
     xml: Mapped[str] = deferred(mapped_column(Text))
 
     fornecedor: Mapped[Fornecedor] = relationship(lazy="joined")
     itens: Mapped[list["NotaEntradaItem"]] = relationship(
         cascade="all, delete-orphan", lazy="selectin", order_by="NotaEntradaItem.ordem"
+    )
+    pedido: Mapped["PedidoCompra | None"] = relationship(
+        primaryjoin="foreign(NotaEntrada.pedido_id) == PedidoCompra.id", viewonly=True, lazy="selectin"
     )
 
 
@@ -84,3 +98,45 @@ class ProdutoFornecedor(TabelaDaFarmacia, Base):
     codigo: Mapped[str] = mapped_column(String(60))
     produto_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     fator: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class PedidoCompra(TabelaDaFarmacia, Base):
+    """Pedido feito ao fornecedor. A nota que chega dá baixa no que foi recebido."""
+
+    __tablename__ = "pedidos_compra"
+    __table_args__ = (
+        UniqueConstraint("farmacia_id", "id"),
+        UniqueConstraint("farmacia_id", "numero"),
+        ForeignKeyConstraint(["farmacia_id", "loja_id"], ["lojas.farmacia_id", "lojas.id"]),
+        ForeignKeyConstraint(["farmacia_id", "fornecedor_id"], ["fornecedores.farmacia_id", "fornecedores.id"]),
+    )
+
+    numero: Mapped[int] = mapped_column(Integer)
+    loja_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    fornecedor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    status: Mapped[str] = mapped_column(String(10), default="aberto")
+    enviado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    observacao: Mapped[str | None] = mapped_column(String(500))
+
+    fornecedor: Mapped[Fornecedor] = relationship(lazy="joined")
+    itens: Mapped[list["PedidoCompraItem"]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin", order_by="PedidoCompraItem.criado_em"
+    )
+
+
+class PedidoCompraItem(TabelaDaFarmacia, Base):
+    __tablename__ = "pedidos_compra_itens"
+    __table_args__ = (
+        UniqueConstraint("farmacia_id", "pedido_id", "produto_id"),
+        ForeignKeyConstraint(
+            ["farmacia_id", "pedido_id"], ["pedidos_compra.farmacia_id", "pedidos_compra.id"], ondelete="CASCADE"
+        ),
+        ForeignKeyConstraint(["farmacia_id", "produto_id"], ["produtos.farmacia_id", "produtos.id"]),
+    )
+
+    pedido_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    produto_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    quantidade: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    custo_estimado: Mapped[Decimal | None] = mapped_column(Numeric(14, 4))
+    recebido: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal(0))

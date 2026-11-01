@@ -4,8 +4,18 @@ from uuid import UUID
 from fastapi import APIRouter, Query, status
 
 from app.core.deps import DB, Estoquista
-from app.modules.compras import service
-from app.modules.compras.schemas import ItemAtualizar, NotaImportar, NotaResumo, NotaSaida, SugestaoCompras
+from app.modules.compras import pedidos, service
+from app.modules.compras.schemas import (
+    ItemAtualizar,
+    NotaImportar,
+    NotaPedido,
+    NotaResumo,
+    NotaSaida,
+    PedidoCompraCriar,
+    PedidoCompraResumo,
+    PedidoCompraSaida,
+    SugestaoCompras,
+)
 
 router = APIRouter(prefix="/compras", tags=["compras"])
 
@@ -46,6 +56,45 @@ def confirmar_nota(db: DB, usuario: Estoquista, nota_id: UUID) -> NotaSaida:
 @router.post("/notas/{nota_id}/cancelar")
 def cancelar_nota(db: DB, _: Estoquista, nota_id: UUID) -> NotaSaida:
     return service.saida(db, service.cancelar(db, nota_id))
+
+
+@router.patch("/notas/{nota_id}/pedido")
+def ligar_pedido(db: DB, _: Estoquista, nota_id: UUID, dados: NotaPedido) -> NotaSaida:
+    """Escolhe com qual pedido de compra a nota é conferida (ou nenhum)."""
+    return service.saida(db, service.ligar_pedido(db, nota_id, dados.pedido_id))
+
+
+@router.post("/pedidos", status_code=status.HTTP_201_CREATED)
+def criar_pedido(db: DB, usuario: Estoquista, dados: PedidoCompraCriar) -> PedidoCompraSaida:
+    """Guarda o pedido feito a um fornecedor, para conferir quando a nota chegar."""
+    return pedidos.saida(db, pedidos.criar(db, usuario, dados))
+
+
+@router.get("/pedidos")
+def listar_pedidos(
+    db: DB,
+    _: Estoquista,
+    status_pedido: Annotated[
+        Literal["abertos", "aberto", "enviado", "parcial", "recebido", "cancelado"] | None, Query(alias="status")
+    ] = None,
+    fornecedor_id: UUID | None = None,
+) -> list[PedidoCompraResumo]:
+    return pedidos.listar(db, status_pedido, fornecedor_id)
+
+
+@router.get("/pedidos/{pedido_id}")
+def obter_pedido(db: DB, _: Estoquista, pedido_id: UUID) -> PedidoCompraSaida:
+    return pedidos.saida(db, pedidos.obter(db, pedido_id))
+
+
+@router.post("/pedidos/{pedido_id}/enviado")
+def marcar_enviado(db: DB, _: Estoquista, pedido_id: UUID) -> PedidoCompraSaida:
+    return pedidos.saida(db, pedidos.marcar_enviado(db, pedido_id))
+
+
+@router.post("/pedidos/{pedido_id}/cancelar")
+def cancelar_pedido(db: DB, _: Estoquista, pedido_id: UUID) -> PedidoCompraSaida:
+    return pedidos.saida(db, pedidos.cancelar(db, pedido_id))
 
 
 @router.get("/sugestao")

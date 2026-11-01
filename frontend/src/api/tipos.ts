@@ -203,6 +203,8 @@ export interface NotaEntradaResumo {
   confirmada_em: string | null;
   quantidade_itens: number;
   itens_sem_produto: number;
+  pedido_id: string | null;
+  pedido_numero: number | null;
 }
 
 export interface ItemNotaEntrada {
@@ -228,6 +230,53 @@ export interface ItemNotaEntrada {
 
 export interface NotaEntrada extends NotaEntradaResumo {
   itens: ItemNotaEntrada[];
+  pedido: ConferenciaPedido | null;
+}
+
+export type StatusPedidoCompra = "aberto" | "enviado" | "parcial" | "recebido" | "cancelado";
+
+export interface PedidoCompraResumo {
+  id: string;
+  numero: number;
+  loja_id: string;
+  loja_nome: string;
+  fornecedor_id: string;
+  fornecedor_nome: string;
+  status: StatusPedidoCompra;
+  criado_em: string;
+  enviado_em: string | null;
+  quantidade_itens: number;
+  total_estimado: string;
+}
+
+export interface ItemPedidoCompra {
+  produto_id: string;
+  nome: string;
+  ean: string | null;
+  quantidade: string;
+  recebido: string;
+  falta_receber: string;
+  custo_estimado: string | null;
+}
+
+export interface PedidoCompra extends PedidoCompraResumo {
+  observacao: string | null;
+  criado_por: string;
+  itens: ItemPedidoCompra[];
+  notas: NotaEntradaResumo[];
+  texto: string;
+  whatsapp: string | null;
+  email: string | null;
+}
+
+export type SituacaoConferencia = "ok" | "faltou" | "sobrou" | "fora_do_pedido" | "nao_veio";
+
+export interface ConferenciaPedido {
+  pedido_id: string;
+  numero: number;
+  status: StatusPedidoCompra;
+  linhas: { produto_id: string; nome: string; pedido: string; na_nota: string; situacao: SituacaoConferencia }[];
+  tudo_certo: boolean;
 }
 
 export interface PrecoFornecedor {

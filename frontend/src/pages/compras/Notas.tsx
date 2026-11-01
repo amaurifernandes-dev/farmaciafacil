@@ -114,7 +114,17 @@ export default function Notas() {
                         {n.numero} <small>série {n.serie}</small>
                       </Link>
                     </td>
-                    <td>{n.fornecedor_nome}</td>
+                    <td>
+                      {n.fornecedor_nome}
+                      {n.pedido_id && (
+                        <>
+                          <br />
+                          <small>
+                            <Link to={`/compras/pedidos/${n.pedido_id}`}>pedido nº {n.pedido_numero}</Link>
+                          </small>
+                        </>
+                      )}
+                    </td>
                     <td>{data(n.emitida_em)}</td>
                     {lojas.length > 1 && <td>{nomeLoja(n.loja_id)}</td>}
                     <td className="num">{n.quantidade_itens}</td>
