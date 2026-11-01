@@ -1,3 +1,7 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.core.config import get_settings
@@ -21,6 +25,7 @@ from app.modules.financeiro.router import router as financeiro_router
 from app.modules.fiscal.router import router as fiscal_router
 from app.modules.fornecedores.router import router as fornecedores_router
 from app.modules.inventario.router import router as inventario_router
+from app.modules.licenca.router import router as licenca_router
 from app.modules.lojas.router import lojas as lojas_router
 from app.modules.lojas.router import terminais as terminais_router
 from app.modules.metas.router import router as metas_router
@@ -40,7 +45,34 @@ from app.modules.vendas.router import pre_vendas as pre_vendas_router
 from app.modules.vendas.router import vendas as vendas_router
 from app.shared.erros import registrar_tratadores
 
-app = FastAPI(title="FarmáciaFácil", version="0.1.0")
+
+@asynccontextmanager
+async def _ciclo(_: FastAPI):
+    """Com a central configurada, pergunta por licença renovada ao ligar e a cada 6 horas."""
+    tarefa = asyncio.create_task(_renovar_licencas()) if get_settings().licencas_url else None
+    yield
+    if tarefa:
+        tarefa.cancel()
+
+
+async def _renovar_licencas() -> None:
+    from app.core.db import SessionLocal
+    from app.modules.licenca.service import exigida, renovar_todas
+
+    while True:
+        if exigida():
+            def rodada() -> None:
+                with SessionLocal() as db:
+                    renovar_todas(db)
+
+            try:
+                await asyncio.to_thread(rodada)
+            except Exception:  # sem internet ou central fora do ar: tenta de novo depois
+                logging.getLogger(__name__).exception("Falha ao renovar as licenças")
+        await asyncio.sleep(6 * 3600)
+
+
+app = FastAPI(title="FarmáciaFácil", version="0.1.0", lifespan=_ciclo)
 registrar_tratadores(app)
 
 app.include_router(auth_router, prefix="/api/v1")
@@ -78,6 +110,7 @@ app.include_router(vales_router, prefix="/api/v1", dependencies=[exigir_modulo("
 app.include_router(pedidos_router, prefix="/api/v1", dependencies=[exigir_modulo("pedidos")])
 app.include_router(loja_online_router, prefix="/api/v1")
 app.include_router(assistente_router, prefix="/api/v1")
+app.include_router(licenca_router, prefix="/api/v1")
 
 
 @app.get("/api/v1/instalacao", tags=["infra"])

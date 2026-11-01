@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.deps import DB, Atendimento, UsuarioAtual
 from app.modules.farmacias.models import Farmacia
+from app.modules.licenca import service as licenca
 from app.modules.pedidos import service
 from app.modules.pedidos.schemas import (
     Catalogo,
@@ -85,8 +86,11 @@ def _db_da_loja(endereco: str) -> Iterator[Session]:
         raise NaoEncontrado("Loja não encontrada")
     db = SessionLocal(info={"farmacia_id": farmacia_id})
     try:
-        # Loja online desligada no Gerenciamento de telas: para o cliente, a loja não existe.
-        if desligado(db.get(Farmacia, farmacia_id).modulos_desligados, "loja_online"):
+        # Loja online desligada no Gerenciamento de telas, fora da licença ou com a licença encerrada:
+        # para o cliente, a loja não existe.
+        farmacia = db.get(Farmacia, farmacia_id)
+        fora = licenca.modulos_fora(db, farmacia.cnpj)
+        if desligado(farmacia.modulos_desligados + fora, "loja_online") or licenca.bloqueada(db, farmacia.cnpj):
             raise NaoEncontrado("Loja não encontrada")
         yield db
     finally:

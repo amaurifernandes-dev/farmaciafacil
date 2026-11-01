@@ -36,6 +36,18 @@ continuam na tela Pedidos.
 
    O sistema aceita uma farmácia só. As filiais são cadastradas depois, em Minha farmácia.
 
+## Ativar a licença (uma vez)
+
+Abra `https://<ENDERECO>/licenca` (não precisa entrar com senha) e escolha:
+
+- **Com internet:** digite a chave de ativação de 25 letras que você recebeu. O servidor fica preso a ela
+  e passa a buscar a renovação sozinho a cada 6 horas.
+- **Sem internet:** leia o **código deste servidor** (aparece na mesma tela) para quem vendeu o sistema
+  e cole o código da licença que ele mandar de volta.
+
+Trocou de computador? Peça para liberar a troca na central e ative de novo no computador novo.
+Não mexa na data do servidor: se ela voltar para trás, o sistema para até a data ser acertada.
+
 ## Em cada computador e celular da loja (uma vez)
 
 O sistema usa `https`, porque o navegador só libera o caixa sem internet, a câmera e o login

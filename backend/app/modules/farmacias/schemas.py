@@ -58,6 +58,9 @@ class Configuracoes(BaseModel):
     comissao_padrao: PercentualDesconto = Decimal(0)
     assistente_perfis: list[Papel] = Field(default_factory=list, description="Perfis que podem usar o assistente de IA")
     modulos_desligados: list[str] = Field(default_factory=list, description="Funções desligadas no Gerenciamento de telas")
+    modulos_fora_da_licenca: list[str] = Field(
+        default_factory=list, description="Funções que a licença não inclui: não aparecem nem para ligar"
+    )
 
 
 class ConfiguracoesAtualizar(BaseModel):

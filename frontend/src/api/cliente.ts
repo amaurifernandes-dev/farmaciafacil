@@ -78,6 +78,10 @@ export async function api<T>(
     salvarSessao(null);
     window.location.assign("/login");
   }
+  if (resposta.status === 402 && !caminho.startsWith("/licenca") && window.location.pathname !== "/licenca") {
+    // Licença encerrada (ou de outro servidor): abre a tela da licença para renovar.
+    window.location.assign("/licenca");
+  }
   if (resposta.status === 204) return undefined as T;
 
   const corpo = await resposta.json().catch(() => null);

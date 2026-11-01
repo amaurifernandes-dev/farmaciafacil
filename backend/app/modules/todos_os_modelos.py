@@ -23,3 +23,4 @@ from app.modules.metas.models import Meta  # noqa: F401
 from app.modules.inventario.models import Inventario, ItemInventario  # noqa: F401
 from app.modules.servicos.models import AtendimentoServico, Servico  # noqa: F401
 from app.modules.devolucoes.models import Devolucao, ItemDevolucao, ValeTroca  # noqa: F401
+from app.modules.licenca.models import LicencaInstalada, ServidorLocal  # noqa: F401

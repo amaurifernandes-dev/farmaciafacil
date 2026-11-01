@@ -12,12 +12,16 @@ export default function Telas() {
   const { sessao } = useSessao();
   const instalacao = useInstalacao();
   const [desligados, setDesligados] = useState<string[] | null>(null);
+  const [fora, setFora] = useState<string[]>([]);
   const [salvando, setSalvando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
 
   useEffect(() => {
     api<Configuracoes>("/configuracoes")
-      .then((c) => setDesligados(c.modulos_desligados ?? []))
+      .then((c) => {
+        setDesligados(c.modulos_desligados ?? []);
+        setFora(c.modulos_fora_da_licenca ?? []);
+      })
       .catch((e) => setAviso({ tipo: "erro", texto: mensagem(e) }));
   }, []);
 
@@ -31,7 +35,7 @@ export default function Telas() {
       const salvo = await api<Configuracoes>("/configuracoes", { metodo: "PATCH", corpo: { modulos_desligados: nova } });
       const lista = salvo.modulos_desligados ?? [];
       setDesligados(lista);
-      avisarModulos(sessao.farmacia_id, lista);
+      avisarModulos(sessao.farmacia_id, [...lista, ...(salvo.modulos_fora_da_licenca ?? [])]);
       setAviso({
         tipo: "ok",
         texto: desligar
@@ -45,7 +49,9 @@ export default function Telas() {
     }
   }
 
-  const ligados = desligados ? MODULOS.filter((m) => estaLigado(desligados, m.id)).length : 0;
+  // O que a licença não inclui nem aparece aqui.
+  const daLicenca = MODULOS.filter((m) => !fora.includes(m.id));
+  const ligados = desligados ? daLicenca.filter((m) => estaLigado([...desligados, ...fora], m.id)).length : 0;
 
   return (
     <div className="pagina">
@@ -60,7 +66,7 @@ export default function Telas() {
         </div>
         {desligados && (
           <span className="etiqueta">
-            {ligados} de {MODULOS.length} ligadas
+            {ligados} de {daLicenca.length} ligadas
           </span>
         )}
       </div>
@@ -72,9 +78,9 @@ export default function Telas() {
 
       {desligados && (
         <div className="grade-modulos espaco-acima">
-          {MODULOS.map((m) => {
+          {daLicenca.map((m) => {
             const proprio = !desligados.includes(m.id);
-            const semBase = m.depende && desligados.includes(m.depende);
+            const semBase = m.depende && (desligados.includes(m.depende) || fora.includes(m.depende));
             const semInternet = m.id === "loja_online" && instalacao && !instalacao.loja_online;
             const ligado = proprio && !semBase;
             const base = MODULOS.find((b) => b.id === m.depende);
@@ -117,6 +123,7 @@ export default function Telas() {
       <p className="nota espaco-acima">
         O básico não desliga: vendas e caixa, produtos, estoque, compras, clientes, financeiro, relatórios e configurações.
         O assistente de IA é ligado e desligado em Configurações gerais.
+        {fora.length > 0 && " Algumas funções não aparecem porque não fazem parte da licença desta farmácia."}
       </p>
     </div>
   );

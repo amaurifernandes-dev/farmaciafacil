@@ -36,6 +36,7 @@ import ComprovanteDevolucao from "./pages/devolucoes/Comprovante";
 import Devolucoes from "./pages/devolucoes/Devolucoes";
 import Servicos from "./pages/servicos/Servicos";
 import Inicio from "./pages/Inicio";
+import Licenca from "./pages/Licenca";
 import Login from "./pages/Login";
 import Pdv from "./pages/pdv/Pdv";
 import Faltas from "./pages/faltas/Faltas";
@@ -88,6 +89,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Licença: na farmácia abre sem login, para ativar um servidor novo ou vencido */}
+      <Route path="/licenca" element={<Licenca solta />} />
       {/* Loja online: pública, sem login */}
       <Route path="/loja/:endereco" element={<LojaOnline />} />
       <Route path="/loja/:endereco/pedido/:codigo" element={<AcompanharPedido />} />
@@ -146,6 +149,7 @@ export default function App() {
         <Route path="/configuracoes/usuarios" element={<SoAdmin><Usuarios /></SoAdmin>} />
         <Route path="/configuracoes/farmacia" element={<MinhaFarmacia />} />
         <Route path="/configuracoes/gerais" element={<Gerais />} />
+        <Route path="/configuracoes/licenca" element={<SoAdmin><Licenca /></SoAdmin>} />
         <Route path="/configuracoes/telas" element={<SoAdmin><Telas /></SoAdmin>} />
         {/* Endereços antigos */}
         <Route path="/produtos" element={<Navigate to="/configuracoes/produtos" replace />} />

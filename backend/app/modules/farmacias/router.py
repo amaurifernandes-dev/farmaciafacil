@@ -8,6 +8,7 @@ from app.modules.farmacias.schemas import (
     Configuracoes,
     ConfiguracoesAtualizar,
 )
+from app.modules.licenca.service import modulos_fora
 from app.modules.lojas.service import obter_loja
 from app.modules.pedidos.pix import normalizar_chave
 from app.shared.erros import Conflito, ErroDeNegocio
@@ -16,9 +17,15 @@ from app.shared.modulos import MODULOS
 router = APIRouter(prefix="/configuracoes", tags=["configurações"])
 
 
+def _saida(db, farmacia: Farmacia) -> Configuracoes:
+    return Configuracoes.model_validate(farmacia).model_copy(
+        update={"modulos_fora_da_licenca": modulos_fora(db, farmacia.cnpj)}
+    )
+
+
 @router.get("")
 def obter(db: DB, usuario: UsuarioAtual) -> Configuracoes:
-    return db.get(Farmacia, usuario.farmacia_id)
+    return _saida(db, db.get(Farmacia, usuario.farmacia_id))
 
 
 @router.patch("")
@@ -52,4 +59,4 @@ def atualizar(db: DB, usuario: Admin, dados: ConfiguracoesAtualizar) -> Configur
         db.rollback()
         raise Conflito("Este endereço de loja online já está em uso. Escolha outro")
     db.refresh(farmacia)
-    return farmacia
+    return _saida(db, farmacia)

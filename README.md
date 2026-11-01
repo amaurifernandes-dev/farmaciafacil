@@ -162,6 +162,37 @@ linha digitável colada (47 números no boleto bancário, 48 nas contas de água
   no aplicativo do banco. A tela inicial da gerência avisa quanto vence nos próximos dias.
 - Na API: `POST /financeiro/boletos/ler`, `GET /financeiro/semana` e o campo `codigo_barras` nas contas.
 
+## Licenças e central de licenças
+
+Cada instalação (online ou na farmácia) recebe uma licença com plano **mensal** (31 dias contando o dia
+do cadastro), **anual** (365 dias) ou **vitalício**, dias de **tolerância**, máximo de **usuários** e de
+**caixas (PDVs)** ativos e os **módulos** incluídos (o que não está na licença não aparece nem no
+Gerenciamento de telas).
+
+- **Central de licenças** (`app/central`): serviço à parte, com **banco PostgreSQL próprio** (nunca o banco
+  das farmácias) e login próprio. Tela em `/` da central.
+  ```bash
+  cd backend
+  uv run python -m app.central.gerar_chaves          # uma vez: CENTRAL_CHAVE_PRIVADA e LICENCA_CHAVE_PUBLICA
+  export CENTRAL_DATABASE_URL=postgresql://...       # banco só da central
+  export CENTRAL_CHAVE_PRIVADA=...  CENTRAL_JWT_SECRET=...
+  uv run alembic -c alembic_central.ini upgrade head
+  uv run python -m app.central.criar_usuario --nome "Amauri" --email amauri@exemplo.com
+  uv run uvicorn app.central.main:app --port 8100
+  ```
+  A chave privada fica só na central. Trocar o par de chaves invalida todas as licenças emitidas.
+- **Código da licença**: os dados do contrato com assinatura digital (Ed25519). O sistema confere a
+  assinatura sozinho, sem internet, com `LICENCA_CHAVE_PUBLICA`. Sem essa variável (desenvolvimento e
+  testes), nada é conferido.
+- **Duas formas de renovar**: com `LICENCAS_URL` e a chave de ativação (`XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`), o
+  servidor busca a licença na central ao ligar e a cada 6 horas; sem internet, cola-se um código gerado
+  na central para o **código do servidor**.
+- **Presa ao servidor** (instalação na farmácia): a primeira ativação grava o código do servidor; outro
+  computador só ativa depois de "Liberar troca de computador" na central.
+- **Vencimento**: avisa 5 dias antes; vencida, funciona normal durante a tolerância com aviso no topo; depois
+  as rotas respondem **402** e as telas abrem `/licenca`. Data do servidor voltada mais de um dia também para.
+- Na loja online, licença encerrada ou sem o módulo: a loja some (404).
+
 ## Gerenciamento de telas
 
 Em **Configurações > Gerenciamento de telas** (só administrador) a farmácia liga e desliga funções inteiras:

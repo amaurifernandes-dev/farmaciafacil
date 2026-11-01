@@ -470,6 +470,8 @@ export interface Configuracoes {
   /** Perfis que podem usar o assistente de IA. */
   assistente_perfis: Papel[];
   modulos_desligados?: string[];
+  /** Funções que a licença não inclui: não aparecem nem no Gerenciamento de telas. */
+  modulos_fora_da_licenca?: string[];
   desconto_maximo_caixa: string;
   dias_alerta_vencimento: number;
   dias_prazo_padrao: number;
@@ -1426,4 +1428,41 @@ export interface SemanaAPagar {
   total_vencidas: string;
   dias: { dia: string; total: string; contas: Conta[] }[];
   total_semana: string;
+}
+
+export type EstadoDaLicenca =
+  | "sem_licenca"
+  | "normal"
+  | "avisando"
+  | "tolerancia"
+  | "encerrada"
+  | "outro_servidor"
+  | "relogio";
+
+export interface SituacaoLicenca {
+  estado: EstadoDaLicenca;
+  bloqueia: boolean;
+  mensagem: string;
+  dias: number | null;
+  encerra_em: string | null;
+}
+
+export interface Licenca {
+  exigida: boolean;
+  situacao: SituacaoLicenca | null;
+  licenca: {
+    numero: string;
+    nome: string;
+    plano: "mensal" | "anual" | "vitalicio";
+    tipo: "nuvem" | "farmacia";
+    inicio: string;
+    vence: string | null;
+    tolerancia_dias: number;
+    max_usuarios: number | null;
+    max_caixas: number | null;
+    modulos: string[] | null;
+  } | null;
+  codigo_servidor: string | null;
+  renova_sozinha: boolean;
+  ultimo_erro: string | null;
 }
