@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import Caixas from "./pages/caixas/Caixas";
 import FechamentoDoDia from "./pages/caixas/FechamentoDoDia";
+import Telas from "./pages/configuracoes/Telas";
 import Compras from "./pages/compras/Compras";
 import Nota from "./pages/compras/Nota";
 import Notas from "./pages/compras/Notas";
@@ -145,6 +146,7 @@ export default function App() {
         <Route path="/configuracoes/usuarios" element={<SoAdmin><Usuarios /></SoAdmin>} />
         <Route path="/configuracoes/farmacia" element={<MinhaFarmacia />} />
         <Route path="/configuracoes/gerais" element={<Gerais />} />
+        <Route path="/configuracoes/telas" element={<SoAdmin><Telas /></SoAdmin>} />
         {/* Endereços antigos */}
         <Route path="/produtos" element={<Navigate to="/configuracoes/produtos" replace />} />
         <Route path="/estoque/alertas" element={<Navigate to="/estoque" replace />} />

@@ -6,6 +6,7 @@ import type { EsteTerminal, PreVenda, Venda } from "../../api/tipos";
 import { Janela } from "../../components/Cadastro";
 import Icone from "../../components/Icone";
 import { reais } from "../../formato";
+import { useModulos } from "../../modulos";
 import { ehGerente, useSessao } from "../../sessao";
 import { lerEsteTerminal } from "../caixas/Caixas";
 
@@ -31,6 +32,7 @@ function dataHora(iso: string): string {
 
 export default function Vendas() {
   const { sessao } = useSessao();
+  const trocas = useModulos(sessao).ligado("devolucoes");
   const gerente = ehGerente(sessao);
   const [este, setEste] = useState<EsteTerminal | null | undefined>(undefined);
   const [preVendas, setPreVendas] = useState<PreVenda[]>([]);
@@ -74,7 +76,7 @@ export default function Vendas() {
           <p className="vazio">Frente de caixa, pré-vendas do balcão e as últimas vendas.</p>
         </div>
         <div className="acoes">
-          {gerente && (
+          {gerente && trocas && (
             <Link to="/devolucoes" className="botao-contorno">
               <Icone nome="troca" /> Trocas e devoluções
             </Link>
@@ -208,9 +210,11 @@ export default function Vendas() {
                       ) : (
                         gerente && (
                           <span className="acoes-tabela">
-                            <Link to={`/devolucoes?venda=${v.numero}`} className="botao-pequeno" title="Devolver itens desta venda">
-                              Trocar
-                            </Link>
+                            {trocas && (
+                              <Link to={`/devolucoes?venda=${v.numero}`} className="botao-pequeno" title="Devolver itens desta venda">
+                                Trocar
+                              </Link>
+                            )}
                             <button type="button" className="botao-pequeno" onClick={() => setCancelando(v)}>
                               Cancelar
                             </button>

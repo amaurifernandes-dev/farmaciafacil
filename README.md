@@ -145,6 +145,21 @@ A venda em andamento fica salva no navegador até ser finalizada.
   com vendas por forma, sangrias, suprimentos, a conferência somada dos caixas fechados e o motivo de cada diferença.
   Dá para imprimir. Na API: `GET /caixas/relatorio?dia=AAAA-MM-DD&loja_id=...`.
 
+## Gerenciamento de telas
+
+Em **Configurações > Gerenciamento de telas** (só administrador) a farmácia liga e desliga funções inteiras:
+faltas e encomendas, trocas e devoluções, pedidos e entregas, loja online, convênios, Farmácia Popular, controlados,
+serviços farmacêuticos, promoções, metas, comissões e etiquetas.
+
+- Desligada, a função some do menu, da busca, da tela inicial e dos atalhos do PDV de **todos**, inclusive do
+  administrador. Quem abrir o endereço direto vê um aviso (o administrador ganha o botão para ligar de novo).
+- O servidor também bloqueia: as rotas da função respondem 403. A loja online depende de "Pedidos e entregas" e, sem
+  ela, o site responde como loja inexistente.
+- Nada é apagado: ligando de novo, tudo volta como estava.
+- O básico (vendas e caixa, produtos, estoque, compras, clientes, financeiro, relatórios e configurações) não desliga.
+  A receita de controlados continua sendo pedida no PDV mesmo com o livro de controlados desligado.
+- A lista fica em `farmacias.modulos_desligados` (backend: `app/shared/modulos.py`; frontend: `src/modulos.ts`).
+
 ## Assistente de IA
 
 O assistente começa escondido: cada pessoa liga ou desliga no botão "Assistente IA", no topo da tela (a escolha

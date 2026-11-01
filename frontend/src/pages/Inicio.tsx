@@ -1,12 +1,17 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { api, mensagem } from "../api/cliente";
 import type { Andamento, Painel, Sessao } from "../api/tipos";
 import Icone, { type NomeIcone } from "../components/Icone";
 import { data, quantidade, reais } from "../formato";
+import { useModulos } from "../modulos";
 import { ehGerente, podeReceber, useSessao } from "../sessao";
+import { moduloDoEndereco } from "../telas";
 import { BarraMeta, pct, Recado, SITUACOES } from "./metas/BarraMeta";
+
+/** Se o endereço é de uma função ligada no Gerenciamento de telas (desligada, o quadro some). */
+const LinkLigado = createContext<(para: string) => boolean>(() => true);
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -56,6 +61,11 @@ const SUBTITULO: Record<Perfil, string> = {
 
 export default function Inicio() {
   const { sessao } = useSessao();
+  const { ligado } = useModulos(sessao);
+  const linkLigado = (para: string) => {
+    const modulo = moduloDoEndereco(para);
+    return !modulo || ligado(modulo);
+  };
   const [painel, setPainel] = useState<Painel | null>(null);
   const [erro, setErro] = useState("");
 
@@ -78,25 +88,27 @@ export default function Inicio() {
   });
 
   return (
-    <div className="inicio">
-      <p className="sobretitulo">
-        {dataPorExtenso} · {painel.farmacia}
-      </p>
-      <div className="inicio-titulo">
-        <div>
-          <h1>
-            {saudacao()}, {primeiroNome}.
-          </h1>
-          <p className="vazio">{SUBTITULO[perfil]}</p>
+    <LinkLigado.Provider value={linkLigado}>
+      <div className="inicio">
+        <p className="sobretitulo">
+          {dataPorExtenso} · {painel.farmacia}
+        </p>
+        <div className="inicio-titulo">
+          <div>
+            <h1>
+              {saudacao()}, {primeiroNome}.
+            </h1>
+            <p className="vazio">{SUBTITULO[perfil]}</p>
+          </div>
+          <AcaoPrincipal perfil={perfil} painel={painel} sessao={sessao} />
         </div>
-        <AcaoPrincipal perfil={perfil} painel={painel} sessao={sessao} />
-      </div>
 
-      {perfil === "gerencia" && <PainelGerencia painel={painel} />}
-      {perfil === "farmaceutico" && <PainelFarmaceutico painel={painel} />}
-      {perfil === "estoque" && <PainelEstoque painel={painel} />}
-      {perfil === "balcao" && <PainelBalcao painel={painel} />}
-    </div>
+        {perfil === "gerencia" && <PainelGerencia painel={painel} />}
+        {perfil === "farmaceutico" && <PainelFarmaceutico painel={painel} />}
+        {perfil === "estoque" && <PainelEstoque painel={painel} />}
+        {perfil === "balcao" && <PainelBalcao painel={painel} />}
+      </div>
+    </LinkLigado.Provider>
   );
 }
 
@@ -329,6 +341,8 @@ function Indicador(props: {
   para?: string;
   alerta?: boolean;
 }) {
+  const linkLigado = useContext(LinkLigado);
+  if (props.para && !linkLigado(props.para)) return null;
   const conteudo = (
     <>
       <div className="cartao-cabecalho">
@@ -363,6 +377,8 @@ function IndicadorMeuCaixa({ painel }: { painel: Painel }) {
 }
 
 function Metas({ painel, link }: { painel: Painel; link?: string }) {
+  const linkLigado = useContext(LinkLigado);
+  if (!linkLigado("/metas")) return null;
   if (!painel.meta_farmacia && !painel.minha_meta) return null;
   return (
     <div className="metas-inicio">
@@ -498,6 +514,8 @@ function CartaoMeta(props: { titulo: string; andamento: Andamento; hoje: string;
 }
 
 function Atalho({ para, icone, rotulo }: { para: string; icone: NomeIcone; rotulo: string }) {
+  const linkLigado = useContext(LinkLigado);
+  if (!linkLigado(para)) return null;
   return (
     <Link to={para} className="atalho">
       <Icone nome={icone} tamanho={22} />
@@ -528,6 +546,7 @@ function GraficoSemana({ semana }: { semana: Painel["semana"] }) {
 
 function Atencao({ painel }: { painel: Painel }) {
   const { sessao } = useSessao();
+  const linkLigado = useContext(LinkLigado);
   const avisos: { icone: NomeIcone; titulo: string; texto: string; para: string }[] = [];
   const gerencia = ehGerente(sessao);
   const g = painel.gestao;
@@ -595,10 +614,11 @@ function Atencao({ painel }: { painel: Painel }) {
       para: "/caixas",
     });
 
-  if (avisos.length === 0) return <p className="vazio">Tudo em ordem por aqui.</p>;
+  const visiveis = avisos.filter((a) => linkLigado(a.para));
+  if (visiveis.length === 0) return <p className="vazio">Tudo em ordem por aqui.</p>;
   return (
     <ul className="avisos">
-      {avisos.map((aviso) => (
+      {visiveis.map((aviso) => (
         <li key={aviso.titulo}>
           <span className="aviso-icone">
             <Icone nome={aviso.icone} tamanho={16} />

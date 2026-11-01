@@ -2,17 +2,19 @@ import { Link } from "react-router-dom";
 
 import Icone from "../../components/Icone";
 import { useSessao } from "../../sessao";
+import { useModulos } from "../../modulos";
 import { telasDe } from "../../telas";
 
 export default function ConfiguracoesInicio() {
   const { sessao } = useSessao();
+  const { ligado } = useModulos(sessao);
   return (
     <div className="pagina">
       <p className="sobretitulo">Configurações</p>
       <h1>Cadastros e configurações</h1>
       <p className="vazio">Tudo o que organiza a sua farmácia, num lugar só.</p>
       <div className="grade-atalhos">
-        {telasDe(sessao).filter((item) => item.grupo === "config").map((item) => (
+        {telasDe(sessao, ligado).filter((item) => item.grupo === "config").map((item) => (
           <Link key={item.para} to={item.para} className="cartao atalho-config">
             <span className="atalho-icone">
               <Icone nome={item.icone} />

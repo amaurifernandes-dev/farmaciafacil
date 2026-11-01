@@ -5,6 +5,7 @@ import { api, mensagem } from "../../api/cliente";
 import type { FichaCliente, MovimentoPontos } from "../../api/tipos";
 import { FormularioCadastro, Janela } from "../../components/Cadastro";
 import { data, quantidade, reais } from "../../formato";
+import { useModulos } from "../../modulos";
 import { ehFarmaceutico, ehGerente, useSessao } from "../../sessao";
 import ServicosDoCliente from "../servicos/DoCliente";
 import { documento, telefone } from "../configuracoes/campos";
@@ -48,6 +49,7 @@ function haQuantoTempo(dias: number | null): string {
 export default function Ficha() {
   const { id } = useParams();
   const { sessao } = useSessao();
+  const { ligado } = useModulos(sessao);
   const convenios = useConvenios();
   const [ficha, setFicha] = useState<FichaCliente | null>(null);
   const [erro, setErro] = useState("");
@@ -219,7 +221,7 @@ export default function Ficha() {
         </div>
       </div>
 
-      {ehFarmaceutico(sessao) && id && <ServicosDoCliente clienteId={id} />}
+      {ehFarmaceutico(sessao) && ligado("servicos") && id && <ServicosDoCliente clienteId={id} />}
 
       <div className="cartao ficha-extrato">
         <div className="cartao-cabecalho">

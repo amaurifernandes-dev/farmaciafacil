@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.modulos import MODULOS, Modulo
+
 PercentualDesconto = Annotated[Decimal, Field(ge=0, le=100, max_digits=5, decimal_places=2)]
 DiasAlerta = Annotated[int, Field(ge=1, le=365)]
 DiasPrazo = Annotated[int, Field(ge=1, le=180)]
@@ -55,6 +57,7 @@ class Configuracoes(BaseModel):
     popular_intervalo_dias: IntervaloPopular = 30
     comissao_padrao: PercentualDesconto = Decimal(0)
     assistente_perfis: list[Papel] = Field(default_factory=list, description="Perfis que podem usar o assistente de IA")
+    modulos_desligados: list[str] = Field(default_factory=list, description="Funções desligadas no Gerenciamento de telas")
 
 
 class ConfiguracoesAtualizar(BaseModel):
@@ -92,6 +95,9 @@ class ConfiguracoesAtualizar(BaseModel):
     comissao_padrao: PercentualDesconto | None = Field(default=None, description="% de comissão dos vendedores")
     assistente_perfis: Annotated[list[Papel], Field(max_length=6)] | None = Field(
         default=None, description="Perfis que podem usar o assistente de IA. Lista vazia desliga para todos"
+    )
+    modulos_desligados: Annotated[list[Modulo], Field(max_length=len(MODULOS))] | None = Field(
+        default=None, description="Funções desligadas no Gerenciamento de telas. Lista vazia liga todas"
     )
 
 

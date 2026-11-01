@@ -65,3 +65,20 @@ Operador = Annotated[TokenDados, Depends(exigir_papel("admin", "gerente", "farma
 Atendimento = Annotated[
     TokenDados, Depends(exigir_papel("admin", "gerente", "farmaceutico", "caixa", "atendente"))
 ]
+
+
+def exigir_modulo(modulo: str):
+    """Dependência das rotas de uma função que o administrador pode desligar no Gerenciamento de telas."""
+
+    def _verificar(db: DB, usuario: UsuarioAtual) -> None:
+        from app.modules.farmacias.models import Farmacia
+        from app.shared.modulos import NOMES, desligado
+
+        farmacia = db.get(Farmacia, usuario.farmacia_id)
+        if farmacia is not None and desligado(farmacia.modulos_desligados, modulo):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                f"{NOMES[modulo]} está desligado. O administrador pode ligar em Configurações > Gerenciamento de telas",
+            )
+
+    return Depends(_verificar)

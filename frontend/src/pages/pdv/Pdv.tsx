@@ -17,6 +17,7 @@ import { quantidade as fmtQtd, reais } from "../../formato";
 import { ehGerente, useSessao } from "../../sessao";
 import { guardarVenda, lerCatalogo, salvarCatalogo, vendasGuardadas, type CatalogoLocal, type VendaGuardada } from "../../offline/banco";
 import { baixarSaldos, ehFalhaDeRede, porCodigo, porNome } from "../../offline/catalogo";
+import { useModulos } from "../../modulos";
 import { abrirSemInternet, fecharSemInternet, somarGuardadas } from "../../offline/caixa";
 import { ehVenda, enviarGuardadas, tentarDeNovo } from "../../offline/sincronizar";
 import {
@@ -132,6 +133,12 @@ function carregarCarrinho(): Carrinho {
 
 export default function Pdv() {
   const { sessao, sair } = useSessao();
+  const { ligado } = useModulos(sessao);
+  // Convênio e vale-troca somem do pagamento quando a função está desligada no Gerenciamento de telas.
+  const formas = FORMAS.filter(
+    (f) => (f.forma !== "convenio" || ligado("convenios")) && (f.forma !== "vale" || ligado("devolucoes")),
+  );
+  const dicaFalta = (texto: string) => (ligado("faltas") ? ` ${texto}` : "");
   const navegar = useNavigate();
   /** Troca de turno: sai e volta para o login (que funciona sem internet para quem já entrou aqui). */
   const trocarOperador = () => {
@@ -335,6 +342,7 @@ export default function Pdv() {
 
   /** A prazo precisa de um cliente com limite: escolhe antes de lançar o valor. */
   function escolherForma(nova: FormaPagamento) {
+    if (!formas.some((f) => f.forma === nova)) return;
     if (!["dinheiro", "debito", "credito", "pix"].includes(nova) && precisaInternet("fiado, convênio e vale-troca")) return;
     setForma(nova);
     if (nova === "vale") {
@@ -354,7 +362,7 @@ export default function Pdv() {
 
   /** Alt+7: venda pela Farmácia Popular. */
   function abrirPopular() {
-    if (carrinho.itens.length === 0) return;
+    if (carrinho.itens.length === 0 || !ligado("popular")) return;
     if (precisaInternet("a Farmácia Popular")) return;
     if (itensDoPopular(carrinho).length === 0 && !carrinho.popular) {
       return erro("Nenhum remédio desta venda está na Farmácia Popular. Marque no cadastro do produto quanto o governo paga.");
@@ -500,7 +508,7 @@ export default function Pdv() {
       incluir(produto, lido.quantidade);
     } catch (e) {
       setFaltaPendente({ descricao: "", quantidade: lido.quantidade });
-      erro(`${lido.codigo}: ${mensagem(e)}. F1 anota na lista de faltas.`);
+      erro(`${lido.codigo}: ${mensagem(e)}.${dicaFalta("F1 anota na lista de faltas.")}`);
     }
   }
 
@@ -514,7 +522,7 @@ export default function Pdv() {
       semSaldo
         ? {
             tipo: "erro",
-            texto: `Atenção: só há ${fmtQtd(semSaldo.saldo)} de ${semSaldo.descricao} em estoque. F1 anota a falta.`,
+            texto: `Atenção: só há ${fmtQtd(semSaldo.saldo)} de ${semSaldo.descricao} em estoque.${dicaFalta("F1 anota a falta.")}`,
           }
         : null,
     );
@@ -537,7 +545,7 @@ export default function Pdv() {
       if (!pagina) pagina = { itens: catalogo ? porNome(catalogo.produtos, termo) : [] };
       if (pagina.itens.length === 0) {
         setFaltaPendente({ descricao: termo.trim(), quantidade: 1 });
-        return erro(`Nenhum produto encontrado para "${termo}". F1 anota na lista de faltas.`);
+        return erro(`Nenhum produto encontrado para "${termo}".${dicaFalta("F1 anota na lista de faltas.")}`);
       }
       setResultados(pagina.itens);
       setIndiceBusca(0);
@@ -781,7 +789,7 @@ export default function Pdv() {
     function tecla(evento: KeyboardEvent) {
       if (!caixa || modo === "fechar" || modo === "receita" || modo === "popular") return;
       const atalhos: Record<string, () => void> = {
-        F1: () => modo === "venda" && anotarFalta(),
+        F1: () => modo === "venda" && ligado("faltas") && anotarFalta(),
         F2: () => mudarModo("busca"),
         F3: () => selecionado >= 0 && mudarModo("quantidade"),
         F4: () => {
@@ -844,7 +852,7 @@ export default function Pdv() {
           evento.preventDefault();
           return abrirPopular();
         }
-        const escolhida = FORMAS.find((f) => f.tecla === evento.key);
+        const escolhida = formas.find((f) => f.tecla === evento.key);
         if (escolhida) {
           evento.preventDefault();
           return escolherForma(escolhida.forma);
@@ -1121,12 +1129,12 @@ export default function Pdv() {
 
         {(modo === "pagamento" || modo === "vale") && (
           <div className="formas">
-            {FORMAS.map((f) => (
+            {formas.map((f) => (
               <button key={f.forma} className={f.forma === forma ? "ativa" : ""} onClick={() => escolherForma(f.forma)}>
                 Alt+{f.tecla} {f.nome}
               </button>
             ))}
-            {(itensDoPopular(carrinho).length > 0 || carrinho.popular) && (
+            {ligado("popular") && (itensDoPopular(carrinho).length > 0 || carrinho.popular) && (
               <button className={carrinho.popular ? "ativa" : ""} onClick={abrirPopular}>
                 Alt+7 Farmácia Popular
               </button>
@@ -1259,10 +1267,13 @@ export default function Pdv() {
       </form>
 
       <footer className="pdv-atalhos">
-        <span>F1 Anotar falta</span>
+        {ligado("faltas") && <span>F1 Anotar falta</span>}
         <span>F2 Buscar</span>
         <span>F3 Quantidade</span>
-        <span>F4 Pagamento (Alt+5 a prazo, Alt+6 convênio, Alt+7 Farmácia Popular)</span>
+        <span>
+          F4 Pagamento (Alt+5 a prazo{ligado("convenios") && ", Alt+6 convênio"}
+          {ligado("popular") && ", Alt+7 Farmácia Popular"})
+        </span>
         <span>F5 Receita</span>
         <span>F6 Desconto</span>
         <span>F7 Receber pré-venda</span>
