@@ -830,9 +830,17 @@ button.assistente-microfone:disabled { opacity: 0.5; cursor: not-allowed; }
 .assistente-variacao.caiu { color: var(--erro); }
 .assistente-subtitulo { margin: 12px 0 4px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--suave); }
 .assistente-lista li span { font-variant-numeric: tabular-nums; }
+.assistente-lista li > span:last-child { white-space: nowrap; }
 .assistente-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
 .assistente-tabela th { padding: 6px 6px; border-bottom: 1px solid var(--borda); color: var(--suave); font-weight: 600; text-align: left; white-space: nowrap; }
 .assistente-tabela td { padding: 6px 6px; border-bottom: 1px solid var(--borda); }
 .assistente-tabela tr:last-child td { border-bottom: none; }
 .assistente-tabela td.num, .assistente-tabela th.num { text-align: right; white-space: nowrap; }
 .assistente-link { margin-top: 10px; }
+.assistente-pedido-grupo { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--borda); border-radius: 10px; }
+.assistente-pedido-grupo header { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.assistente-pedido-grupo header span { font-weight: 600; color: var(--primaria); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.assistente-pedido-item { min-width: 0; }
+.assistente-pedido-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+a.botao-pequeno-link { display: inline-flex; align-items: center; padding: 5px 10px; border: 1px solid var(--borda); border-radius: 6px; background: var(--superficie); color: var(--texto); font-size: 13px; text-decoration: none; }
+a.botao-pequeno-link:hover { border-color: var(--primaria); color: var(--primaria); }

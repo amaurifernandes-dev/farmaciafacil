@@ -1,6 +1,7 @@
 """Assistente de IA: o modelo é trocado por um roteiro, e as ferramentas rodam de verdade no banco."""
 
 import json
+import uuid
 from types import SimpleNamespace
 
 import pytest
@@ -283,3 +284,92 @@ def test_caixa_nao_ve_vendas_mas_ve_estoque(client, engine_dono, farmacia_a, mod
     [tabela] = r["cartoes"]
     assert tabela["titulo"].startswith("Acabando")
     assert tabela["linhas"][0][0] == "Soro fisiológico" and tabela["linhas"][0][2:] == ["2", "10"]
+
+
+# --- Pedido de compra -------------------------------------------------------------------------------
+
+
+def test_whatsapp_do_fornecedor():
+    from app.modules.assistente.compras import whatsapp
+
+    assert whatsapp("(19) 3222-3333") == "551932223333"
+    assert whatsapp("11 98765-4321") == "5511987654321"
+    assert whatsapp("+55 11 98765-4321") == "5511987654321"
+    assert whatsapp("3222-3333") is None
+    assert whatsapp(None) is None
+
+
+def test_monta_pedido_de_compra_por_fornecedor(client, farmacia_a, modelo):
+    from tests.test_compras import _det, _importar, _validade, _vender, _xml
+    from tests.test_estoque_lojas import _produto as _produto_estoque
+    from tests.test_vendas import _abrir_caixa
+
+    dipirona = _produto_estoque(client, farmacia_a, preco_venda="1.00")
+    parado = _produto_estoque(client, farmacia_a, nome="Parado", ean="7890000000017", estoque_minimo="4")
+    nota = _importar(client, farmacia_a, _xml(_det(1, "A1", "7891234567895", "DIPIRONA", "40", "3.00", unidade="UN",
+                                                 lotes=[("S1", 40, _validade())]))).json()
+    client.post(f"{API}/compras/notas/{nota['id']}/confirmar", headers=farmacia_a["headers"])
+    _abrir_caixa(client, farmacia_a)
+    _vender(client, farmacia_a, dipirona["id"], 30, "30.00")
+
+    def montar(mensagens):
+        resultado, erro = _resultado(mensagens)
+        assert not erro
+        itens = [{"produto_id": i["produto_id"], "quantidade": i["sugerido"], "fornecedor_id": None}
+                 for i in resultado["itens"]]
+        return "tool_use", [{"type": "tool_use", "id": "t2", "name": "montar_pedido_compra", "input": {"itens": itens}}]
+
+    m = modelo(
+        _ferramenta("sugerir_compra", {"dias_cobertura": 15, "dias_historico": 30}),
+        montar,
+        _texto("Pedido montado."),
+    )
+    r = _perguntar(client, farmacia_a, "monta um pedido de compra para 15 dias")
+    sugerido, _ = _resultado(m.chamadas[1]["messages"])
+    assert {i["nome"]: i["sugerido"] for i in sugerido["itens"]} == {"Dipirona 500mg": 5, "Parado": 4}
+    assert sugerido["itens"][0]["fornecedores"][0]["nome"] == "DistriSaúde"
+
+    [cartao] = r["cartoes"]
+    assert cartao["tipo"] == "pedido_compra" and cartao["itens"] == 2
+    distri, sem = cartao["grupos"]
+    assert distri["fornecedor"] == "DistriSaúde" and distri["whatsapp"] == "551932223333"
+    assert distri["itens"] == [{"produto_id": dipirona["id"], "nome": "Dipirona 500mg", "ean": "7891234567895",
+                                "quantidade": 5, "custo": "R$ 3,00", "total": "R$ 15,00"}]
+    assert "- 5 x Dipirona 500mg (EAN 7891234567895)" in distri["texto"]
+    assert distri["texto"].startswith("Olá! Pedido de compra da Farmácia 11111111000111")
+    assert sem["fornecedor_id"] is None and sem["itens"][0]["produto_id"] == parado["id"]
+    assert sem["sem_custo"] == 1 and sem["whatsapp"] is None
+    assert cartao["total"] == "R$ 15,00"
+
+    # Ajuste falado: troca a quantidade e manda o "Parado" para o mesmo fornecedor.
+    m = modelo(
+        _ferramenta("montar_pedido_compra", {"itens": [
+            {"produto_id": dipirona["id"], "quantidade": 20, "fornecedor_id": None},
+            {"produto_id": parado["id"], "quantidade": 4, "fornecedor_id": distri["fornecedor_id"]},
+        ]}),
+        _texto("Ajustado."),
+    )
+    r = _perguntar(client, farmacia_a, "põe 20 dipironas e compra o parado da DistriSaúde", r["historico"])
+    [grupo] = r["cartoes"][0]["grupos"]
+    assert [i["quantidade"] for i in grupo["itens"]] == [20, 4] and grupo["total"] == "R$ 60,00"
+
+    m = modelo(
+        _ferramenta("montar_pedido_compra", {"itens": [
+            {"produto_id": str(uuid.uuid4()), "quantidade": 1, "fornecedor_id": None},
+        ]}),
+        _texto("Não achei."),
+    )
+    _perguntar(client, farmacia_a, "põe um produto que não existe")
+    conteudo, erro = _resultado(m.chamadas[1]["messages"])
+    assert erro and "não encontrado" in conteudo
+
+
+def test_caixa_nao_monta_pedido(client, engine_dono, farmacia_a, modelo):
+    from tests.test_vendas import _login_caixa
+
+    caixa = {"headers": _login_caixa(client, engine_dono, farmacia_a)}
+    m = modelo(_ferramenta("sugerir_compra", {"dias_cobertura": 15, "dias_historico": 30}), _texto("Não posso."))
+    r = _perguntar(client, caixa, "monta um pedido de compra")
+    assert "sugerir_compra" not in {t["name"] for t in m.chamadas[0]["tools"]}
+    conteudo, erro = _resultado(m.chamadas[1]["messages"])
+    assert erro and "estoque" in conteudo and r["cartoes"] == []

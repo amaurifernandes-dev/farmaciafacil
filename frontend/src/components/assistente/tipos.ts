@@ -34,7 +34,28 @@ export type Cartao =
   | { tipo: "cliente"; id: string; nome: string }
   | CartaoGuia
   | CartaoVendas
-  | CartaoTabela;
+  | CartaoTabela
+  | CartaoPedidoCompra;
+
+/** Pedido de compra separado por fornecedor. Não fica gravado: o usuário copia ou envia. */
+export interface CartaoPedidoCompra {
+  tipo: "pedido_compra";
+  loja: string | null;
+  data: string;
+  total: string;
+  itens: number;
+  grupos: {
+    fornecedor_id: string | null;
+    fornecedor: string;
+    telefone: string | null;
+    whatsapp: string | null;
+    email: string | null;
+    total: string;
+    sem_custo: number;
+    texto: string;
+    itens: { produto_id: string; nome: string; ean: string | null; quantidade: number; custo: string; total: string }[];
+  }[];
+}
 
 /** Resumo das vendas de um período. Os valores já vêm formatados do servidor. */
 export interface CartaoVendas {
