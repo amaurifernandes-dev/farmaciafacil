@@ -57,3 +57,7 @@ class Farmacia(ComDatas, Base):
     pix_nome: Mapped[str | None] = mapped_column(String(25))
     pix_cidade: Mapped[str | None] = mapped_column(String(15))
     pix_no_site: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Perfis que podem usar o assistente de IA. Lista vazia: assistente desligado para todos.
+    assistente_perfis: Mapped[list[str]] = mapped_column(
+        JSONB, default=lambda: ["admin", "gerente", "farmaceutico", "caixa", "atendente", "estoque"]
+    )

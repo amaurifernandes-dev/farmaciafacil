@@ -2,10 +2,11 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
 import { api, mensagem } from "../../api/cliente";
-import type { Configuracoes, Loja, ModoCaixa, Terminal } from "../../api/tipos";
+import type { Configuracoes, Loja, ModoCaixa, Papel, Terminal } from "../../api/tipos";
+import type { StatusAssistente } from "../../components/assistente/visivel";
 import Icone from "../../components/Icone";
 import { reais } from "../../formato";
-import { ehAdmin, useSessao } from "../../sessao";
+import { ehAdmin, NOMES_PAPEIS, useSessao } from "../../sessao";
 
 export default function Gerais() {
   const { sessao } = useSessao();
@@ -60,6 +61,7 @@ export default function Gerais() {
       </div>
 
       <RegrasGerais podeEditar={podeEditar} />
+      <AssistenteIA podeEditar={podeEditar} />
       <ProgramaDePontos podeEditar={podeEditar} />
       <LojaOnline podeEditar={podeEditar} lojas={lojas} />
     </div>
@@ -675,6 +677,101 @@ function LojaOnline({ podeEditar, lojas }: { podeEditar: boolean; lojas: Loja[] 
           </div>
         )}
       </fieldset>
+    </form>
+  );
+}
+
+const PAPEIS: Papel[] = ["admin", "gerente", "farmaceutico", "caixa", "atendente", "estoque"];
+
+/** Quem usa o assistente de IA e se a chave da Anthropic do servidor está funcionando. */
+function AssistenteIA({ podeEditar }: { podeEditar: boolean }) {
+  const [perfis, setPerfis] = useState<Papel[] | null>(null);
+  const [status, setStatus] = useState<StatusAssistente | null>(null);
+  const [teste, setTeste] = useState<{ ok: boolean; mensagem: string } | null>(null);
+  const [testando, setTestando] = useState(false);
+  const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+
+  useEffect(() => {
+    api<Configuracoes>("/configuracoes")
+      .then((c) => setPerfis(c.assistente_perfis))
+      .catch((e) => setAviso({ tipo: "erro", texto: mensagem(e) }));
+    api<StatusAssistente>("/assistente/status")
+      .then(setStatus)
+      .catch(() => setStatus(null));
+  }, []);
+
+  async function testar() {
+    setTestando(true);
+    setTeste(null);
+    try {
+      setTeste(await api<{ ok: boolean; mensagem: string }>("/assistente/testar", { corpo: {} }));
+    } catch (e) {
+      setTeste({ ok: false, mensagem: mensagem(e) });
+    } finally {
+      setTestando(false);
+    }
+  }
+
+  async function salvar(evento: FormEvent) {
+    evento.preventDefault();
+    if (!perfis) return;
+    try {
+      const salvo = await api<Configuracoes>("/configuracoes", { metodo: "PATCH", corpo: { assistente_perfis: perfis } });
+      setPerfis(salvo.assistente_perfis);
+      setAviso({
+        tipo: "ok",
+        texto: salvo.assistente_perfis.length ? "Pronto. Cada pessoa liga o assistente no botão do topo." : "Assistente desligado para todos.",
+      });
+    } catch (e) {
+      setAviso({ tipo: "erro", texto: mensagem(e) });
+    }
+  }
+
+  if (!perfis) return aviso ? <p className={aviso.tipo}>{aviso.texto}</p> : null;
+
+  return (
+    <form id="assistente" className="cartao cartao-separado" onSubmit={salvar}>
+      <h2>Assistente de IA</h2>
+      <p className="vazio">
+        O assistente responde por texto ou voz, procura produtos, abre pré-venda, mostra números e monta pedidos. Ele começa
+        escondido: cada pessoa mostra ou esconde no botão “Assistente IA”, no topo da tela.
+      </p>
+      <div className="ia-status">
+        <span className={status?.ligado ? "etiqueta ok" : "etiqueta erro-etiqueta"}>
+          {status === null ? "Verificando a chave..." : status.ligado ? "Chave da Anthropic no servidor" : "Falta a chave da Anthropic"}
+        </span>
+        {podeEditar && status?.ligado && (
+          <button type="button" className="botao-pequeno" disabled={testando} onClick={() => void testar()}>
+            {testando ? "Testando..." : "Testar chave"}
+          </button>
+        )}
+        {teste && <span className={teste.ok ? "ok" : "erro"}>{teste.mensagem}</span>}
+      </div>
+      {status && !status.ligado && (
+        <p className="nota">
+          Para ligar, quem cuida do servidor coloca a chave criada em console.anthropic.com na variável ANTHROPIC_API_KEY e
+          reinicia o sistema. O uso é cobrado pela Anthropic.
+        </p>
+      )}
+      <fieldset disabled={!podeEditar} className="perfis-ia">
+        <legend className="vazio">Quem pode usar</legend>
+        {PAPEIS.map((papel) => (
+          <label key={papel} className="checkbox caixa-marcacao">
+            <input
+              type="checkbox"
+              checked={perfis.includes(papel)}
+              onChange={(e) => setPerfis(e.target.checked ? [...perfis, papel] : perfis.filter((p) => p !== papel))}
+            />
+            <span>{NOMES_PAPEIS[papel]}</span>
+          </label>
+        ))}
+      </fieldset>
+      {podeEditar && (
+        <div className="acoes">
+          <button type="submit">Salvar</button>
+          {aviso && <span className={aviso.tipo}>{aviso.texto}</span>}
+        </div>
+      )}
     </form>
   );
 }

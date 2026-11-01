@@ -75,6 +75,24 @@ def criar_cliente_ia() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=chave, max_retries=2, timeout=120)
 
 
+def testar_chave(cliente: anthropic.Anthropic) -> dict:
+    """Pergunta à Anthropic pelo modelo configurado: confere a chave e o acesso a ele, sem gastar tokens."""
+    modelo = get_settings().assistente_modelo
+    try:
+        cliente.models.retrieve(modelo)
+    except anthropic.AuthenticationError:
+        return {"ok": False, "mensagem": "A Anthropic recusou a chave. Confira a ANTHROPIC_API_KEY no servidor."}
+    except anthropic.PermissionDeniedError:
+        return {"ok": False, "mensagem": f"A chave funciona, mas não tem acesso ao modelo {modelo}."}
+    except anthropic.NotFoundError:
+        return {"ok": False, "mensagem": f"O modelo {modelo} não foi encontrado. Confira a ASSISTENTE_MODELO."}
+    except anthropic.APIConnectionError:
+        return {"ok": False, "mensagem": "O servidor não conseguiu falar com a Anthropic. Confira a internet."}
+    except anthropic.APIStatusError as erro:
+        return {"ok": False, "mensagem": f"A Anthropic respondeu com erro {erro.status_code}. Tente de novo."}
+    return {"ok": True, "mensagem": f"Chave funcionando, com acesso ao modelo {modelo}."}
+
+
 def _bloco(bloco: Any) -> dict:
     return bloco.model_dump(mode="json", exclude_none=True) if hasattr(bloco, "model_dump") else dict(bloco)
 
