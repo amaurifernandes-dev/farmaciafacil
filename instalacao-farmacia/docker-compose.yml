@@ -1,0 +1,85 @@
+# FarmáciaFácil instalado na farmácia (on-premise).
+# Roda num computador da loja; os outros computadores e celulares abrem https://<ENDERECO>.
+name: farmaciafacil
+
+services:
+  banco:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ff_owner
+      POSTGRES_PASSWORD: ${SENHA_BANCO:?preencha SENHA_BANCO no .env}
+      POSTGRES_DB: farmaciafacil
+      APP_DB_SENHA: ${SENHA_BANCO}
+    volumes:
+      - ./banco-inicial.sh:/docker-entrypoint-initdb.d/banco-inicial.sh:ro
+      - dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ff_owner -d farmaciafacil"]
+      interval: 5s
+      retries: 20
+
+  servidor:
+    build: ../backend
+    restart: unless-stopped
+    depends_on:
+      banco:
+        condition: service_healthy
+    environment:
+      INSTALACAO: farmacia
+      DATABASE_URL: postgresql://ff_app:${SENHA_BANCO}@banco:5432/farmaciafacil
+      MIGRATION_DATABASE_URL: postgresql://ff_owner:${SENHA_BANCO}@banco:5432/farmaciafacil
+      APP_DB_ROLE: ff_app
+      JWT_SECRET: ${JWT_SECRET:?preencha JWT_SECRET no .env}
+      NFCE_PROVEDOR: ${NFCE_PROVEDOR:-desligado}
+      FOCUS_NFE_TOKEN_HOMOLOGACAO: ${FOCUS_NFE_TOKEN_HOMOLOGACAO:-}
+      FOCUS_NFE_TOKEN_PRODUCAO: ${FOCUS_NFE_TOKEN_PRODUCAO:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+  telas:
+    build: ../frontend
+    restart: unless-stopped
+    depends_on:
+      - servidor
+    environment:
+      ENDERECO: ${ENDERECO:?preencha ENDERECO no .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificados:/data
+
+  # Cópia de segurança do banco: uma ao ligar e depois uma por dia, guardando os últimos 30 dias.
+  copia:
+    image: postgres:16
+    restart: unless-stopped
+    depends_on:
+      banco:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${SENHA_BANCO}
+    volumes:
+      - ${PASTA_COPIAS:-./copias}:/copias
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          arquivo=/copias/farmaciafacil-$$(date +%Y-%m-%d).dump
+          if pg_dump -h banco -U ff_owner -d farmaciafacil -Fc -f "$$arquivo.tmp"; then
+            mv "$$arquivo.tmp" "$$arquivo"
+            echo "Cópia feita: $$arquivo"
+          else
+            rm -f "$$arquivo.tmp"
+            echo "A cópia falhou; tento de novo em 1 hora."
+            sleep 3600
+            continue
+          fi
+          find /copias -name 'farmaciafacil-*.dump' -mtime +30 -delete
+          sleep 86400
+        done
+
+volumes:
+  dados:
+  certificados:

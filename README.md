@@ -18,6 +18,9 @@ O mesmo código serve as duas versões. A variável `INSTALACAO` do `.env` escol
 
 A tela pergunta o modo em `GET /api/v1/instalacao` (público) e esconde o que não se aplica.
 
+A instalação na farmácia (Docker com banco local, HTTPS na rede da loja e cópia de segurança diária) está em
+[`instalacao-farmacia/LEIA-ME.md`](instalacao-farmacia/LEIA-ME.md).
+
 ## Rodando o backend localmente
 
 Requisitos: Python 3.12+, [uv](https://docs.astral.sh/uv/) e Docker.
