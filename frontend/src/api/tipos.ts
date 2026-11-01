@@ -9,6 +9,10 @@ export interface Sessao {
   farmacia_id: string;
   nome: string;
   papel: Papel;
+  /** Acesso guardado neste PDV para enviar o que for feito sem internet (vale 7 dias). */
+  token_offline?: string;
+  /** Entrou sem internet, com a senha conferida neste computador. */
+  offline?: boolean;
 }
 
 export interface Produto {

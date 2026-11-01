@@ -21,6 +21,8 @@ export interface VendaGuardada {
   total_centavos: number;
   itens: number;
   guardada_em: string;
+  /** Acesso sem internet de quem fez: a venda vai no nome dessa pessoa, mesmo depois de trocar o operador. */
+  token?: string;
   /** Recusada pelo servidor: o motivo, para o gerente resolver. */
   problema?: string;
 }
@@ -28,21 +30,24 @@ export interface VendaGuardada {
 const NOME = "farmaciafacil-caixa";
 const CATALOGO = "catalogo";
 const FILA = "fila";
+export const ACESSOS = "acessos";
 
 function abrir(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const pedido = indexedDB.open(NOME, 1);
+    const pedido = indexedDB.open(NOME, 2);
     pedido.onupgradeneeded = () => {
       const banco = pedido.result;
       if (!banco.objectStoreNames.contains(CATALOGO)) banco.createObjectStore(CATALOGO);
       if (!banco.objectStoreNames.contains(FILA)) banco.createObjectStore(FILA, { keyPath: "chave" });
+      // Acesso de cada operador para entrar sem internet, cifrado com a senha dele.
+      if (!banco.objectStoreNames.contains(ACESSOS)) banco.createObjectStore(ACESSOS, { keyPath: "email" });
     };
     pedido.onsuccess = () => resolve(pedido.result);
     pedido.onerror = () => reject(pedido.error);
   });
 }
 
-async function operar<T>(loja: string, modo: IDBTransactionMode, acao: (s: IDBObjectStore) => IDBRequest): Promise<T> {
+export async function operar<T>(loja: string, modo: IDBTransactionMode, acao: (s: IDBObjectStore) => IDBRequest): Promise<T> {
   const banco = await abrir();
   try {
     return await new Promise<T>((resolve, reject) => {

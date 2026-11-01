@@ -1,7 +1,7 @@
 // Envia as vendas guardadas quando a internet volta. Cada venda leva a chave dela: se o envio
 // cair no meio e for repetido, o servidor devolve a mesma venda em vez de criar outra.
 
-import { api } from "../api/cliente";
+import { api, ErroApi } from "../api/cliente";
 import type { Venda } from "../api/tipos";
 import { guardarVenda, tirarDaFila, vendasGuardadas, type VendaGuardada } from "./banco";
 import { ehFalhaDeRede } from "./catalogo";
@@ -19,6 +19,19 @@ let enviando = false;
 
 export const ehVenda = (guardada: VendaGuardada) => (guardada.tipo ?? "venda") === "venda";
 
+/** Vai no nome de quem fez (acesso guardado dela). Se esse acesso venceu, tenta com o login atual. */
+async function enviar(guardada: VendaGuardada): Promise<unknown> {
+  const caminho = guardada.caminho ?? "/vendas";
+  if (guardada.token) {
+    try {
+      return await api<unknown>(caminho, { corpo: guardada.corpo, token: guardada.token });
+    } catch (erro) {
+      if (!(erro instanceof ErroApi && erro.status === 401)) throw erro;
+    }
+  }
+  return api<unknown>(caminho, { corpo: guardada.corpo });
+}
+
 export async function enviarGuardadas(): Promise<ResultadoEnvio> {
   const resultado: ResultadoEnvio = { enviadas: [], caixa: 0, comProblema: 0, semInternet: false };
   if (enviando) return resultado;
@@ -31,7 +44,7 @@ export async function enviarGuardadas(): Promise<ResultadoEnvio> {
       }
       try {
         // Na ordem em que aconteceu: abertura, vendas e fechamento do caixa.
-        const resposta = await api<unknown>(guardada.caminho ?? "/vendas", { corpo: guardada.corpo });
+        const resposta = await enviar(guardada);
         if (ehVenda(guardada)) resultado.enviadas.push(resposta as Venda);
         else resultado.caixa += 1;
         await tirarDaFila(guardada.chave);

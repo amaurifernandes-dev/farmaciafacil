@@ -151,3 +151,35 @@ def test_regras_do_caixa_sem_internet(client, farmacia_a):
     # Mesmo código de caixa usado por outro PDV: recusa.
     h2 = {**h, "X-Terminal": _registrar_pdv(client, h, "PDV 02")}
     assert client.post(f"{API}/caixas/abrir", json=abertura, headers=h2).status_code == 409
+
+
+def test_operador_entra_sem_internet_com_acesso_guardado(client, farmacia_a):
+    h = farmacia_a["headers"]
+    assert client.post(f"{API}/auth/token-offline", headers=h).status_code == 400  # fora de um PDV
+    h["X-Terminal"] = _registrar_pdv(client, h)
+    produto = _produto_com_estoque(client, farmacia_a, "Gaze", "3.00", lotes=(("A", 90, 10),))
+    resposta = client.post(f"{API}/auth/token-offline", headers=h)
+    assert resposta.status_code == 200, resposta.text
+    off = {"Authorization": f"Bearer {resposta.json()['token_offline']}", "X-Terminal": h["X-Terminal"]}
+
+    # Só serve para enviar o que foi feito sem internet.
+    assert client.get(f"{API}/produtos", headers=off).status_code == 401
+    assert client.post(f"{API}/auth/token-offline", headers=off).status_code == 401
+    assert client.post(f"{API}/caixas/abrir", json={"valor_abertura": "0"}, headers=off).status_code == 403
+
+    caixa_id = str(uuid.uuid4())
+    agora = datetime.now(UTC)
+    abertura = {"id": caixa_id, "valor_abertura": "10.00", "offline_em": agora.isoformat()}
+    assert client.post(f"{API}/caixas/abrir", json=abertura, headers=off).status_code == 201
+    venda = _offline(produto, 1, "3.00", [{"forma": "pix", "valor": "3.00"}], caixa_id, agora)
+    assert client.post(f"{API}/vendas", json=venda, headers=off).status_code == 201
+    # Venda de antes do acesso ser guardado: recusa.
+    velha = _offline(produto, 1, "3.00", [{"forma": "pix", "valor": "3.00"}], caixa_id, agora - timedelta(days=1))
+    assert client.post(f"{API}/vendas", json=velha, headers=off).status_code == 403
+    fechamento = {"valor_fechamento_informado": "10.00", "offline_em": agora.isoformat()}
+    assert client.post(f"{API}/caixas/{caixa_id}/fechar", json=fechamento, headers=off).status_code == 200
+
+    # Em outro PDV, o acesso não vale.
+    outro = {**off, "X-Terminal": _registrar_pdv(client, h, "PDV 02")}
+    abertura2 = {"id": str(uuid.uuid4()), "valor_abertura": "0", "offline_em": agora.isoformat()}
+    assert client.post(f"{API}/caixas/abrir", json=abertura2, headers=outro).status_code == 403
