@@ -844,3 +844,16 @@ button.assistente-microfone:disabled { opacity: 0.5; cursor: not-allowed; }
 .assistente-pedido-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 a.botao-pequeno-link { display: inline-flex; align-items: center; padding: 5px 10px; border: 1px solid var(--borda); border-radius: 6px; background: var(--superficie); color: var(--texto); font-size: 13px; text-decoration: none; }
 a.botao-pequeno-link:hover { border-color: var(--primaria); color: var(--primaria); }
+
+/* Pedidos de compra */
+.filtros-pedido button.botao-pequeno.ativo { border-color: var(--primaria); background: var(--primaria-suave); color: var(--primaria); font-weight: 600; }
+.grade-pedido { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.grade-pedido > .cartao { min-width: 0; }
+.texto-pedido { margin: 0 0 12px; padding: 12px; border-radius: 8px; background: var(--fundo); font: inherit; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lista-notas-pedido { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 14px; }
+.falta-receber { color: #b54708; }
+.conferencia-pedido .cartao-cabecalho h2 a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.conferencia-pedido .aviso-conferencia, .conferencia-pedido .ok { margin: 0 0 12px; }
+.seletor-pedido { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 14px; }
+.seletor-pedido select { max-width: 100%; }
+.assistente-salvo { font-size: 13px; color: var(--ok); }

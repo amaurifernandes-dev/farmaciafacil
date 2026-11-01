@@ -126,12 +126,23 @@ ferramentas que rodam no servidor com o login de quem pergunta:
 - responder sobre o movimento: vendas do período com comparação, mais vendidos e o que dá mais lucro,
   produtos parados (só gerente e administrador) e o que está acabando, vencendo ou vencido (todos);
 - montar pedido de compra a partir da sugestão de compras, separado pelo fornecedor de menor último custo, com o
-  texto pronto para copiar, mandar no WhatsApp ou por e-mail (ajustável falando; o pedido não fica gravado);
+  texto pronto para copiar, mandar no WhatsApp ou por e-mail (ajustável falando) e o botão "Salvar pedido";
 - mostrar o passo a passo de uma tarefa, com o botão "Começar" que abre a tela certa
   (os guias ficam em `backend/app/modules/assistente/guias.py`).
 
 Para ligar: `ANTHROPIC_API_KEY` no `.env` do servidor (chave criada em console.anthropic.com, cobrada por uso).
 `ASSISTENTE_MODELO` troca o modelo. A conversa fica só na aba do navegador e some ao sair.
+
+## Pedidos de compra
+
+Em Compras > Pedidos ficam os pedidos feitos a cada fornecedor (salvos pelo assistente ou pela API
+`POST /api/v1/compras/pedidos`). O pedido passa por: não enviado → aguardando nota → chegou em parte → recebido
+(ou cancelado, enquanto nada chegou).
+
+Quando a nota de um fornecedor é importada, ela é ligada sozinha ao pedido em aberto mais antigo daquele
+fornecedor para a mesma loja; dá para trocar ou tirar o pedido enquanto a nota está para conferir. A tela da nota
+mostra, produto a produto, o que veio certo, a menos, a mais, o que não veio e o que veio fora do pedido (em
+unidades de venda, já contando caixas com várias unidades). Ao confirmar a nota, o que chegou é abatido do pedido.
 
 ## NFC-e
 

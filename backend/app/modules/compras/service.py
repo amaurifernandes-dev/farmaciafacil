@@ -1,7 +1,7 @@
 """Compras: notas de entrada pelo XML e sugestão do que comprar."""
 
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import ROUND_CEILING, Decimal
 from uuid import UUID
 
@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import TokenDados
+from app.modules.compras import pedidos
 from app.modules.compras.models import NotaEntrada, NotaEntradaItem, ProdutoFornecedor
 from app.modules.compras.nfe_xml import ItemNota, NotaLida, ler_nfe
 from app.modules.compras.schemas import (
@@ -24,7 +25,12 @@ from app.modules.compras.schemas import (
     SugestaoCompras,
 )
 from app.modules.estoque.models import MovimentoEstoque
-from app.modules.estoque.service import Referencia, _lotes_vendaveis, entrar, loja_ou_matriz
+from app.modules.estoque.service import (
+    Referencia,
+    _lotes_vendaveis,
+    entrar,
+    loja_ou_matriz,
+)
 from app.modules.faltas.models import PENDENTES, Falta
 from app.modules.financeiro.service import contas_da_nota
 from app.modules.fornecedores.models import Fornecedor
@@ -37,7 +43,7 @@ CENTAVO = Decimal("0.01")
 
 
 def _agora() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # --- Importação do XML ---
@@ -155,6 +161,8 @@ def importar(db: Session, usuario: TokenDados, dados: NotaImportar) -> NotaEntra
                     fator=fator,
                 )
             )
+    # A nota fica ligada ao pedido em aberto deste fornecedor, para conferir o que veio.
+    nota.pedido_id = pedidos.pedido_para_nota(db, nota)
     db.add(nota)
     try:
         db.commit()
@@ -193,6 +201,8 @@ def _resumo(nota: NotaEntrada) -> dict:
         "confirmada_em": nota.confirmada_em,
         "quantidade_itens": len(nota.itens),
         "itens_sem_produto": sum(1 for i in nota.itens if i.produto_id is None),
+        "pedido_id": nota.pedido_id,
+        "pedido_numero": nota.pedido.numero if nota.pedido else None,
     }
 
 
@@ -210,7 +220,7 @@ def saida(db: Session, nota: NotaEntrada) -> NotaSaida:
                 }
             )
         )
-    return NotaSaida(**_resumo(nota), itens=itens)
+    return NotaSaida(**_resumo(nota), itens=itens, pedido=pedidos.conferencia(db, nota))
 
 
 def listar(db: Session, status: str | None, pagina: int, por_pagina: int) -> list[NotaResumo]:
@@ -288,6 +298,7 @@ def confirmar(db: Session, usuario: TokenDados, nota_id: UUID) -> NotaEntrada:
         )
 
     contas_da_nota(db, usuario.usuario_id, nota)
+    pedidos.dar_baixa(db, nota)
     nota.status = "confirmada"
     nota.confirmada_em = _agora()
     db.commit()
@@ -298,6 +309,15 @@ def cancelar(db: Session, nota_id: UUID) -> NotaEntrada:
     nota = _pendente(db, nota_id)
     nota.status = "cancelada"
     db.commit()
+    return nota
+
+
+def ligar_pedido(db: Session, nota_id: UUID, pedido_id: UUID | None) -> NotaEntrada:
+    """Troca (ou tira) o pedido de compra com que esta nota é conferida."""
+    nota = _pendente(db, nota_id)
+    pedidos.ligar_nota(db, nota, pedido_id)
+    db.commit()
+    db.refresh(nota)
     return nota
 
 

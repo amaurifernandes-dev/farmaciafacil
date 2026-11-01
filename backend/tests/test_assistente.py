@@ -290,7 +290,7 @@ def test_caixa_nao_ve_vendas_mas_ve_estoque(client, engine_dono, farmacia_a, mod
 
 
 def test_whatsapp_do_fornecedor():
-    from app.modules.assistente.compras import whatsapp
+    from app.modules.compras.pedidos import whatsapp
 
     assert whatsapp("(19) 3222-3333") == "551932223333"
     assert whatsapp("11 98765-4321") == "5511987654321"
@@ -334,7 +334,8 @@ def test_monta_pedido_de_compra_por_fornecedor(client, farmacia_a, modelo):
     distri, sem = cartao["grupos"]
     assert distri["fornecedor"] == "DistriSaúde" and distri["whatsapp"] == "551932223333"
     assert distri["itens"] == [{"produto_id": dipirona["id"], "nome": "Dipirona 500mg", "ean": "7891234567895",
-                                "quantidade": 5, "custo": "R$ 3,00", "total": "R$ 15,00"}]
+                                "quantidade": 5, "custo": "R$ 3,00", "custo_unitario": "3.00",
+                                "total": "R$ 15,00"}]
     assert "- 5 x Dipirona 500mg (EAN 7891234567895)" in distri["texto"]
     assert distri["texto"].startswith("Olá! Pedido de compra da Farmácia 11111111000111")
     assert sem["fornecedor_id"] is None and sem["itens"][0]["produto_id"] == parado["id"]

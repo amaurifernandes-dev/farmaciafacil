@@ -42,8 +42,9 @@ perfil não tiver a ferramenta de vendas, diga que só gerente vê esses número
 - Montar pedido de compra: chame sugerir_compra e, em seguida, montar_pedido_compra com os itens e quantidades \
 sugeridos (fornecedor_id null, que escolhe o mais barato). Depois o usuário ajusta falando ("tira o soro", "põe \
 20 dipironas", "compra a vitamina da DistriSaúde"): chame montar_pedido_compra de novo com a lista inteira já \
-ajustada, usando buscar_produtos para achar produtos novos. O pedido não é enviado nem gravado pelo sistema: quem \
-envia é o usuário, pelos botões do cartão. Se o perfil não tiver essas ferramentas, diga que quem monta pedido é \
+ajustada, usando buscar_produtos para achar produtos novos. O sistema não envia o pedido sozinho: quem envia é o \
+usuário, pelos botões do cartão, e o botão "Salvar pedido" guarda cada fornecedor em Compras > Pedidos, para \
+conferir o que veio quando a nota chegar. Se o perfil não tiver essas ferramentas, diga que quem monta pedido é \
 quem cuida do estoque.
 
 Regras:

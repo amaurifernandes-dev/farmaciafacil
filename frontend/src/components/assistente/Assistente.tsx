@@ -496,6 +496,34 @@ function CartaoDeTabela({ cartao, aoAbrir }: { cartao: CartaoTabela; aoAbrir: ()
 
 function CartaoDePedido({ cartao, aoAbrir }: { cartao: CartaoPedidoCompra; aoAbrir: () => void }) {
   const [copiado, setCopiado] = useState<number | null>(null);
+  // Pedido salvo de cada grupo (por índice), para não salvar duas vezes.
+  const [salvos, setSalvos] = useState<Record<number, { id: string; numero: number }>>({});
+  const [salvando, setSalvando] = useState<number | null>(null);
+  const [erroSalvar, setErroSalvar] = useState<Record<number, string>>({});
+
+  async function salvar(indice: number, grupo: CartaoPedidoCompra["grupos"][number]) {
+    if (!grupo.fornecedor_id) return;
+    setSalvando(indice);
+    setErroSalvar((atual) => ({ ...atual, [indice]: "" }));
+    try {
+      const pedido = await api<{ id: string; numero: number }>("/compras/pedidos", {
+        corpo: {
+          fornecedor_id: grupo.fornecedor_id,
+          loja_id: cartao.loja_id ?? null,
+          itens: grupo.itens.map((i) => ({
+            produto_id: i.produto_id,
+            quantidade: String(i.quantidade),
+            custo_estimado: i.custo_unitario ?? null,
+          })),
+        },
+      });
+      setSalvos((atual) => ({ ...atual, [indice]: { id: pedido.id, numero: pedido.numero } }));
+    } catch (e) {
+      setErroSalvar((atual) => ({ ...atual, [indice]: mensagem(e) }));
+    } finally {
+      setSalvando(null);
+    }
+  }
 
   async function copiar(indice: number, texto: string) {
     try {
@@ -543,6 +571,16 @@ function CartaoDePedido({ cartao, aoAbrir }: { cartao: CartaoPedidoCompra; aoAbr
             </p>
           )}
           <div className="assistente-pedido-acoes">
+            {g.fornecedor_id &&
+              (salvos[i] ? (
+                <Link to={`/compras/pedidos/${salvos[i].id}`} className="botao-pequeno-link" onClick={aoAbrir}>
+                  ✓ Pedido nº {salvos[i].numero} salvo
+                </Link>
+              ) : (
+                <button type="button" className="botao-pequeno" disabled={salvando === i} onClick={() => void salvar(i, g)}>
+                  {salvando === i ? "Salvando..." : "Salvar pedido"}
+                </button>
+              ))}
             <button type="button" className="botao-pequeno" onClick={() => void copiar(i, g.texto)}>
               {copiado === i ? "Copiado!" : "Copiar pedido"}
             </button>
@@ -565,10 +603,12 @@ function CartaoDePedido({ cartao, aoAbrir }: { cartao: CartaoPedidoCompra; aoAbr
               </a>
             )}
           </div>
+          {erroSalvar[i] && <p className="erro">{erroSalvar[i]}</p>}
         </section>
       ))}
       <p className="assistente-dica">
-        O pedido não é enviado sozinho: confira e envie pelos botões. Para mudar, é só falar (ex.: “põe 20 dipironas”).
+        O pedido não é enviado sozinho: confira e envie pelos botões. “Salvar pedido” guarda em Compras › Pedidos para
+        conferir quando a nota chegar. Para mudar, é só falar (ex.: “põe 20 dipironas”).
       </p>
       <Link to="/compras/sugestao" className="botao-contorno assistente-link" onClick={aoAbrir}>
         Abrir sugestão de compras
