@@ -1,0 +1,31 @@
+# HTTPS na rede da farmácia. O navegador só libera o caixa sem internet, a câmera e o login
+# guardado em página segura (https), então o Caddy cria um certificado próprio da farmácia.
+{
+	local_certs
+}
+
+https://{$ENDERECO}, https://localhost {
+	tls internal
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy servidor:8000
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Pela porta 80: o certificado para instalar em cada computador e o resto vai para o https.
+http:// {
+	handle /certificado.crt {
+		root * /data/caddy/pki/authorities/local
+		rewrite * /root.crt
+		file_server
+	}
+	handle {
+		redir https://{host}{uri}
+	}
+}
