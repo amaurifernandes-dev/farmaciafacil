@@ -68,5 +68,7 @@ class Conta(TabelaDaFarmacia, Base):
     venda_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     convenio_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # fatura mensal de um convênio
     observacao: Mapped[str | None] = mapped_column(String(300))
+    # Boleto: os 44 números do código de barras (a linha digitável sai dele).
+    codigo_barras: Mapped[str | None] = mapped_column(String(44))
     usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     baixada_por: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))

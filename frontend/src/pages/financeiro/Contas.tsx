@@ -7,6 +7,7 @@ import Icone from "../../components/Icone";
 import SeletorLoja from "../../components/SeletorLoja";
 import { data, reais } from "../../formato";
 import { useLojas } from "../../lojas";
+import { CopiarCodigo, LancarBoleto, SemanaPagar } from "./Boleto";
 
 const TEXTOS = {
   pagar: {
@@ -63,6 +64,9 @@ export default function Contas({ tipo }: { tipo: TipoConta }) {
   const [baixando, setBaixando] = useState<Conta | null>(null);
   const [editando, setEditando] = useState<Conta | null>(null);
   const [novaConta, setNovaConta] = useState(false);
+  const [lancandoBoleto, setLancandoBoleto] = useState(false);
+  const [versao, setVersao] = useState(0);
+  const [aviso, setAviso] = useState("");
   const [erro, setErro] = useState("");
 
   const carregar = useCallback(() => {
@@ -85,12 +89,19 @@ export default function Contas({ tipo }: { tipo: TipoConta }) {
     api<Categorias>("/financeiro/categorias").then(setCategorias).catch(() => setCategorias(null));
   }, []);
 
+  /** Depois de lançar, pagar ou editar: recarrega a lista e a semana. */
+  function atualizar(mensagemOk = "") {
+    carregar();
+    setVersao((v) => v + 1);
+    setAviso(mensagemOk);
+  }
+
   const nomeCategoria = (id: string) => categorias?.[tipo].find((c) => c.id === id)?.nome ?? id;
 
   async function acao(conta: Conta, caminho: "estornar" | "cancelar") {
     try {
       await api(`/financeiro/contas/${conta.id}/${caminho}`, { corpo: {} });
-      carregar();
+      atualizar();
     } catch (e) {
       setErro(mensagem(e));
     }
@@ -105,10 +116,22 @@ export default function Contas({ tipo }: { tipo: TipoConta }) {
           <h1>{textos.titulo}</h1>
           <p className="vazio">{textos.descricao}</p>
         </div>
-        <button type="button" className="botao" onClick={() => setNovaConta(true)}>
-          <Icone nome="mais" /> Nova conta
-        </button>
+        <div className="acoes">
+          {tipo === "pagar" && (
+            <button type="button" className="botao" onClick={() => setLancandoBoleto(true)}>
+              <Icone nome="recibo" /> Lançar boleto
+            </button>
+          )}
+          <button type="button" className={tipo === "pagar" ? "botao-contorno" : "botao"} onClick={() => setNovaConta(true)}>
+            <Icone nome="mais" /> Nova conta
+          </button>
+        </div>
       </div>
+      {aviso && (
+        <p className="ok" role="status">
+          {aviso}
+        </p>
+      )}
 
       {totais && (
         <div className="indicadores indicadores-financeiro">
@@ -136,7 +159,9 @@ export default function Contas({ tipo }: { tipo: TipoConta }) {
         </div>
       )}
 
-      <section className="cartao">
+      {tipo === "pagar" && <SemanaPagar versao={versao} aoPagar={setBaixando} />}
+
+      <section className="cartao espaco-acima">
         <div className="barra filtros-contas">
           <select value={situacao} onChange={(e) => setSituacao(e.target.value as SituacaoConta)}>
             {SITUACOES.map((s) => (
@@ -186,6 +211,11 @@ export default function Contas({ tipo }: { tipo: TipoConta }) {
                         {c.parcelas > 1 && `Parcela ${c.parcela}/${c.parcelas}`}
                         {c.parcelas > 1 && c.documento && " · "}
                         {c.documento && `Doc. ${c.documento}`}
+                        {c.linha_digitavel && (
+                          <span className="etiqueta etiqueta-neutra etiqueta-boleto" title={c.linha_digitavel}>
+                            boleto
+                          </span>
+                        )}
                       </small>
                     </td>
                     <td>{c.pessoa ?? "-"}</td>
@@ -201,6 +231,7 @@ export default function Contas({ tipo }: { tipo: TipoConta }) {
                     <td className="acoes-tabela">
                       {c.status === "aberta" && (
                         <>
+                          <CopiarCodigo conta={c} />
                           <button type="button" className="botao-pequeno" onClick={() => setBaixando(c)}>
                             {textos.baixar}
                           </button>
@@ -240,7 +271,7 @@ export default function Contas({ tipo }: { tipo: TipoConta }) {
           aoFechar={() => setBaixando(null)}
           aoSalvar={() => {
             setBaixando(null);
-            carregar();
+            atualizar(`${baixando.descricao}: ${tipo === "pagar" ? "paga" : "recebida"}.`);
           }}
         />
       )}
@@ -251,7 +282,7 @@ export default function Contas({ tipo }: { tipo: TipoConta }) {
           aoFechar={() => setEditando(null)}
           aoSalvar={() => {
             setEditando(null);
-            carregar();
+            atualizar();
           }}
         />
       )}
@@ -262,7 +293,17 @@ export default function Contas({ tipo }: { tipo: TipoConta }) {
           aoFechar={() => setNovaConta(false)}
           aoSalvar={() => {
             setNovaConta(false);
-            carregar();
+            atualizar();
+          }}
+        />
+      )}
+      {lancandoBoleto && categorias && (
+        <LancarBoleto
+          categorias={categorias.pagar}
+          aoFechar={() => setLancandoBoleto(false)}
+          aoSalvar={(mensagemOk) => {
+            setLancandoBoleto(false);
+            atualizar(mensagemOk);
           }}
         />
       )}
@@ -367,6 +408,7 @@ function Editar({
   const [categoria, setCategoria] = useState(conta.categoria);
   const [vencimento, setVencimento] = useState(conta.vencimento);
   const [valor, setValor] = useState(conta.valor.replace(".", ","));
+  const [boleto, setBoleto] = useState(conta.linha_digitavel ?? "");
   const [erro, setErro] = useState("");
 
   async function salvar(evento: FormEvent) {
@@ -374,6 +416,7 @@ function Editar({
     try {
       const corpo: Record<string, string> = { descricao, categoria, vencimento };
       if (!conta.venda_id) corpo.valor = paraApi(valor);
+      if (boleto.trim() !== (conta.linha_digitavel ?? "")) corpo.codigo_barras = boleto.trim();
       await api(`/financeiro/contas/${conta.id}`, { metodo: "PATCH", corpo });
       aoSalvar();
     } catch (e) {
@@ -397,6 +440,13 @@ function Editar({
             Valor (R$)
             <input value={valor} onChange={(e) => setValor(e.target.value)} disabled={Boolean(conta.venda_id)} required />
           </label>
+          {conta.tipo === "pagar" && (
+            <label className="largo">
+              Boleto (opcional)
+              <input value={boleto} onChange={(e) => setBoleto(e.target.value)} placeholder="Bipe ou cole a linha digitável" inputMode="numeric" />
+              <small>Deixe vazio para tirar o boleto da conta.</small>
+            </label>
+          )}
           <label className="largo">
             Categoria
             <select value={categoria} onChange={(e) => setCategoria(e.target.value)}>

@@ -148,6 +148,20 @@ A venda em andamento fica salva no navegador até ser finalizada.
   com vendas por forma, sangrias, suprimentos, a conferência somada dos caixas fechados e o motivo de cada diferença.
   Dá para imprimir. Na API: `GET /caixas/relatorio?dia=AAAA-MM-DD&loja_id=...`.
 
+## Contas a pagar com boleto
+
+Em **Financeiro > Contas a pagar**, o botão **Lançar boleto** aceita o leitor de código de barras (44 números) ou a
+linha digitável colada (47 números no boleto bancário, 48 nas contas de água, luz, telefone e impostos).
+
+- O sistema confere os dígitos verificadores e mostra banco (ou tipo de conta), valor e vencimento. O vencimento usa o
+  fator FEBRABAN, que recomeçou em 1000 em 22/02/2025.
+- O mesmo boleto não é lançado duas vezes (se cancelado, pode ser lançado de novo).
+- Se já existir conta a pagar em aberto, sem boleto, com o mesmo valor e vencimento até 5 dias de diferença (por
+  exemplo, a parcela de uma nota de compra), o sistema oferece ligar o boleto a ela em vez de criar outra.
+- **O que pagar nesta semana**: as atrasadas e os próximos 7 dias, dia a dia, com botão para copiar o código e colar
+  no aplicativo do banco. A tela inicial da gerência avisa quanto vence nos próximos dias.
+- Na API: `POST /financeiro/boletos/ler`, `GET /financeiro/semana` e o campo `codigo_barras` nas contas.
+
 ## Gerenciamento de telas
 
 Em **Configurações > Gerenciamento de telas** (só administrador) a farmácia liga e desliga funções inteiras:

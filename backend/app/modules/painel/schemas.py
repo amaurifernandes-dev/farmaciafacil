@@ -77,6 +77,7 @@ class BlocoFarmacia(BaseModel):
 class Gestao(BaseModel):
     pagar_vencidas: Soma
     pagar_hoje: Soma
+    pagar_semana: Soma | None = None  # de amanhã até daqui a 6 dias
     receber_vencidas: Soma
     envios_recusados: int  # vendas sem internet que o servidor recusou, para resolver
 

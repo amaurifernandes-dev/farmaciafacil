@@ -109,6 +109,7 @@ def _gestao(db: Session) -> dict:
     return {
         "pagar_vencidas": contas("pagar", Conta.vencimento < hoje()),
         "pagar_hoje": contas("pagar", Conta.vencimento == hoje()),
+        "pagar_semana": contas("pagar", Conta.vencimento.between(hoje() + timedelta(days=1), hoje() + timedelta(days=6))),
         "receber_vencidas": contas("receber", Conta.vencimento < hoje()),
         "envios_recusados": db.scalar(
             select(func.count()).select_from(EnvioRecusado).where(EnvioRecusado.resolvido_em.is_(None))
