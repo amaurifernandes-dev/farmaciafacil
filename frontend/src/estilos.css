@@ -743,6 +743,7 @@ button.servico-opcao:disabled { opacity: 0.55; cursor: not-allowed; border-color
 .pdv-guardada-problema { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid #f5c58a; }
 .pdv-guardada-problema small { color: #b42318; }
 .pdv-guardada-problema button { align-self: flex-start; }
+.cartao td.texto-erro { min-width: 200px; }
 .pdv-fila-nota { margin: 0; padding: 8px 12px; border-radius: 8px; background: #fff4e5; border: 1px solid #f5c58a; font-size: 14px; }
 .pdv-centro .pdv-offline { margin: 0; border-radius: 8px; padding: 6px 10px; }
 .pdv-fechado-guardado { margin: 0; color: #b54708; font-weight: 600; }

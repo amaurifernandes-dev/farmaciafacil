@@ -30,7 +30,7 @@ from app.modules.produtos.models import Produto
 from app.modules.servicos.service import recebido_no_caixa as servicos_no_caixa
 from app.modules.promocoes.models import Promocao
 from app.modules.promocoes.service import melhor, vigentes_por_produto
-from app.modules.vendas.models import Caixa, PreVenda, Venda, VendaItem, VendaPagamento
+from app.modules.vendas.models import Caixa, EnvioRecusado, PreVenda, Venda, VendaItem, VendaPagamento
 from app.modules.vendas.schemas import CaixaAbrir, CaixaFechar, CaixaSaida, PreVendaCriar, PreVendaSaida, ResumoCaixa, VendaCriar
 from app.shared.datas import hoje
 from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado, SemPermissao
@@ -70,6 +70,15 @@ def _conferir_hora_offline(offline_em: datetime, oque: str) -> None:
         raise ErroDeNegocio(f"Envio {oque} offline com mais de 7 dias. Peça a um gerente para lançar à mão.")
 
 
+def resolver_recusa(db: Session, chave: str) -> None:
+    """O envio recusado antes acabou entrando (o PDV tentou de novo): sai da lista do gerente."""
+    db.execute(
+        update(EnvioRecusado)
+        .where(EnvioRecusado.chave == chave, EnvioRecusado.resolvido_em.is_(None))
+        .values(resolvido_em=_agora(), resolucao="enviada")
+    )
+
+
 def conferir_acesso_offline(db: Session, usuario: TokenDados, terminal_id: UUID | None, offline_em: datetime | None) -> None:
     """O acesso offline só envia o que foi feito sem internet, no PDV dele, depois de guardado."""
     if usuario.escopo == "completo":
@@ -94,6 +103,8 @@ def abrir_caixa(db: Session, usuario: TokenDados, terminal: Terminal | None, dad
         if ja_aberto is not None:
             if ja_aberto.terminal_id != terminal.id or ja_aberto.usuario_id != usuario.usuario_id:
                 raise Conflito("Já existe outro caixa com este código")
+            resolver_recusa(db, f"abrir-{dados.id}")
+            db.commit()
             return ja_aberto
     if dados.offline_em is not None:
         _conferir_hora_offline(dados.offline_em, "da abertura do caixa")
@@ -117,6 +128,7 @@ def abrir_caixa(db: Session, usuario: TokenDados, terminal: Terminal | None, dad
     )
     if dados.id is not None:
         caixa.id = dados.id
+        resolver_recusa(db, f"abrir-{dados.id}")
     db.add(caixa)
     try:
         db.commit()
@@ -204,6 +216,8 @@ def fechar_caixa(db: Session, usuario: TokenDados, caixa_id: UUID, dados: CaixaF
         raise SemPermissao("Só o próprio operador ou um gerente pode fechar este caixa")
     if caixa.status != "aberto":
         if dados.offline_em is not None and caixa.fechado_em == dados.offline_em:
+            resolver_recusa(db, f"fechar-{caixa.id}")
+            db.commit()
             return resumo_caixa(db, caixa)  # fechamento offline reenviado
         raise Conflito("Este caixa já está fechado")
     if dados.offline_em is not None:
@@ -214,6 +228,8 @@ def fechar_caixa(db: Session, usuario: TokenDados, caixa_id: UUID, dados: CaixaF
     caixa.fechado_em = dados.offline_em or _agora()
     caixa.fechado_offline = dados.offline_em is not None
     caixa.valor_fechamento_informado = dados.valor_fechamento_informado
+    if caixa.fechado_offline:
+        resolver_recusa(db, f"fechar-{caixa.id}")
     resumo = resumo_caixa(db, caixa)
     db.commit()
     return resumo
@@ -240,6 +256,9 @@ def registrar_venda(
     """
     existente = _venda_pela_chave(db, dados.chave_idempotencia)
     if existente is not None:
+        if existente.offline:
+            resolver_recusa(db, str(dados.chave_idempotencia))
+            db.commit()
         return existente, False
 
     offline = dados.offline_em is not None
@@ -414,6 +433,8 @@ def registrar_venda(
         )
         pre_venda.venda_id = venda.id
         pre_venda.finalizada_em = venda.finalizada_em
+    if offline:
+        resolver_recusa(db, str(dados.chave_idempotencia))
 
     try:
         db.commit()

@@ -1222,3 +1222,46 @@ export interface ListaDevolucoes {
   em_dinheiro: string;
   em_vale: string;
 }
+
+// --- Painel das vendas feitas sem internet ---
+
+export interface VendaOffline {
+  id: string;
+  numero: number;
+  feita_em: string;
+  chegou_em: string;
+  operador: string;
+  terminal: string | null;
+  total: string;
+  status: string;
+}
+
+export interface ItemSemEstoque {
+  venda_id: string;
+  numero: number;
+  feita_em: string;
+  produto: string;
+  quantidade: string;
+}
+
+export interface EnvioRecusado {
+  id: string;
+  tipo: "venda" | "abrir" | "fechar";
+  feito_em: string;
+  avisado_em: string;
+  operador: string;
+  terminal: string | null;
+  total: string;
+  motivo: string;
+  resolvido_em: string | null;
+  resolucao: "enviada" | "manual" | null;
+}
+
+export interface PainelOffline {
+  de: string;
+  ate: string;
+  resumo: { vendas: number; total: string; caixas: number; itens_sem_estoque: number; recusas_pendentes: number };
+  vendas: VendaOffline[];
+  sem_estoque: ItemSemEstoque[];
+  recusas: EnvioRecusado[];
+}

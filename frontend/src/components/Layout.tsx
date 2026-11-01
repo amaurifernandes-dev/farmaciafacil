@@ -19,6 +19,7 @@ const MENU: ItemMenu[] = [
   { para: "/devolucoes", rotulo: "Trocas e devoluções", icone: "troca", pode: ehGerente },
   { para: "/pedidos", rotulo: "Pedidos", icone: "recibo" },
   { para: "/caixas", rotulo: "Caixas", icone: "caixa" },
+  { para: "/vendas-offline", rotulo: "Vendas sem internet", icone: "alerta", pode: ehGerente },
   { para: "/clientes", rotulo: "Clientes", icone: "pessoa", agrupa: true },
   { para: "/convenios", rotulo: "Convênios", icone: "loja", agrupa: true, pode: ehGerente },
   { para: "/popular", rotulo: "Farmácia Popular", icone: "remedio", pode: ehGerente },

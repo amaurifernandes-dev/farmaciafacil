@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKeyConstraint, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKeyConstraint, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -152,3 +152,25 @@ class PreVenda(TabelaDaFarmacia, Base):
     pago_antecipado: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     venda_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     finalizada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EnvioRecusado(TabelaDaFarmacia, Base):
+    """Venda, abertura ou fechamento feito sem internet que o servidor recusou ao chegar."""
+
+    __tablename__ = "envios_recusados"
+    __table_args__ = (
+        UniqueConstraint("farmacia_id", "chave", name="uq_envios_recusados_chave"),
+        ForeignKeyConstraint(["farmacia_id", "terminal_id"], ["terminais.farmacia_id", "terminais.id"]),
+    )
+
+    terminal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    chave: Mapped[str] = mapped_column(String(80))  # a mesma da fila do PDV
+    tipo: Mapped[str] = mapped_column(String(10))  # venda, abrir, fechar
+    feito_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    motivo: Mapped[str] = mapped_column(Text)
+    corpo: Mapped[dict] = mapped_column(JSONB)
+    resolvido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolvido_por: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    resolucao: Mapped[str | None] = mapped_column(String(10))  # enviada (entrou depois) ou manual
