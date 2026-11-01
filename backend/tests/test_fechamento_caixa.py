@@ -1,4 +1,10 @@
-from tests.test_vendas import API, _abrir_caixa, _login_caixa, _produto_com_estoque, _venda
+from tests.test_vendas import (
+    API,
+    _abrir_caixa,
+    _login_caixa,
+    _produto_com_estoque,
+    _venda,
+)
 
 
 def _vender(client, farmacia, produto, forma, valor):
