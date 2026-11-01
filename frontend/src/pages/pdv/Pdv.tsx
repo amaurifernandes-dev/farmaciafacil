@@ -14,7 +14,10 @@ import type {
   ValeTroca,
 } from "../../api/tipos";
 import { quantidade as fmtQtd, reais } from "../../formato";
-import { useSessao } from "../../sessao";
+import { ehGerente, useSessao } from "../../sessao";
+import { guardarVenda, lerCatalogo, salvarCatalogo, vendasGuardadas, type CatalogoLocal, type VendaGuardada } from "../../offline/banco";
+import { baixarSaldos, ehFalhaDeRede, porCodigo, porNome } from "../../offline/catalogo";
+import { enviarGuardadas, tentarDeNovo } from "../../offline/sincronizar";
 import {
   adicionarProduto,
   alterarQuantidade,
@@ -29,9 +32,11 @@ import {
   lerQuantidade,
   maximoDePontos,
   montarVenda,
+  montarVendaOffline,
   novoCarrinho,
   paraCentavos,
   parteDoGoverno,
+  problemaOffline,
   problemaParaFinalizar,
   promocaoDoItem,
   receituarioDoCarrinho,
@@ -82,6 +87,19 @@ const FORMAS: { tecla: string; forma: FormaPagamento; nome: string }[] = [
 ];
 
 const CHAVE_VENDA = "ff.venda-em-andamento";
+// O último PDV e caixa vistos com internet: sem eles o caixa não abriria offline.
+const CHAVE_ESTADO = "ff.pdv-estado";
+const CATALOGO_A_CADA = 5 * 60 * 1000;
+const ENVIO_A_CADA = 20 * 1000;
+
+function lerEstadoSalvo(): { terminal: EsteTerminal; caixa: ResumoCaixa } | null {
+  try {
+    const bruto = localStorage.getItem(CHAVE_ESTADO);
+    return bruto ? JSON.parse(bruto) : null;
+  } catch {
+    return null;
+  }
+}
 
 // A venda em andamento fica no navegador: se a página recarregar, nada se perde.
 function carregarCarrinho(): Carrinho {
@@ -115,6 +133,10 @@ export default function Pdv() {
   const [faltaPendente, setFaltaPendente] = useState<FaltaPendente | null>(null);
   // Vale-troca conferido (Alt+8), esperando o valor a usar dele.
   const [valeAtual, setValeAtual] = useState<{ codigo: string; saldoCentavos: number } | null>(null);
+  // Sem internet o caixa continua: usa a cópia do catálogo e guarda as vendas para enviar depois.
+  const [online, setOnline] = useState(true);
+  const [catalogo, setCatalogo] = useState<CatalogoLocal | null>(null);
+  const [guardadas, setGuardadas] = useState<VendaGuardada[]>([]);
   const campo = useRef<HTMLInputElement>(null);
 
   const atualizarCaixa = useCallback(async () => {
@@ -122,16 +144,109 @@ export default function Pdv() {
       const este = await lerEsteTerminal();
       setTerminal(este);
       if (!este?.pode_receber) return;
-      setCaixa(await api<ResumoCaixa>("/caixas/atual"));
+      const atual = await api<ResumoCaixa>("/caixas/atual");
+      setCaixa(atual);
+      setOnline(true);
+      localStorage.setItem(CHAVE_ESTADO, JSON.stringify({ terminal: este, caixa: atual }));
     } catch (e) {
-      if (e instanceof ErroApi && e.status === 404) setCaixa(null);
-      else setAviso({ tipo: "erro", texto: mensagem(e) });
+      if (e instanceof ErroApi && e.status === 404) {
+        setCaixa(null);
+        localStorage.removeItem(CHAVE_ESTADO);
+      } else if (ehFalhaDeRede(e) && lerEstadoSalvo()) {
+        const salvo = lerEstadoSalvo()!;
+        setTerminal(salvo.terminal);
+        setCaixa(salvo.caixa);
+        setOnline(false);
+      } else setAviso({ tipo: "erro", texto: mensagem(e) });
     }
   }, []);
 
   useEffect(() => {
     atualizarCaixa();
   }, [atualizarCaixa]);
+
+  const caixaPronto = !!caixa;
+
+  // Cópia do catálogo: abre a guardada na hora e troca pela nova a cada 5 minutos, se tiver internet.
+  useEffect(() => {
+    if (!caixaPronto) return;
+    let ativo = true;
+    lerCatalogo().then((guardado) => ativo && guardado && setCatalogo((atual) => atual ?? guardado));
+    async function baixar() {
+      try {
+        const novo = await api<CatalogoLocal>("/pdv/catalogo");
+        await salvarCatalogo(novo);
+        if (ativo) setCatalogo(novo);
+      } catch {
+        /* sem internet: fica a cópia que já tem */
+      }
+    }
+    baixar();
+    const relogio = setInterval(baixar, CATALOGO_A_CADA);
+    return () => {
+      ativo = false;
+      clearInterval(relogio);
+    };
+  }, [caixaPronto]);
+
+  const enviarPendentes = useCallback(async () => {
+    const fila = await vendasGuardadas();
+    setGuardadas(fila);
+    if (!fila.some((v) => !v.problema)) {
+      // Nada para enviar: só confere se a internet voltou.
+      try {
+        const resposta = await fetch("/api/saude");
+        if (resposta.ok) setOnline(true);
+      } catch {
+        setOnline(false);
+      }
+      return;
+    }
+    const resultado = await enviarGuardadas();
+    setGuardadas(await vendasGuardadas());
+    if (resultado.enviadas.length > 0) {
+      setOnline(true);
+      const n = resultado.enviadas.length;
+      setAviso({ tipo: "ok", texto: `Internet de volta: ${n} venda${n > 1 ? "s" : ""} feita${n > 1 ? "s" : ""} sem internet ${n > 1 ? "foram enviadas" : "foi enviada"}.` });
+      atualizarCaixa();
+    } else if (resultado.semInternet) setOnline(false);
+  }, [atualizarCaixa]);
+
+  useEffect(() => {
+    if (!caixaPronto) return;
+    enviarPendentes();
+    const relogio = setInterval(enviarPendentes, ENVIO_A_CADA);
+    const voltou = () => enviarPendentes();
+    const caiu = () => setOnline(false);
+    window.addEventListener("online", voltou);
+    window.addEventListener("offline", caiu);
+    return () => {
+      clearInterval(relogio);
+      window.removeEventListener("online", voltou);
+      window.removeEventListener("offline", caiu);
+    };
+  }, [caixaPronto, enviarPendentes]);
+
+  /** Pelo código de barras: no servidor, ou na cópia do catálogo se a internet caiu. */
+  async function produtoPorCodigo(codigo: string): Promise<ProdutoPDV> {
+    if (online) {
+      try {
+        return await api<ProdutoPDV>(`/produtos/ean/${codigo}`);
+      } catch (e) {
+        if (!ehFalhaDeRede(e)) throw e;
+        setOnline(false);
+      }
+    }
+    const local = catalogo ? porCodigo(catalogo.produtos, codigo) : null;
+    if (!local) throw new Error(catalogo ? "Produto não encontrado" : "Sem internet e sem a cópia do catálogo");
+    return local;
+  }
+
+  function precisaInternet(oque: string): boolean {
+    if (online) return false;
+    erro(`Sem internet: ${oque} volta a funcionar quando a internet voltar.`);
+    return true;
+  }
 
   useEffect(() => {
     localStorage.setItem(CHAVE_VENDA, JSON.stringify(carrinho));
@@ -185,6 +300,7 @@ export default function Pdv() {
 
   /** A prazo precisa de um cliente com limite: escolhe antes de lançar o valor. */
   function escolherForma(nova: FormaPagamento) {
+    if (!["dinheiro", "debito", "credito", "pix"].includes(nova) && precisaInternet("fiado, convênio e vale-troca")) return;
     setForma(nova);
     if (nova === "vale") {
       setValeAtual(null);
@@ -204,6 +320,7 @@ export default function Pdv() {
   /** Alt+7: venda pela Farmácia Popular. */
   function abrirPopular() {
     if (carrinho.itens.length === 0) return;
+    if (precisaInternet("a Farmácia Popular")) return;
     if (itensDoPopular(carrinho).length === 0 && !carrinho.popular) {
       return erro("Nenhum remédio desta venda está na Farmácia Popular. Marque no cadastro do produto quanto o governo paga.");
     }
@@ -344,7 +461,7 @@ export default function Pdv() {
       return;
     }
     try {
-      const produto = await api<ProdutoPDV>(`/produtos/ean/${lido.codigo}`);
+      const produto = await produtoPorCodigo(lido.codigo);
       incluir(produto, lido.quantidade);
     } catch (e) {
       setFaltaPendente({ descricao: "", quantidade: lido.quantidade });
@@ -370,13 +487,24 @@ export default function Pdv() {
 
   async function buscar(termo: string) {
     try {
-      const pagina = await api<PaginaProdutos>(`/produtos?busca=${encodeURIComponent(termo)}&por_pagina=20`);
+      let pagina: { itens: ProdutoPDV[] } | null = null;
+      if (online) {
+        try {
+          const achados = await api<PaginaProdutos>(`/produtos?busca=${encodeURIComponent(termo)}&por_pagina=20`);
+          // A listagem não traz saldo; o PDV consulta pelo EAN ao escolher.
+          pagina = { itens: achados.itens.map((p) => ({ ...p, saldo: "0" })) };
+        } catch (e) {
+          if (!ehFalhaDeRede(e)) throw e;
+          setOnline(false);
+        }
+      }
+      // Sem internet, procura na cópia (que já vem com o saldo).
+      if (!pagina) pagina = { itens: catalogo ? porNome(catalogo.produtos, termo) : [] };
       if (pagina.itens.length === 0) {
         setFaltaPendente({ descricao: termo.trim(), quantidade: 1 });
         return erro(`Nenhum produto encontrado para "${termo}". F1 anota na lista de faltas.`);
       }
-      // A listagem não traz saldo; o PDV consulta pelo EAN ao escolher.
-      setResultados(pagina.itens.map((p) => ({ ...p, saldo: "0" })));
+      setResultados(pagina.itens);
       setIndiceBusca(0);
       setModo("busca");
       setTexto(termo);
@@ -387,7 +515,7 @@ export default function Pdv() {
 
   async function escolherDaBusca(produto: ProdutoPDV) {
     try {
-      const completo = produto.ean ? await api<ProdutoPDV>(`/produtos/ean/${produto.ean}`) : produto;
+      const completo = produto.ean ? await produtoPorCodigo(produto.ean) : produto;
       incluir(completo, 1);
     } catch (e) {
       erro(mensagem(e));
@@ -399,6 +527,7 @@ export default function Pdv() {
     const numero = Number(numeroDigitado.trim().replace("#", ""));
     if (!Number.isInteger(numero) || numero <= 0) return erro("Número de pré-venda inválido");
     if (carrinho.itens.length > 0) return erro("Finalize ou cancele a venda atual antes de receber uma pré-venda");
+    if (precisaInternet("receber pré-venda")) return;
     try {
       const pre = await api<PreVenda>(`/pre-vendas/numero/${numero}`);
       if (pre.status !== "aberta") return erro(`A pré-venda nº ${numero} já foi ${pre.status}`);
@@ -475,9 +604,42 @@ export default function Pdv() {
     }
   }
 
+  /** Sem internet: guarda a venda neste computador para enviar sozinha quando a internet voltar. */
+  async function guardarSemInternet() {
+    if (!caixa) return;
+    const problema = problemaOffline(carrinho, Number(catalogo?.desconto_maximo_caixa ?? 0), ehGerente(sessao));
+    if (problema) return erro(problema);
+    try {
+      await guardarVenda({
+        chave: carrinho.chave,
+        corpo: montarVendaOffline(carrinho, caixa.caixa.id, new Date()),
+        total_centavos: total(carrinho),
+        itens: carrinho.itens.length,
+        guardada_em: new Date().toISOString(),
+      });
+    } catch (e) {
+      return erro(`Não deu para guardar a venda neste computador: ${mensagem(e)}`);
+    }
+    if (catalogo) {
+      const atualizado = { ...catalogo, produtos: baixarSaldos(catalogo.produtos, carrinho.itens) };
+      setCatalogo(atualizado);
+      salvarCatalogo(atualizado).catch(() => undefined);
+    }
+    const valorTroco = troco(carrinho);
+    setCarrinho(novoCarrinho());
+    setSelecionado(-1);
+    mudarModo("venda");
+    setGuardadas(await vendasGuardadas());
+    setAviso({
+      tipo: "ok",
+      texto: `Sem internet: venda guardada neste computador.${valorTroco > 0 ? ` Troco: ${reais(valorTroco)}.` : ""} Ela é enviada sozinha quando a internet voltar.`,
+    });
+  }
+
   async function finalizar() {
     const problema = problemaParaFinalizar(carrinho);
     if (problema) return erro(problema);
+    if (!online) return guardarSemInternet();
     setEnviando(true);
     try {
       const venda = await api<Venda>("/vendas", { corpo: montarVenda(carrinho) });
@@ -494,7 +656,11 @@ export default function Pdv() {
       );
       atualizarCaixa();
     } catch (e) {
-      erro(mensagem(e));
+      if (ehFalhaDeRede(e)) {
+        // Caiu na hora de enviar: guarda com a mesma chave (se o servidor recebeu, não duplica).
+        setOnline(false);
+        await guardarSemInternet();
+      } else erro(mensagem(e));
     } finally {
       setEnviando(false);
     }
@@ -590,10 +756,15 @@ export default function Pdv() {
         },
         F5: () => receituarioDoCarrinho(carrinho) && mudarModo("receita"),
         F6: () => carrinho.itens.length > 0 && mudarModo("desconto"),
-        F7: () => mudarModo("preVenda"),
-        F8: () => (modo === "venda" || modo === "pagamento") && identificarCliente(false),
-        F9: () => (modo === "venda" || modo === "pagamento") && usarPontos(),
-        F10: () => carrinho.itens.length === 0 ? mudarModo("fechar") : erro("Finalize ou cancele a venda antes de fechar o caixa"),
+        F7: () => !precisaInternet("receber pré-venda") && mudarModo("preVenda"),
+        F8: () => (modo === "venda" || modo === "pagamento") && !precisaInternet("identificar o cliente") && identificarCliente(false),
+        F9: () => (modo === "venda" || modo === "pagamento") && !precisaInternet("usar pontos") && usarPontos(),
+        F10: () => {
+          if (carrinho.itens.length > 0) return erro("Finalize ou cancele a venda antes de fechar o caixa");
+          if (precisaInternet("fechar o caixa")) return;
+          if (guardadas.length > 0) return erro("Ainda há vendas feitas sem internet para enviar. Espere o envio antes de fechar o caixa.");
+          mudarModo("fechar");
+        },
         Escape: () => {
           if (modo === "cliente" && clienteParaPrazo) {
             setClienteParaPrazo(false);
@@ -755,6 +926,7 @@ export default function Pdv() {
         <strong>
           FarmáciaFácil · {terminal.terminal.nome} · {terminal.loja.nome}
         </strong>
+        {!online && <span className="pdv-offline">Sem internet · as vendas ficam guardadas neste computador</span>}
         <span>
           {carrinho.preVenda && <>Pré-venda nº {carrinho.preVenda.numero} · </>}
           {sessao?.nome} · Caixa aberto · {caixa.quantidade_vendas} vendas · {reais(caixa.total_vendido)}
@@ -798,6 +970,16 @@ export default function Pdv() {
       </section>
 
       <aside className="pdv-lateral">
+        {guardadas.length > 0 && (
+          <VendasGuardadas
+            guardadas={guardadas}
+            online={online}
+            aoTentar={async (chave) => {
+              await tentarDeNovo(chave);
+              enviarPendentes();
+            }}
+          />
+        )}
         <div className="totais">
           <div>Subtotal <span>{reais(subtotal(carrinho))}</span></div>
           {descontoPromocoes(carrinho) > 0 && (
@@ -1061,6 +1243,44 @@ function SemCaixaAqui({ terminal }: { terminal: EsteTerminal | null }) {
       </Link>
       <Link to="/caixas">Ir para Caixas</Link>
       <Link to="/">Ir para o início</Link>
+    </div>
+  );
+}
+
+function VendasGuardadas({
+  guardadas,
+  online,
+  aoTentar,
+}: {
+  guardadas: VendaGuardada[];
+  online: boolean;
+  aoTentar: (chave: string) => void;
+}) {
+  const esperando = guardadas.filter((v) => !v.problema);
+  const comProblema = guardadas.filter((v) => v.problema);
+  const soma = esperando.reduce((total, v) => total + v.total_centavos, 0);
+  return (
+    <div className="pdv-guardadas">
+      {esperando.length > 0 && (
+        <p>
+          <strong>
+            {esperando.length} venda{esperando.length > 1 ? "s" : ""} esperando internet · {reais(soma)}
+          </strong>
+          <small>{online ? "Enviando..." : "São enviadas sozinhas quando a internet voltar."}</small>
+        </p>
+      )}
+      {comProblema.map((v) => (
+        <div key={v.chave} className="pdv-guardada-problema">
+          <strong>
+            Venda de {new Date(v.corpo.offline_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} ·{" "}
+            {reais(v.total_centavos)} não entrou
+          </strong>
+          <small>{v.problema}</small>
+          <button type="button" className="botao-pequeno" onClick={() => aoTentar(v.chave)}>
+            Tentar de novo
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

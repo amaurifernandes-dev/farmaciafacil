@@ -66,6 +66,8 @@ class Venda(TabelaDaFarmacia, Base):
     # Desconto da empresa conveniada do cliente (também já dentro de desconto).
     desconto_convenio: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     chave_idempotencia: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # Feita no caixa sem internet e enviada depois (finalizada_em é a hora no caixa).
+    offline: Mapped[bool] = mapped_column(Boolean, default=False)
     finalizada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     cancelada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     motivo_cancelamento: Mapped[str | None] = mapped_column(String(200))
@@ -101,6 +103,8 @@ class VendaItem(TabelaDaFarmacia, Base):
     desconto_promocao: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     # % de comissão no dia da venda. Vazio nas vendas antigas: vale a regra de hoje.
     comissao: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    # Vendido sem saldo no sistema (venda offline): o estoque do sistema estava abaixo do real.
+    sem_estoque: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=0)
 
 
 class VendaPagamento(TabelaDaFarmacia, Base):

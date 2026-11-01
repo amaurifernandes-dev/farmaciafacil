@@ -342,3 +342,39 @@ export function montarVenda(carrinho: Carrinho, cpf?: string) {
     popular: carrinho.popular ?? null,
   };
 }
+
+/** Sem internet o caixa só vende o que não depende de conferir algo no servidor na hora. */
+export const FORMAS_OFFLINE: FormaPagamento[] = ["dinheiro", "debito", "credito", "pix"];
+
+export function problemaOffline(carrinho: Carrinho, descontoMaximo: number, gerente: boolean): string | null {
+  const outra = carrinho.pagamentos.find((p) => !FORMAS_OFFLINE.includes(p.forma));
+  if (outra) return "Sem internet, o caixa só recebe em dinheiro, cartão ou Pix. Tire o pagamento e lance de novo.";
+  if (carrinho.pontosResgatados) return "Sem internet não dá para usar pontos. Tire os pontos (F9).";
+  if (carrinho.popular) return "A Farmácia Popular precisa de internet para autorizar a venda.";
+  if (carrinho.preVenda) return "Pré-venda só pode ser recebida com internet.";
+  const bruto = subtotal(carrinho);
+  if (!gerente && bruto > 0 && (carrinho.descontoCentavos * 100) / bruto > descontoMaximo) {
+    return `Desconto acima de ${descontoMaximo}% precisa de um gerente`;
+  }
+  return null;
+}
+
+/** O pedido da venda feita sem internet: leva o preço e a promoção que o caixa usou. */
+export function montarVendaOffline(carrinho: Carrinho, caixaId: string, agora: Date) {
+  const venda = montarVenda(carrinho);
+  return {
+    ...venda,
+    itens: carrinho.itens.map((item) => {
+      const promocao = promocaoDoItem(item, !!carrinho.cliente);
+      return {
+        produto_id: item.produtoId,
+        quantidade: String(item.quantidade),
+        preco_unitario: centavosParaApi(item.precoCentavos),
+        desconto_promocao: centavosParaApi(promocao?.centavos ?? 0),
+        promocao_id: promocao?.promocao.id ?? null,
+      };
+    }),
+    offline_em: agora.toISOString(),
+    caixa_id: caixaId,
+  };
+}

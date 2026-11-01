@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.security import TokenDados
 from app.modules.auth.models import Usuario
 from app.modules.estoque.models import MovimentoEstoque
-from app.modules.estoque.service import Referencia, baixar_fefo, devolver_movimento
+from app.modules.estoque.service import Referencia, baixar_fefo, devolver_movimento, saldo_vendavel
 from app.modules.clientes.models import Cliente
 from app.modules.controlados.models import Receita
 from app.modules.devolucoes.integracao import devolvido_no_caixa, estornar_vales, normalizar_codigo, tem_devolucao, usar_vales
@@ -28,6 +28,7 @@ from app.modules.pedidos.models import EM_ANDAMENTO, Pedido
 from app.modules.popular import service as popular
 from app.modules.produtos.models import Produto
 from app.modules.servicos.service import recebido_no_caixa as servicos_no_caixa
+from app.modules.promocoes.models import Promocao
 from app.modules.promocoes.service import melhor, vigentes_por_produto
 from app.modules.vendas.models import Caixa, PreVenda, Venda, VendaItem, VendaPagamento
 from app.modules.vendas.schemas import CaixaSaida, PreVendaCriar, PreVendaSaida, ResumoCaixa, VendaCriar
@@ -197,7 +198,8 @@ def registrar_venda(
     if existente is not None:
         return existente, False
 
-    caixa = caixa_para_vender(db, usuario, terminal)
+    offline = dados.offline_em is not None
+    caixa = _caixa_da_venda_offline(db, usuario, terminal, dados) if offline else caixa_para_vender(db, usuario, terminal)
     pre_venda = _pre_venda_para_receber(db, dados.pre_venda_id) if dados.pre_venda_id else None
 
     if dados.cliente_id is not None and db.get(Cliente, dados.cliente_id) is None:
@@ -210,7 +212,8 @@ def registrar_venda(
         chave_idempotencia=dados.chave_idempotencia,
         cliente_cpf=dados.cliente_cpf,
         cliente_id=dados.cliente_id,
-        finalizada_em=_agora(),
+        finalizada_em=dados.offline_em if offline else _agora(),
+        offline=offline,
         entrega=False,
         taxa_entrega=Decimal(0),
     )
@@ -226,14 +229,22 @@ def registrar_venda(
     vendidos = []
     for ordem, entrada in enumerate(dados.itens, start=1):
         produto = db.get(Produto, entrada.produto_id)
-        if produto is None or not produto.ativo:
+        # A venda offline já aconteceu no balcão: aceita mesmo se o produto foi desativado depois.
+        if produto is None or (not produto.ativo and not offline):
             raise NaoEncontrado("Produto não encontrado")
         validar_quantidade(produto, entrada.quantidade)
         vendidos.append(produto)
-        bruto = (produto.preco_venda * entrada.quantidade).quantize(CENTAVO)
-        promocao, desconto_promocao = melhor(
-            promocoes.get(produto.id, []), produto.preco_venda, entrada.quantidade, dados.cliente_id is not None
-        )
+        if offline and entrada.preco_unitario is not None:
+            # Vale o preço e a promoção da cópia do catálogo que o caixa tinha na hora.
+            preco = entrada.preco_unitario
+            desconto_promocao = entrada.desconto_promocao or Decimal(0)
+            promocao = db.get(Promocao, entrada.promocao_id) if entrada.promocao_id and desconto_promocao else None
+        else:
+            preco = produto.preco_venda
+            promocao, desconto_promocao = melhor(
+                promocoes.get(produto.id, []), produto.preco_venda, entrada.quantidade, dados.cliente_id is not None
+            )
+        bruto = (preco * entrada.quantidade).quantize(CENTAVO)
         if entrada.desconto + desconto_promocao > bruto:
             raise ErroDeNegocio(f"Desconto maior que o valor de {produto.nome}")
         desconto_item = entrada.desconto + desconto_promocao
@@ -243,7 +254,7 @@ def registrar_venda(
                 produto_id=produto.id,
                 descricao=produto.nome if not produto.apresentacao else f"{produto.nome} {produto.apresentacao}",
                 quantidade=entrada.quantidade,
-                preco_unitario=produto.preco_venda,
+                preco_unitario=preco,
                 desconto=desconto_item,
                 total=bruto - desconto_item,
                 custo_unitario=produto.preco_custo,
@@ -262,11 +273,14 @@ def registrar_venda(
     if receituario is not None:
         validar_receita(receituario, dados.receita, hoje())
     maximo = farmacia.desconto_maximo_caixa
-    if usuario.papel not in GERENTES and subtotal > 0 and manuais * 100 / subtotal > maximo:
+    # Offline o caixa já conferiu o limite com a cópia das configurações; a venda já aconteceu.
+    if not offline and usuario.papel not in GERENTES and subtotal > 0 and manuais * 100 / subtotal > maximo:
         raise SemPermissao(f"Desconto acima de {maximo:g}% precisa de um gerente")
 
     # Funcionário de empresa conveniada ganha o desconto da empresa (fora do limite do caixa).
-    desconto_convenio = desconto_do_convenio(db, dados.cliente_id, subtotal - (descontos - dados.desconto))
+    desconto_convenio = (
+        Decimal(0) if offline else desconto_do_convenio(db, dados.cliente_id, subtotal - (descontos - dados.desconto))
+    )
     if desconto_convenio:
         if descontos + desconto_convenio > subtotal:
             raise ErroDeNegocio("Com o desconto do convênio, o desconto passa do valor da venda")
@@ -317,6 +331,8 @@ def registrar_venda(
         for p in dados.pagamentos
     ]
 
+    if offline:
+        _anotar_sem_estoque(db, loja_id, venda)
     venda.numero = _proximo_numero(db)
     db.add(venda)
     db.flush()  # gera os ids dos itens para referenciar nos movimentos
@@ -325,7 +341,10 @@ def registrar_venda(
 
     for item in venda.itens:
         produto = db.get(Produto, item.produto_id)
-        baixar_fefo(db, loja_id, produto, item.quantidade, usuario.usuario_id, Referencia("venda_item", item.id))
+        baixar_fefo(
+            db, loja_id, produto, item.quantidade, usuario.usuario_id, Referencia("venda_item", item.id),
+            permitir_faltar=offline,
+        )
 
     if governo:
         popular.lancar(db, venda, loja_id, dados.popular, governo, itens_popular, hoje())
@@ -361,6 +380,44 @@ def registrar_venda(
             raise
         return existente, False
     return venda, True
+
+
+# Formas que dependem de conferir algo no servidor na hora (limite, saldo, autorização).
+FORMAS_SO_ONLINE = ("prazo", "convenio", "popular", "vale")
+OFFLINE_MAXIMO = timedelta(days=7)
+
+
+def _caixa_da_venda_offline(db: Session, usuario: TokenDados, terminal: Terminal | None, dados: VendaCriar) -> Caixa:
+    """Confere a venda feita sem internet e devolve o caixa em que ela aconteceu."""
+    agora = _agora()
+    if dados.offline_em > agora + timedelta(minutes=10):
+        raise ErroDeNegocio("A hora da venda offline está no futuro. Confira o relógio deste computador.")
+    if dados.offline_em < agora - OFFLINE_MAXIMO:
+        raise ErroDeNegocio("Venda offline com mais de 7 dias. Peça a um gerente para lançar à mão.")
+    if any(p.forma in FORMAS_SO_ONLINE for p in dados.pagamentos):
+        raise ErroDeNegocio("Sem internet, o caixa só recebe em dinheiro, cartão ou Pix")
+    if dados.pontos_resgatados or dados.pre_venda_id or dados.popular:
+        raise ErroDeNegocio("Pontos, pré-venda e Farmácia Popular precisam de internet na hora da venda")
+    terminal = _exigir_terminal(terminal)
+    caixa = db.get(Caixa, dados.caixa_id) if dados.caixa_id else caixa_do_terminal(db, terminal)
+    if caixa is None:
+        raise NaoEncontrado("O caixa desta venda offline não foi encontrado")
+    if caixa.terminal_id != terminal.id:
+        raise ErroDeNegocio("Esta venda offline é de outro PDV. Envie pelo computador em que ela foi feita.")
+    if caixa.usuario_id != usuario.usuario_id and usuario.papel not in GERENTES:
+        raise SemPermissao("Esta venda offline foi feita no caixa de outro operador")
+    return caixa
+
+
+def _anotar_sem_estoque(db: Session, loja_id: UUID, venda: Venda) -> None:
+    """Offline pode ter vendido mais do que o sistema tinha: o estoque zera e a diferença fica anotada."""
+    restante: dict[UUID, Decimal] = {}
+    for item in venda.itens:
+        if item.produto_id not in restante:
+            restante[item.produto_id] = saldo_vendavel(db, item.produto_id, loja_id)
+        tem = max(restante[item.produto_id], Decimal(0))
+        item.sem_estoque = max(item.quantidade - tem, Decimal(0))
+        restante[item.produto_id] = tem - item.quantidade
 
 
 def _receita(venda: Venda, dados) -> Receita:
