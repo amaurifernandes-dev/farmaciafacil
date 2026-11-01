@@ -8,6 +8,7 @@ from app.core.security import TokenDados
 from app.modules.lojas.models import Terminal
 
 GERENCIA = ("admin", "gerente")
+COMPRAS = ("admin", "gerente", "farmaceutico", "estoque")
 
 
 @dataclass
@@ -20,6 +21,11 @@ class Contexto:
     @property
     def gerente(self) -> bool:
         return self.usuario.papel in GERENCIA
+
+    @property
+    def compra(self) -> bool:
+        """Quem cuida do estoque monta pedido de compra (mesmo perfil da tela de Compras)."""
+        return self.usuario.papel in COMPRAS
 
 
 class ErroDaFerramenta(Exception):

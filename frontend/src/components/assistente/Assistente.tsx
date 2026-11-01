@@ -17,7 +17,15 @@ import {
   salvarGuia,
 } from "./conversa";
 import { ehGerente, useSessao } from "../../sessao";
-import type { Cartao, CartaoGuia, CartaoTabela, CartaoVendas, Fala, RespostaAssistente } from "./tipos";
+import type {
+  Cartao,
+  CartaoGuia,
+  CartaoPedidoCompra,
+  CartaoTabela,
+  CartaoVendas,
+  Fala,
+  RespostaAssistente,
+} from "./tipos";
 import { calar, falar, ouvir, temMicrofone } from "./voz";
 
 const SUGESTOES = [
@@ -31,6 +39,7 @@ const SUGESTOES = [
 const SUGESTOES_GERENCIA = [
   "Quanto vendi hoje?",
   "O que mais vendeu este mês?",
+  "Monta um pedido de compra para 15 dias",
   "O que está acabando ou vencendo?",
   "Mostra os protetores solares mais baratos e em promoção",
   "Como faço para incluir os produtos que chegaram do fornecedor?",
@@ -356,6 +365,7 @@ function CartaoAssistente({
   }
   if (cartao.tipo === "vendas") return <CartaoDeVendas cartao={cartao} aoAbrir={aoAbrir} />;
   if (cartao.tipo === "tabela") return <CartaoDeTabela cartao={cartao} aoAbrir={aoAbrir} />;
+  if (cartao.tipo === "pedido_compra") return <CartaoDePedido cartao={cartao} aoAbrir={aoAbrir} />;
   if (cartao.tipo === "cliente") {
     return (
       <div className="assistente-cartao">
@@ -479,6 +489,89 @@ function CartaoDeTabela({ cartao, aoAbrir }: { cartao: CartaoTabela; aoAbrir: ()
       )}
       <Link to={cartao.rota} className="botao-contorno assistente-link" onClick={aoAbrir}>
         {cartao.rotulo_rota ?? "Abrir relatórios"}
+      </Link>
+    </div>
+  );
+}
+
+function CartaoDePedido({ cartao, aoAbrir }: { cartao: CartaoPedidoCompra; aoAbrir: () => void }) {
+  const [copiado, setCopiado] = useState<number | null>(null);
+
+  async function copiar(indice: number, texto: string) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(indice);
+      setTimeout(() => setCopiado((atual) => (atual === indice ? null : atual)), 2000);
+    } catch {
+      setCopiado(null);
+    }
+  }
+
+  return (
+    <div className="assistente-cartao assistente-pedido">
+      <p className="assistente-cartao-titulo">
+        <Icone nome="caminhao" /> Pedido de compra · {cartao.total}
+      </p>
+      <p className="assistente-dica assistente-periodo">
+        {cartao.itens} {cartao.itens === 1 ? "produto" : "produtos"} · {cartao.grupos.length}{" "}
+        {cartao.grupos.length === 1 ? "fornecedor" : "fornecedores"}
+        {cartao.loja ? ` · ${cartao.loja}` : ""} · {cartao.data}
+      </p>
+      {cartao.grupos.map((g, i) => (
+        <section key={g.fornecedor_id ?? "sem"} className="assistente-pedido-grupo">
+          <header>
+            <strong>{g.fornecedor}</strong>
+            <span>{g.total}</span>
+          </header>
+          <ul className="assistente-lista">
+            {g.itens.map((item) => (
+              <li key={item.produto_id}>
+                <span className="assistente-pedido-item">
+                  {item.quantidade}x {item.nome}
+                </span>
+                <span>{item.total}</span>
+              </li>
+            ))}
+          </ul>
+          {g.fornecedor_id === null && (
+            <p className="assistente-dica">Nenhuma nota de compra destes produtos ainda: escolha o fornecedor.</p>
+          )}
+          {g.sem_custo > 0 && (
+            <p className="assistente-dica">
+              {g.sem_custo === 1 ? "1 item sem custo cadastrado" : `${g.sem_custo} itens sem custo cadastrado`}: fora
+              do total.
+            </p>
+          )}
+          <div className="assistente-pedido-acoes">
+            <button type="button" className="botao-pequeno" onClick={() => void copiar(i, g.texto)}>
+              {copiado === i ? "Copiado!" : "Copiar pedido"}
+            </button>
+            {g.whatsapp && (
+              <a
+                className="botao-pequeno-link"
+                href={`https://wa.me/${g.whatsapp}?text=${encodeURIComponent(g.texto)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                WhatsApp
+              </a>
+            )}
+            {g.email && (
+              <a
+                className="botao-pequeno-link"
+                href={`mailto:${g.email}?subject=${encodeURIComponent(`Pedido de compra ${cartao.data}`)}&body=${encodeURIComponent(g.texto)}`}
+              >
+                E-mail
+              </a>
+            )}
+          </div>
+        </section>
+      ))}
+      <p className="assistente-dica">
+        O pedido não é enviado sozinho: confira e envie pelos botões. Para mudar, é só falar (ex.: “põe 20 dipironas”).
+      </p>
+      <Link to="/compras/sugestao" className="botao-contorno assistente-link" onClick={aoAbrir}>
+        Abrir sugestão de compras
       </Link>
     </div>
   );

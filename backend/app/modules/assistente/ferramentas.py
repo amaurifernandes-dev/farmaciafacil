@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import ValidationError
 from sqlalchemy import and_, func, or_, select
 
+from app.modules.assistente.compras import EXECUTORES_COMPRAS, FERRAMENTAS_COMPRAS
 from app.modules.assistente.contexto import Contexto, ErroDaFerramenta
 from app.modules.assistente.guias import POR_ID, lista_para_ferramenta
 from app.modules.assistente.relatorios import (
@@ -281,12 +282,18 @@ EXECUTORES = {
     "cadastrar_cliente": cadastrar_cliente,
     "mostrar_guia": mostrar_guia,
     **EXECUTORES_RELATORIOS,
+    **EXECUTORES_COMPRAS,
 }
 
 
 def ferramentas_para(ctx: Contexto) -> list[dict]:
     """O modelo só conhece as ferramentas que o perfil pode usar (os números de vendas são da gerência)."""
-    return [*FERRAMENTAS, *FERRAMENTAS_ESTOQUE, *(FERRAMENTAS_GERENCIA if ctx.gerente else [])]
+    return [
+        *FERRAMENTAS,
+        *FERRAMENTAS_ESTOQUE,
+        *(FERRAMENTAS_COMPRAS if ctx.compra else []),
+        *(FERRAMENTAS_GERENCIA if ctx.gerente else []),
+    ]
 
 
 def executar(ctx: Contexto, nome: str, entrada: dict) -> tuple[str, bool]:

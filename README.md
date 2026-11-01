@@ -125,6 +125,8 @@ ferramentas que rodam no servidor com o login de quem pergunta:
 - procurar e cadastrar cliente com os dados falados (repete os dados e espera a confirmação);
 - responder sobre o movimento: vendas do período com comparação, mais vendidos e o que dá mais lucro,
   produtos parados (só gerente e administrador) e o que está acabando, vencendo ou vencido (todos);
+- montar pedido de compra a partir da sugestão de compras, separado pelo fornecedor de menor último custo, com o
+  texto pronto para copiar, mandar no WhatsApp ou por e-mail (ajustável falando; o pedido não fica gravado);
 - mostrar o passo a passo de uma tarefa, com o botão "Começar" que abre a tela certa
   (os guias ficam em `backend/app/modules/assistente/guias.py`).
 
