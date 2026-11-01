@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import Layout from "./components/Layout";
 import Caixas from "./pages/caixas/Caixas";
+import FechamentoDoDia from "./pages/caixas/FechamentoDoDia";
 import Compras from "./pages/compras/Compras";
 import Nota from "./pages/compras/Nota";
 import Notas from "./pages/compras/Notas";
@@ -101,6 +102,7 @@ export default function App() {
         <Route path="/vendas/pre-venda" element={<PreVenda />} />
         <Route path="/devolucoes" element={<SoGerente><Devolucoes /></SoGerente>} />
         <Route path="/caixas" element={<Caixas />} />
+        <Route path="/caixas/fechamento-do-dia" element={<SoGerente><FechamentoDoDia /></SoGerente>} />
         <Route path="/vendas-offline" element={<SoGerente><SemInternet /></SoGerente>} />
         <Route path="/clientes" element={<Clientes />} />
         <Route path="/clientes/:id" element={<FichaCliente />} />

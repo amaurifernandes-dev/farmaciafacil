@@ -24,9 +24,43 @@ class CaixaAbrir(BaseModel):
     offline_em: datetime | None = None
 
 
+FormaConferida = Literal["debito", "credito", "pix"]
+# Formas que o operador confere no fechamento além do dinheiro (comprovantes da maquininha e do Pix).
+FORMAS_CONFERIDAS: tuple[str, ...] = ("debito", "credito", "pix")
+
+
 class CaixaFechar(BaseModel):
     valor_fechamento_informado: Dinheiro
     offline_em: datetime | None = None  # fechado sem internet: a hora real do fechamento
+    # Total dos comprovantes de cada forma; a que não vier não é conferida.
+    conferencia: dict[FormaConferida, Dinheiro] = Field(default_factory=dict)
+    observacao: str | None = Field(default=None, max_length=500)
+
+
+class MovimentoCriar(BaseModel):
+    tipo: Literal["sangria", "suprimento"]
+    valor: DinheiroPositivo
+    motivo: str = Field(min_length=1, max_length=200)
+
+
+class MovimentoSaida(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tipo: str
+    valor: Decimal
+    motivo: str
+    criado_em: datetime
+    usuario: str = ""
+
+
+class ConferenciaForma(BaseModel):
+    forma: str
+    esperado: Decimal
+    informado: Decimal | None  # vazio: não foi conferida
+    diferenca: Decimal | None  # informado - esperado
+    # No fechamento do dia: quanto do esperado é de caixas que não conferiram esta forma.
+    sem_conferir: Decimal = Decimal(0)
 
 
 class CaixaSaida(BaseModel):
@@ -43,6 +77,7 @@ class CaixaSaida(BaseModel):
     valor_fechamento_informado: Decimal | None
     aberto_offline: bool = False
     fechado_offline: bool = False
+    observacao_fechamento: str | None = None
 
 
 class ResumoCaixa(BaseModel):
@@ -56,9 +91,35 @@ class ResumoCaixa(BaseModel):
     recebimentos_dinheiro: Decimal = Decimal(0)  # contas a receber (fiado) pagas em dinheiro neste caixa
     servicos_dinheiro: Decimal = Decimal(0)  # serviços farmacêuticos pagos em dinheiro neste caixa
     devolucoes_dinheiro: Decimal = Decimal(0)  # dinheiro devolvido a clientes (trocas) neste caixa
+    suprimentos: Decimal = Decimal(0)  # dinheiro colocado na gaveta com o caixa aberto
+    sangrias: Decimal = Decimal(0)  # dinheiro tirado da gaveta com o caixa aberto
     # abertura + dinheiro recebido - troco + recebimentos e serviços em dinheiro - devoluções em dinheiro
+    # + suprimentos - sangrias
     dinheiro_esperado: Decimal
     diferenca: Decimal | None  # informado - esperado (só depois de fechar)
+    movimentos: list[MovimentoSaida] = []
+    # Dinheiro e cada forma conferida: o esperado, o contado e a diferença (depois de fechar).
+    conferencia: list[ConferenciaForma] = []
+    diferenca_total: Decimal | None = None  # soma das diferenças de tudo que foi conferido
+
+
+class RelatorioCaixas(BaseModel):
+    """Os caixas abertos num dia, somados: o fechamento do dia da loja (ou de todas)."""
+
+    dia: date
+    loja_id: UUID | None
+    caixas: list[ResumoCaixa]
+    abertos: int
+    quantidade_vendas: int
+    total_vendido: Decimal
+    por_forma: dict[str, Decimal]
+    suprimentos: Decimal
+    sangrias: Decimal
+    recebimentos_dinheiro: Decimal
+    servicos_dinheiro: Decimal
+    devolucoes_dinheiro: Decimal
+    conferencia: list[ConferenciaForma]  # dos caixas já fechados
+    diferenca_total: Decimal
 
 
 # --- Venda ---

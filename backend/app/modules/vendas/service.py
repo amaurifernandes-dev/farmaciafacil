@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -30,9 +30,22 @@ from app.modules.produtos.models import Produto
 from app.modules.servicos.service import recebido_no_caixa as servicos_no_caixa
 from app.modules.promocoes.models import Promocao
 from app.modules.promocoes.service import melhor, vigentes_por_produto
-from app.modules.vendas.models import Caixa, EnvioRecusado, PreVenda, Venda, VendaItem, VendaPagamento
-from app.modules.vendas.schemas import CaixaAbrir, CaixaFechar, CaixaSaida, PreVendaCriar, PreVendaSaida, ResumoCaixa, VendaCriar
-from app.shared.datas import hoje
+from app.modules.vendas.models import Caixa, CaixaMovimento, EnvioRecusado, PreVenda, Venda, VendaItem, VendaPagamento
+from app.modules.vendas.schemas import (
+    FORMAS_CONFERIDAS,
+    CaixaAbrir,
+    CaixaFechar,
+    CaixaSaida,
+    ConferenciaForma,
+    MovimentoCriar,
+    MovimentoSaida,
+    PreVendaCriar,
+    PreVendaSaida,
+    RelatorioCaixas,
+    ResumoCaixa,
+    VendaCriar,
+)
+from app.shared.datas import FUSO, hoje
 from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado, SemPermissao
 
 CENTAVO = Decimal("0.01")
@@ -185,12 +198,24 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
     servicos = servicos_no_caixa(db, caixa.id)
     # E sai o dinheiro devolvido a clientes nas trocas.
     devolucoes = devolvido_no_caixa(db, caixa.id)
+    movimentos = _movimentos(db, caixa.id)
+    suprimentos = sum((m.valor for m in movimentos if m.tipo == "suprimento"), Decimal(0))
+    sangrias = sum((m.valor for m in movimentos if m.tipo == "sangria"), Decimal(0))
     esperado = (
-        caixa.valor_abertura + por_forma.get("dinheiro", Decimal(0)) - troco + recebimentos + servicos - devolucoes
+        caixa.valor_abertura
+        + por_forma.get("dinheiro", Decimal(0))
+        - troco
+        + recebimentos
+        + servicos
+        - devolucoes
+        + suprimentos
+        - sangrias
     )
     diferenca = None
     if caixa.valor_fechamento_informado is not None:
         diferenca = caixa.valor_fechamento_informado - esperado
+    conferencia = _conferencia(caixa, esperado, por_forma)
+    conferidas = [c.diferenca for c in conferencia if c.diferenca is not None]
     terminal = db.get(Terminal, caixa.terminal_id) if caixa.terminal_id else None
     loja = db.get(Loja, caixa.loja_id) if caixa.loja_id else None
     return ResumoCaixa(
@@ -204,8 +229,121 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
         recebimentos_dinheiro=recebimentos,
         servicos_dinheiro=servicos,
         devolucoes_dinheiro=devolucoes,
+        suprimentos=suprimentos,
+        sangrias=sangrias,
         dinheiro_esperado=esperado,
         diferenca=diferenca,
+        movimentos=movimentos,
+        conferencia=conferencia,
+        diferenca_total=sum(conferidas, Decimal(0)) if conferidas else None,
+    )
+
+
+def _movimentos(db: Session, caixa_id: UUID) -> list[MovimentoSaida]:
+    linhas = db.execute(
+        select(CaixaMovimento, Usuario.nome)
+        .join(Usuario, Usuario.id == CaixaMovimento.usuario_id)
+        .where(CaixaMovimento.caixa_id == caixa_id)
+        .order_by(CaixaMovimento.criado_em)
+    ).all()
+    return [MovimentoSaida.model_validate(m).model_copy(update={"usuario": nome}) for m, nome in linhas]
+
+
+def _conferencia(caixa: Caixa, dinheiro_esperado: Decimal, por_forma: dict[str, Decimal]) -> list[ConferenciaForma]:
+    """Dinheiro sempre; cartão e Pix quando houve venda nessa forma ou o operador informou um valor."""
+    informados = caixa.conferencia or {}
+    linhas = [_linha("dinheiro", dinheiro_esperado, caixa.valor_fechamento_informado)]
+    for forma in FORMAS_CONFERIDAS:
+        esperado = por_forma.get(forma, Decimal(0))
+        informado = Decimal(informados[forma]) if forma in informados else None
+        if esperado or informado is not None:
+            linhas.append(_linha(forma, esperado, informado))
+    return linhas
+
+
+def _linha(forma: str, esperado: Decimal, informado: Decimal | None) -> ConferenciaForma:
+    return ConferenciaForma(
+        forma=forma,
+        esperado=esperado,
+        informado=informado,
+        diferenca=None if informado is None else informado - esperado,
+    )
+
+
+def lancar_movimento(db: Session, usuario: TokenDados, caixa_id: UUID, dados: MovimentoCriar) -> ResumoCaixa:
+    """Sangria (tirar dinheiro da gaveta) ou suprimento (colocar troco) com o caixa aberto."""
+    caixa = obter_caixa(db, caixa_id)
+    if caixa.usuario_id != usuario.usuario_id and usuario.papel not in GERENTES:
+        raise SemPermissao("Só o próprio operador ou um gerente pode mexer na gaveta deste caixa")
+    if caixa.status != "aberto":
+        raise Conflito("Este caixa já está fechado")
+    if dados.tipo == "sangria":
+        na_gaveta = resumo_caixa(db, caixa).dinheiro_esperado
+        if dados.valor > na_gaveta:
+            raise ErroDeNegocio(f"A gaveta só tem R$ {na_gaveta:.2f} em dinheiro".replace(".", ","))
+    db.add(
+        CaixaMovimento(
+            caixa_id=caixa.id,
+            usuario_id=usuario.usuario_id,
+            tipo=dados.tipo,
+            valor=dados.valor,
+            motivo=dados.motivo.strip(),
+        )
+    )
+    db.flush()
+    resumo = resumo_caixa(db, caixa)
+    db.commit()
+    return resumo
+
+
+def relatorio_do_dia(db: Session, dia: date, loja_id: UUID | None) -> RelatorioCaixas:
+    """Todos os caixas abertos no dia (horário de Brasília), somados para o fechamento do dia."""
+    inicio = datetime.combine(dia, time.min, tzinfo=FUSO)
+    filtro = select(Caixa).where(Caixa.aberto_em >= inicio, Caixa.aberto_em < inicio + timedelta(days=1))
+    if loja_id:
+        filtro = filtro.where(Caixa.loja_id == loja_id)
+    caixas = [resumo_caixa(db, c) for c in db.scalars(filtro.order_by(Caixa.aberto_em)).all()]
+    fechados = [c for c in caixas if c.caixa.status == "fechado"]
+
+    por_forma: dict[str, Decimal] = defaultdict(Decimal)
+    for c in caixas:
+        for forma, valor in c.por_forma.items():
+            por_forma[forma] += valor
+
+    # Soma por forma; a diferença só conta os caixas que conferiram aquela forma.
+    somas: dict[str, dict] = {}
+    for c in fechados:
+        for linha in c.conferencia:
+            atual = somas.setdefault(
+                linha.forma, {"esperado": Decimal(0), "informado": None, "diferenca": None, "sem_conferir": Decimal(0)}
+            )
+            atual["esperado"] += linha.esperado
+            if linha.informado is None:
+                atual["sem_conferir"] += linha.esperado
+            else:
+                atual["informado"] = (atual["informado"] or Decimal(0)) + linha.informado
+                atual["diferenca"] = (atual["diferenca"] or Decimal(0)) + linha.diferenca
+    ordem = ("dinheiro", *FORMAS_CONFERIDAS)
+    conferencia = [ConferenciaForma(forma=forma, **somas[forma]) for forma in ordem if forma in somas]
+
+    def soma(campo: str, lista=caixas) -> Decimal:
+        return sum((getattr(c, campo) for c in lista), Decimal(0))
+
+    return RelatorioCaixas(
+        dia=dia,
+        loja_id=loja_id,
+        caixas=caixas,
+        abertos=len(caixas) - len(fechados),
+        quantidade_vendas=sum(c.quantidade_vendas for c in caixas),
+        total_vendido=soma("total_vendido"),
+        por_forma=dict(por_forma),
+        suprimentos=soma("suprimentos"),
+        sangrias=soma("sangrias"),
+        recebimentos_dinheiro=soma("recebimentos_dinheiro"),
+        servicos_dinheiro=soma("servicos_dinheiro"),
+        devolucoes_dinheiro=soma("devolucoes_dinheiro"),
+        conferencia=conferencia,
+        diferenca_total=sum((c.diferenca_total or Decimal(0) for c in fechados), Decimal(0)),
     )
 
 
@@ -228,6 +366,8 @@ def fechar_caixa(db: Session, usuario: TokenDados, caixa_id: UUID, dados: CaixaF
     caixa.fechado_em = dados.offline_em or _agora()
     caixa.fechado_offline = dados.offline_em is not None
     caixa.valor_fechamento_informado = dados.valor_fechamento_informado
+    caixa.conferencia = {forma: str(valor) for forma, valor in dados.conferencia.items()} or None
+    caixa.observacao_fechamento = (dados.observacao or "").strip() or None
     if caixa.fechado_offline:
         resolver_recusa(db, f"fechar-{caixa.id}")
     resumo = resumo_caixa(db, caixa)

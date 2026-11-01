@@ -33,6 +33,25 @@ class Caixa(TabelaDaFarmacia, Base):
     # Aberto ou fechado no PDV sem internet e enviado depois.
     aberto_offline: Mapped[bool] = mapped_column(Boolean, default=False)
     fechado_offline: Mapped[bool] = mapped_column(Boolean, default=False)
+    # O que o operador contou de cada forma no fechamento ({"debito": "120.00", ...}).
+    conferencia: Mapped[dict | None] = mapped_column(JSONB)
+    observacao_fechamento: Mapped[str | None] = mapped_column(String(500))
+
+
+class CaixaMovimento(TabelaDaFarmacia, Base):
+    """Dinheiro tirado da gaveta (sangria) ou colocado nela (suprimento) com o caixa aberto."""
+
+    __tablename__ = "caixa_movimentos"
+    __table_args__ = (
+        UniqueConstraint("farmacia_id", "id"),
+        ForeignKeyConstraint(["farmacia_id", "caixa_id"], ["caixas.farmacia_id", "caixas.id"]),
+    )
+
+    caixa_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    usuario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    tipo: Mapped[str] = mapped_column(String(10))
+    valor: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    motivo: Mapped[str] = mapped_column(String(200))
 
 
 class Venda(TabelaDaFarmacia, Base):

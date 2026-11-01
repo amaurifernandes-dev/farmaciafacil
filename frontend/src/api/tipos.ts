@@ -88,6 +88,27 @@ export interface Caixa {
   /** Aberto ou fechado no PDV sem internet e enviado depois. */
   aberto_offline?: boolean;
   fechado_offline?: boolean;
+  /** Explicação do operador para a diferença no fechamento. */
+  observacao_fechamento?: string | null;
+}
+
+export interface MovimentoCaixa {
+  id: string;
+  tipo: "sangria" | "suprimento";
+  valor: string;
+  motivo: string;
+  criado_em: string;
+  usuario: string;
+}
+
+/** Uma forma conferida no fechamento: o que o sistema esperava, o que foi contado e a diferença. */
+export interface ConferenciaForma {
+  forma: string;
+  esperado: string;
+  informado: string | null;
+  diferenca: string | null;
+  /** No fechamento do dia: parte do esperado de caixas que não conferiram esta forma. */
+  sem_conferir?: string;
 }
 
 export interface ResumoCaixa {
@@ -101,8 +122,31 @@ export interface ResumoCaixa {
   recebimentos_dinheiro: string;
   servicos_dinheiro: string;
   devolucoes_dinheiro: string;
+  suprimentos?: string;
+  sangrias?: string;
   dinheiro_esperado: string;
   diferenca: string | null;
+  movimentos?: MovimentoCaixa[];
+  conferencia?: ConferenciaForma[];
+  diferenca_total?: string | null;
+}
+
+/** Fechamento do dia: os caixas abertos na data, somados. */
+export interface RelatorioCaixas {
+  dia: string;
+  loja_id: string | null;
+  caixas: ResumoCaixa[];
+  abertos: number;
+  quantidade_vendas: number;
+  total_vendido: string;
+  por_forma: Record<string, string>;
+  suprimentos: string;
+  sangrias: string;
+  recebimentos_dinheiro: string;
+  servicos_dinheiro: string;
+  devolucoes_dinheiro: string;
+  conferencia: ConferenciaForma[];
+  diferenca_total: string;
 }
 
 export type FormaPagamento = "dinheiro" | "debito" | "credito" | "pix" | "prazo" | "convenio" | "popular" | "vale";

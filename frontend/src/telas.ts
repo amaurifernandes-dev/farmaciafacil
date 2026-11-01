@@ -42,7 +42,8 @@ export const TELAS: Tela[] = [
   { para: "/pedidos", rotulo: "Pedidos", icone: "recibo", grupo: "dia", pode: atende, descricao: "Pedidos da loja online, WhatsApp e telefone", palavras: "site delivery entrega whatsapp" },
   { para: "/clientes", rotulo: "Clientes", icone: "pessoa", grupo: "dia", agrupa: true, pode: atende, descricao: "Cadastro, histórico de compras, pontos e fiado", palavras: "cliente cadastro fiado pontos fidelidade" },
   { para: "/faltas", rotulo: "Faltas e encomendas", icone: "sino", grupo: "dia", descricao: "O que o cliente pediu e não tinha", palavras: "encomenda falta reserva" },
-  { para: "/caixas", rotulo: "Caixas", icone: "caixa", grupo: "dia", pode: podeReceber, descricao: "Abrir, fechar e conferir os caixas", palavras: "abertura fechamento sangria suprimento pdv" },
+  { para: "/caixas", rotulo: "Caixas", icone: "caixa", grupo: "dia", agrupa: true, pode: podeReceber, descricao: "Abrir, fechar e conferir os caixas", palavras: "abertura fechamento sangria suprimento pdv" },
+  { para: "/caixas/fechamento-do-dia", rotulo: "Fechamento do dia", icone: "recibo", grupo: "dia", aba: true, pode: ehGerente, descricao: "Todos os caixas do dia por forma de pagamento, sangrias e diferenças", palavras: "fechamento caixa conferencia sangria diferenca relatorio do dia" },
   { para: "/devolucoes", rotulo: "Trocas e devoluções", icone: "troca", grupo: "dia", pode: ehGerente, descricao: "Devolver itens de uma venda e vale-troca", palavras: "troca devolucao vale estorno" },
   { para: "/vendas-offline", rotulo: "Vendas sem internet", icone: "alerta", grupo: "dia", pode: ehGerente, descricao: "Vendas feitas sem internet que precisam de atenção", palavras: "offline sem internet recusadas" },
 
