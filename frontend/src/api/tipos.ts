@@ -332,6 +332,46 @@ export interface Painel {
   pedidos_novos: number;
   meta_farmacia: Andamento | null;
   minha_meta: Andamento | null;
+  /** Blocos por perfil: null quando o perfil não usa aquela parte. */
+  balcao: PainelBalcao | null;
+  estoque: PainelEstoque | null;
+  farmacia_bloco: { controlados_hoje: number; atendimentos_hoje: number } | null;
+  gestao: PainelGestao | null;
+}
+
+export interface Soma {
+  quantidade: number;
+  total: string;
+}
+
+export interface PainelBalcao {
+  meu_caixa: { aberto_em: string; vendas: number; total: string } | null;
+  pre_vendas_abertas: number;
+  pre_vendas: { id: string; numero: number; total: string; criado_em: string; entrega: boolean }[];
+  minhas_vendas_hoje: Soma;
+}
+
+export interface PainelEstoque {
+  repor: { produto_id: string; nome: string; loja_nome: string; saldo: string; estoque_minimo: string }[];
+  vencendo: {
+    produto_id: string;
+    produto_nome: string;
+    numero_lote: string;
+    loja_nome: string;
+    quantidade: string;
+    validade: string;
+    dias_para_vencer: number;
+  }[];
+  notas_para_conferir: number;
+  pedidos_compra_abertos: number;
+  encomendas_pendentes: number;
+}
+
+export interface PainelGestao {
+  pagar_vencidas: Soma;
+  pagar_hoje: Soma;
+  receber_vencidas: Soma;
+  envios_recusados: number;
 }
 
 export type ModoCaixa = "mono" | "multi";
