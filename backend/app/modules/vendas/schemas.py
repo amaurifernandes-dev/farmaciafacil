@@ -19,10 +19,14 @@ FormaPagamento = Literal["dinheiro", "debito", "credito", "pix", "prazo", "conve
 
 class CaixaAbrir(BaseModel):
     valor_abertura: Dinheiro = Decimal(0)
+    # Aberto sem internet: o PDV cria o id (as vendas offline já usam ele) e manda a hora real.
+    id: UUID | None = None
+    offline_em: datetime | None = None
 
 
 class CaixaFechar(BaseModel):
     valor_fechamento_informado: Dinheiro
+    offline_em: datetime | None = None  # fechado sem internet: a hora real do fechamento
 
 
 class CaixaSaida(BaseModel):
@@ -37,6 +41,8 @@ class CaixaSaida(BaseModel):
     aberto_em: datetime
     fechado_em: datetime | None
     valor_fechamento_informado: Decimal | None
+    aberto_offline: bool = False
+    fechado_offline: bool = False
 
 
 class ResumoCaixa(BaseModel):

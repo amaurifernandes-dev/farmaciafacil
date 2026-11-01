@@ -3,11 +3,13 @@
 
 import { api } from "../api/cliente";
 import type { Venda } from "../api/tipos";
-import { guardarVenda, tirarDaFila, vendasGuardadas } from "./banco";
+import { guardarVenda, tirarDaFila, vendasGuardadas, type VendaGuardada } from "./banco";
 import { ehFalhaDeRede } from "./catalogo";
 
 export interface ResultadoEnvio {
   enviadas: Venda[];
+  /** Aberturas e fechamentos do caixa enviados. */
+  caixa: number;
   comProblema: number;
   /** Parou porque a internet ainda não voltou. */
   semInternet: boolean;
@@ -15,8 +17,10 @@ export interface ResultadoEnvio {
 
 let enviando = false;
 
+export const ehVenda = (guardada: VendaGuardada) => (guardada.tipo ?? "venda") === "venda";
+
 export async function enviarGuardadas(): Promise<ResultadoEnvio> {
-  const resultado: ResultadoEnvio = { enviadas: [], comProblema: 0, semInternet: false };
+  const resultado: ResultadoEnvio = { enviadas: [], caixa: 0, comProblema: 0, semInternet: false };
   if (enviando) return resultado;
   enviando = true;
   try {
@@ -26,7 +30,10 @@ export async function enviarGuardadas(): Promise<ResultadoEnvio> {
         continue;
       }
       try {
-        resultado.enviadas.push(await api<Venda>("/vendas", { corpo: guardada.corpo }));
+        // Na ordem em que aconteceu: abertura, vendas e fechamento do caixa.
+        const resposta = await api<unknown>(guardada.caminho ?? "/vendas", { corpo: guardada.corpo });
+        if (ehVenda(guardada)) resultado.enviadas.push(resposta as Venda);
+        else resultado.caixa += 1;
         await tirarDaFila(guardada.chave);
       } catch (erro) {
         if (ehFalhaDeRede(erro)) {

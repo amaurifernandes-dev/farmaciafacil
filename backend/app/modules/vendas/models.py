@@ -30,6 +30,9 @@ class Caixa(TabelaDaFarmacia, Base):
     aberto_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     fechado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     valor_fechamento_informado: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    # Aberto ou fechado no PDV sem internet e enviado depois.
+    aberto_offline: Mapped[bool] = mapped_column(Boolean, default=False)
+    fechado_offline: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Venda(TabelaDaFarmacia, Base):

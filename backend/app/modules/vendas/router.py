@@ -29,7 +29,7 @@ pre_vendas = APIRouter(prefix="/pre-vendas", tags=["pré-vendas"])
 @caixas.post("/abrir", status_code=status.HTTP_201_CREATED)
 def abrir(db: DB, usuario: UsuarioAtual, terminal: TerminalAtual, dados: CaixaAbrir) -> CaixaSaida:
     """Abre o caixa do PDV identificado pelo cabeçalho X-Terminal."""
-    return service.abrir_caixa(db, usuario, terminal, dados.valor_abertura)
+    return service.abrir_caixa(db, usuario, terminal, dados)
 
 
 @caixas.get("/atual")
@@ -59,7 +59,7 @@ def resumo(db: DB, _: Gerente, caixa_id: UUID) -> ResumoCaixa:
 
 @caixas.post("/{caixa_id}/fechar")
 def fechar(db: DB, usuario: UsuarioAtual, caixa_id: UUID, dados: CaixaFechar) -> ResumoCaixa:
-    return service.fechar_caixa(db, usuario, caixa_id, dados.valor_fechamento_informado)
+    return service.fechar_caixa(db, usuario, caixa_id, dados)
 
 
 @vendas.post("", status_code=status.HTTP_201_CREATED)

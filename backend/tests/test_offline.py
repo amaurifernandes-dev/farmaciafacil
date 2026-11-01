@@ -95,3 +95,59 @@ def test_regras_da_venda_offline(client, farmacia_a, farmacia_b):
     hb["X-Terminal"] = _registrar_pdv(client, hb)
     resposta = client.post(f"{API}/vendas", json=_offline(produto, 1, "5.00", pix, caixa["id"]), headers=hb)
     assert resposta.status_code == 404
+
+
+def test_caixa_aberto_e_fechado_sem_internet(client, farmacia_a):
+    h = farmacia_a["headers"]
+    h["X-Terminal"] = _registrar_pdv(client, h)
+    produto = _produto_com_estoque(client, farmacia_a, "Soro", "5.00", lotes=(("A", 90, 10),))
+    caixa_id = str(uuid.uuid4())
+    aberto_em = datetime.now(UTC) - timedelta(hours=3)
+    abertura = {"id": caixa_id, "valor_abertura": "50.00", "offline_em": aberto_em.isoformat()}
+
+    # Chega tudo na ordem em que aconteceu: abertura, vendas, fechamento.
+    resposta = client.post(f"{API}/caixas/abrir", json=abertura, headers=h)
+    assert resposta.status_code == 201, resposta.text
+    caixa = resposta.json()
+    assert (caixa["id"], caixa["aberto_offline"]) == (caixa_id, True)
+    assert abs(datetime.fromisoformat(caixa["aberto_em"]) - aberto_em) < timedelta(seconds=1)
+    # Reenviar a abertura devolve o mesmo caixa.
+    assert client.post(f"{API}/caixas/abrir", json=abertura, headers=h).json()["id"] == caixa_id
+
+    venda = _offline(produto, 2, "5.00", [{"forma": "dinheiro", "valor": "20.00"}], caixa_id,
+                     datetime.now(UTC) - timedelta(hours=2))
+    assert client.post(f"{API}/vendas", json=venda, headers=h).status_code == 201
+
+    fechado_em = datetime.now(UTC) - timedelta(hours=1)
+    fechamento = {"valor_fechamento_informado": "58.00", "offline_em": fechado_em.isoformat()}
+    resposta = client.post(f"{API}/caixas/{caixa_id}/fechar", json=fechamento, headers=h)
+    assert resposta.status_code == 200, resposta.text
+    resumo = resposta.json()
+    assert (resumo["caixa"]["status"], resumo["caixa"]["fechado_offline"]) == ("fechado", True)
+    assert (resumo["dinheiro_esperado"], resumo["diferenca"]) == ("60.00", "-2.00")
+    # Reenviar o fechamento não dá erro; fechar de novo de verdade, sim.
+    assert client.post(f"{API}/caixas/{caixa_id}/fechar", json=fechamento, headers=h).status_code == 200
+    outro = {"valor_fechamento_informado": "58.00", "offline_em": datetime.now(UTC).isoformat()}
+    assert client.post(f"{API}/caixas/{caixa_id}/fechar", json=outro, headers=h).status_code == 409
+
+    # Depois dele, o PDV abre outro caixa normalmente.
+    assert client.post(f"{API}/caixas/abrir", json={"valor_abertura": "0"}, headers=h).status_code == 201
+
+
+def test_regras_do_caixa_sem_internet(client, farmacia_a):
+    h = farmacia_a["headers"]
+    h["X-Terminal"] = _registrar_pdv(client, h)
+    velho = {"id": str(uuid.uuid4()), "valor_abertura": "0",
+             "offline_em": (datetime.now(UTC) - timedelta(days=8)).isoformat()}
+    assert "7 dias" in client.post(f"{API}/caixas/abrir", json=velho, headers=h).json()["detail"]
+
+    agora = datetime.now(UTC)
+    caixa_id = str(uuid.uuid4())
+    abertura = {"id": caixa_id, "valor_abertura": "0", "offline_em": (agora - timedelta(minutes=5)).isoformat()}
+    assert client.post(f"{API}/caixas/abrir", json=abertura, headers=h).status_code == 201
+    antes = {"valor_fechamento_informado": "0", "offline_em": (agora - timedelta(hours=1)).isoformat()}
+    resposta = client.post(f"{API}/caixas/{caixa_id}/fechar", json=antes, headers=h)
+    assert (resposta.status_code, "anterior" in resposta.json()["detail"]) == (400, True)
+    # Mesmo código de caixa usado por outro PDV: recusa.
+    h2 = {**h, "X-Terminal": _registrar_pdv(client, h, "PDV 02")}
+    assert client.post(f"{API}/caixas/abrir", json=abertura, headers=h2).status_code == 409

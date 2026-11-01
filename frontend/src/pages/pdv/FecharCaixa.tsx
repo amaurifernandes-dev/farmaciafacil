@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { api, mensagem } from "../../api/cliente";
 import type { ResumoCaixa } from "../../api/tipos";
 import { reais } from "../../formato";
+import { ehFalhaDeRede } from "../../offline/catalogo";
 import { paraCentavos } from "./carrinho";
 
 const NOMES: Record<string, string> = {
@@ -18,19 +19,34 @@ const NOMES: Record<string, string> = {
 
 interface Props {
   caixa: ResumoCaixa;
+  /** Fecha aqui e manda depois (sem internet, ou com envios ainda na fila). */
+  guardar: boolean;
+  aoFecharSemInternet: (centavos: number) => Promise<ResumoCaixa>;
+  aoCair: () => void;
   aoVoltar: () => void;
   aoFechar: () => void;
 }
 
-export default function FecharCaixa({ caixa, aoVoltar, aoFechar }: Props) {
+export default function FecharCaixa({ caixa, guardar, aoFecharSemInternet, aoCair, aoVoltar, aoFechar }: Props) {
   const [valor, setValor] = useState("");
   const [erro, setErro] = useState("");
   const [resumo, setResumo] = useState<ResumoCaixa | null>(null);
+  const [guardado, setGuardado] = useState(false);
+
+  async function semInternet(centavos: number) {
+    try {
+      setResumo(await aoFecharSemInternet(centavos));
+      setGuardado(true);
+    } catch (e) {
+      setErro(`Não deu para guardar o fechamento neste computador: ${mensagem(e)}`);
+    }
+  }
 
   async function fechar(evento: FormEvent) {
     evento.preventDefault();
     const centavos = paraCentavos(valor);
     if (centavos === null) return setErro("Informe o dinheiro contado na gaveta");
+    if (guardar) return semInternet(centavos);
     try {
       setResumo(
         await api<ResumoCaixa>(`/caixas/${caixa.caixa.id}/fechar`, {
@@ -38,7 +54,9 @@ export default function FecharCaixa({ caixa, aoVoltar, aoFechar }: Props) {
         }),
       );
     } catch (e) {
-      setErro(mensagem(e));
+      if (!ehFalhaDeRede(e)) return setErro(mensagem(e));
+      aoCair();
+      await semInternet(centavos);
     }
   }
 
@@ -51,6 +69,12 @@ export default function FecharCaixa({ caixa, aoVoltar, aoFechar }: Props) {
         <p className={diferenca === 0 ? "ok" : "erro"}>
           Diferença: {reais(resumo.diferenca ?? "0")} {diferenca < 0 ? "(falta)" : diferenca > 0 ? "(sobra)" : ""}
         </p>
+        {guardado && (
+          <p className="pdv-fechado-guardado">
+            Fechado sem internet: o fechamento fica guardado neste computador e é enviado sozinho, depois das vendas,
+            quando a internet voltar.
+          </p>
+        )}
         <button onClick={aoFechar} autoFocus>
           OK
         </button>
@@ -67,6 +91,7 @@ export default function FecharCaixa({ caixa, aoVoltar, aoFechar }: Props) {
       }}
     >
       <h2>Fechar caixa</h2>
+      {guardar && <p className="pdv-offline">Sem internet · o fechamento é guardado e enviado depois</p>}
       <Linhas resumo={caixa} />
       <label>
         Dinheiro contado na gaveta (R$)
