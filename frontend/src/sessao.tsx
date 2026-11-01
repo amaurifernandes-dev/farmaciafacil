@@ -1,7 +1,9 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-import { api, lerSessao, salvarSessao } from "./api/cliente";
+import { api, lerChaveTerminal, lerSessao, salvarSessao } from "./api/cliente";
 import type { Sessao } from "./api/tipos";
+import { cifrar, entrarSemInternet, guardarAcesso } from "./offline/acesso";
+import { ehFalhaDeRede } from "./offline/catalogo";
 
 interface ContextoSessao {
   sessao: Sessao | null;
@@ -15,8 +17,29 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const [sessao, setSessao] = useState<Sessao | null>(lerSessao);
 
   async function entrar(email: string, senha: string) {
-    const nova = await api<Sessao>("/auth/login", { corpo: { email, senha } });
+    let nova: Sessao;
+    try {
+      nova = await api<Sessao>("/auth/login", { corpo: { email, senha } });
+    } catch (e) {
+      // Caixa sem internet: confere a senha com o acesso guardado neste computador.
+      if (!ehFalhaDeRede(e) || !lerChaveTerminal()) throw e;
+      nova = await entrarSemInternet(email, senha);
+      salvarSessao(nova);
+      setSessao(nova);
+      return;
+    }
     salvarSessao(nova);
+    if (lerChaveTerminal() && podeReceber(nova)) {
+      // Num PDV: guarda o acesso para entrar sem internet nos próximos 7 dias.
+      try {
+        const off = await api<{ token_offline: string; expira_em: string }>("/auth/token-offline", { corpo: {} });
+        nova = { ...nova, token_offline: off.token_offline };
+        salvarSessao(nova);
+        await guardarAcesso(await cifrar(email, senha, { sessao: nova, token_offline: off.token_offline }, off.expira_em));
+      } catch {
+        /* sem o acesso guardado, este operador só não entra sem internet */
+      }
+    }
     setSessao(nova);
   }
 

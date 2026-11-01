@@ -56,20 +56,24 @@ function mensagemDoErro(corpo: unknown, status: number): string {
   return `Erro ${status}`;
 }
 
-export async function api<T>(caminho: string, opcoes: { metodo?: string; corpo?: unknown } = {}): Promise<T> {
+export async function api<T>(
+  caminho: string,
+  opcoes: { metodo?: string; corpo?: unknown; token?: string } = {},
+): Promise<T> {
   const sessao = lerSessao();
+  const token = opcoes.token ?? sessao?.access_token;
   const terminal = lerChaveTerminal();
   const resposta = await fetch(`/api/v1${caminho}`, {
     method: opcoes.metodo ?? (opcoes.corpo === undefined ? "GET" : "POST"),
     headers: {
       "Content-Type": "application/json",
-      ...(sessao ? { Authorization: `Bearer ${sessao.access_token}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(terminal ? { "X-Terminal": terminal } : {}),
     },
     body: opcoes.corpo === undefined ? undefined : JSON.stringify(opcoes.corpo),
   });
 
-  if (resposta.status === 401 && sessao) {
+  if (resposta.status === 401 && sessao && !opcoes.token) {
     // Token expirou: volta para o login.
     salvarSessao(null);
     window.location.assign("/login");

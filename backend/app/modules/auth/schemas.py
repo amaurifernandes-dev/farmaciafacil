@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr
@@ -15,3 +16,8 @@ class LoginSaida(BaseModel):
     farmacia_id: UUID
     nome: str
     papel: str
+
+
+class TokenOffline(BaseModel):
+    token_offline: str
+    expira_em: datetime

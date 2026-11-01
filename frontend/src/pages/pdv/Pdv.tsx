@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { api, ErroApi, mensagem } from "../../api/cliente";
 import type {
@@ -131,7 +131,13 @@ function carregarCarrinho(): Carrinho {
 }
 
 export default function Pdv() {
-  const { sessao } = useSessao();
+  const { sessao, sair } = useSessao();
+  const navegar = useNavigate();
+  /** Troca de turno: sai e volta para o login (que funciona sem internet para quem já entrou aqui). */
+  const trocarOperador = () => {
+    sair();
+    navegar("/login", { state: { voltar: "/pdv" } });
+  };
   const [terminal, setTerminal] = useState<EsteTerminal | null | undefined>(undefined);
   const [caixa, setCaixa] = useState<ResumoCaixa | null | undefined>(undefined);
   const [carrinho, setCarrinho] = useState<Carrinho>(carregarCarrinho);
@@ -645,6 +651,7 @@ export default function Pdv() {
         total_centavos: total(carrinho),
         itens: carrinho.itens.length,
         guardada_em: new Date().toISOString(),
+        token: sessao?.token_offline,
       });
     } catch (e) {
       return erro(`Não deu para guardar a venda neste computador: ${mensagem(e)}`);
@@ -861,7 +868,7 @@ export default function Pdv() {
 
   /** Guarda a abertura ou o fechamento e passa a usar o caixa como este computador o vê. */
   async function guardarNaFila(guardada: VendaGuardada, novoCaixa: ResumoCaixa | null) {
-    await guardarVenda(guardada);
+    await guardarVenda({ ...guardada, token: sessao?.token_offline });
     if (terminal) salvarEstado({ terminal, caixa: novoCaixa });
     setGuardadas(await vendasGuardadas());
   }
@@ -881,7 +888,25 @@ export default function Pdv() {
           setAviso({ tipo: "ok", texto: "Caixa aberto sem internet. A abertura é enviada sozinha quando a internet voltar." });
         }}
         aoCair={() => setOnline(false)}
+        aoTrocarOperador={trocarOperador}
       />
+    );
+  }
+  // Caixa aberto por outra pessoa: só ela (ou um gerente) vende e fecha nele.
+  if (sessao && caixa.caixa.usuario_id !== sessao.usuario_id && !ehGerente(sessao)) {
+    return (
+      <div className="pdv-centro cartao">
+        <h2>Caixa aberto por {caixa.operador}</h2>
+        {!online && <p className="pdv-offline">Sem internet</p>}
+        <p>
+          Este caixa foi aberto por {caixa.operador}. Para vender aqui, {caixa.operador} entra e fecha o caixa (F10), ou
+          um gerente fecha. Depois você abre o seu.
+        </p>
+        <button type="button" onClick={trocarOperador} autoFocus>
+          Trocar operador
+        </button>
+        <Link to="/">Ir para o início</Link>
+      </div>
     );
   }
   const resumoAtual = somarGuardadas(caixa, guardadas);
@@ -995,6 +1020,11 @@ export default function Pdv() {
           {carrinho.preVenda && <>Pré-venda nº {carrinho.preVenda.numero} · </>}
           {sessao?.nome} · Caixa aberto · {resumoAtual.quantidade_vendas} venda{resumoAtual.quantidade_vendas === 1 ? "" : "s"} · {reais(resumoAtual.total_vendido)}
         </span>
+        {carrinho.itens.length === 0 && (
+          <button type="button" className="pdv-trocar" onClick={trocarOperador}>
+            Trocar operador
+          </button>
+        )}
         <Link to="/">Início</Link>
       </header>
 
@@ -1270,6 +1300,7 @@ function AbrirCaixa({
   aoAbrir,
   aoAbrirSemInternet,
   aoCair,
+  aoTrocarOperador,
 }: {
   semInternet: boolean;
   /** Abre aqui e manda depois (sem internet, ou com envios ainda na fila). */
@@ -1278,6 +1309,7 @@ function AbrirCaixa({
   aoAbrir: () => void;
   aoAbrirSemInternet: (centavos: number) => Promise<void>;
   aoCair: () => void;
+  aoTrocarOperador: () => void;
 }) {
   const [valor, setValor] = useState("0,00");
   const [erro, setErro] = useState("");
@@ -1315,6 +1347,9 @@ function AbrirCaixa({
       </label>
       {erro && <p className="erro">{erro}</p>}
       <button type="submit">Abrir (Enter)</button>
+      <button type="button" className="botao-secundario" onClick={aoTrocarOperador}>
+        Trocar operador
+      </button>
       <Link to="/">Ir para o início</Link>
     </form>
   );

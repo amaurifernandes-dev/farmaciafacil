@@ -70,8 +70,24 @@ def _conferir_hora_offline(offline_em: datetime, oque: str) -> None:
         raise ErroDeNegocio(f"Envio {oque} offline com mais de 7 dias. Peça a um gerente para lançar à mão.")
 
 
+def conferir_acesso_offline(db: Session, usuario: TokenDados, terminal_id: UUID | None, offline_em: datetime | None) -> None:
+    """O acesso offline só envia o que foi feito sem internet, no PDV dele, depois de guardado."""
+    if usuario.escopo == "completo":
+        return
+    if offline_em is None:
+        raise SemPermissao("Com o acesso sem internet só dá para enviar o que foi feito sem internet")
+    if terminal_id is None or terminal_id != usuario.terminal_id:
+        raise SemPermissao("Este acesso sem internet é de outro PDV")
+    if usuario.emitido_em and offline_em < usuario.emitido_em - timedelta(minutes=10):
+        raise SemPermissao("Este envio é de antes do acesso sem internet ser guardado")
+    operador = db.get(Usuario, usuario.usuario_id)
+    if operador is None or not operador.ativo:
+        raise SemPermissao("Este operador foi desativado")
+
+
 def abrir_caixa(db: Session, usuario: TokenDados, terminal: Terminal | None, dados: CaixaAbrir) -> Caixa:
     terminal = _exigir_terminal(terminal)
+    conferir_acesso_offline(db, usuario, terminal.id, dados.offline_em)
     if dados.id is not None:
         # Abertura feita sem internet e reenviada: devolve a mesma, sem abrir outra.
         ja_aberto = db.get(Caixa, dados.id)
@@ -183,6 +199,7 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
 
 def fechar_caixa(db: Session, usuario: TokenDados, caixa_id: UUID, dados: CaixaFechar) -> ResumoCaixa:
     caixa = obter_caixa(db, caixa_id)
+    conferir_acesso_offline(db, usuario, caixa.terminal_id, dados.offline_em)
     if caixa.usuario_id != usuario.usuario_id and usuario.papel not in GERENTES:
         raise SemPermissao("Só o próprio operador ou um gerente pode fechar este caixa")
     if caixa.status != "aberto":
@@ -226,6 +243,7 @@ def registrar_venda(
         return existente, False
 
     offline = dados.offline_em is not None
+    conferir_acesso_offline(db, usuario, terminal.id if terminal else None, dados.offline_em)
     caixa = _caixa_da_venda_offline(db, usuario, terminal, dados) if offline else caixa_para_vender(db, usuario, terminal)
     pre_venda = _pre_venda_para_receber(db, dados.pre_venda_id) if dados.pre_venda_id else None
 

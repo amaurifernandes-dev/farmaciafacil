@@ -747,3 +747,6 @@ button.servico-opcao:disabled { opacity: 0.55; cursor: not-allowed; border-color
 .pdv-centro .pdv-offline { margin: 0; border-radius: 8px; padding: 6px 10px; }
 .pdv-fechado-guardado { margin: 0; color: #b54708; font-weight: 600; }
 .selo-offline { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: #fff4e5; color: #b54708; font-size: 11px; font-weight: 600; }
+.pdv-topo button.pdv-trocar { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.7); padding: 3px 10px; font-size: 13px; width: auto; }
+.pdv-topo button.pdv-trocar:hover { background: rgba(255,255,255,.15); }
+.login-offline { margin: 0; padding: 8px 12px; border-radius: 8px; background: #fff4e5; border: 1px solid #f5c58a; font-size: 14px; }
