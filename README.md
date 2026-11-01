@@ -117,9 +117,21 @@ Perfis: administrador, gerente, farmacêutico, operador de caixa, atendente (só
 | F8 / F9 | Identificar o cliente / usar os pontos dele |
 | ↑ ↓ / Del | Selecionar / remover item |
 | Esc | Voltar; na venda, Esc duas vezes cancela |
-| F10 | Fechar caixa |
+| F10 | Fechar caixa (e, na mesma tela, sangria e suprimento) |
 
 A venda em andamento fica salva no navegador até ser finalizada.
+
+### Fechamento de caixa
+
+- **Sangria e suprimento**: com o caixa aberto, tira dinheiro da gaveta (cofre, banco, fornecedor) ou coloca troco.
+  Cada um guarda valor, motivo, quem fez e a hora, e entra na conta do dinheiro esperado. Não dá para tirar mais do
+  que tem na gaveta. Precisa de internet. Feito pelo próprio operador ou por um gerente.
+- **Conferência por forma**: no fechamento o operador conta o dinheiro e soma os comprovantes de débito, crédito e Pix
+  (só das formas que tiveram venda; deixar vazio é não conferir). A tela mostra a diferença de cada forma na hora e,
+  se houver diferença, pede o motivo antes de fechar.
+- **Fechamento do dia** (`/caixas/fechamento-do-dia`, gerência): todos os caixas abertos na data, por loja ou de todas,
+  com vendas por forma, sangrias, suprimentos, a conferência somada dos caixas fechados e o motivo de cada diferença.
+  Dá para imprimir. Na API: `GET /caixas/relatorio?dia=AAAA-MM-DD&loja_id=...`.
 
 ## Assistente de IA
 

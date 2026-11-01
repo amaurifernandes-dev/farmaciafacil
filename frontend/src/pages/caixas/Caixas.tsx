@@ -7,7 +7,8 @@ import { Janela } from "../../components/Cadastro";
 import Icone from "../../components/Icone";
 import { reais } from "../../formato";
 import { ehGerente, useSessao } from "../../sessao";
-import { paraCentavos } from "../pdv/carrinho";
+import { conferir, type Contagem, contagemVazia } from "./conferencia";
+import { CamposFechamento, JanelaMovimento, LinhasDinheiro, ListaMovimentos, TabelaConferencia } from "./Fechamento";
 
 function dataHora(iso: string | null): string {
   if (!iso) return "-";
@@ -38,6 +39,8 @@ export default function Caixas() {
   const [abertos, setAbertos] = useState<ResumoCaixa[]>([]);
   const [fechados, setFechados] = useState<ResumoCaixa[]>([]);
   const [fechando, setFechando] = useState<ResumoCaixa | null>(null);
+  const [vendo, setVendo] = useState<ResumoCaixa | null>(null);
+  const [movimento, setMovimento] = useState<{ resumo: ResumoCaixa; tipo: "sangria" | "suprimento" } | null>(null);
   const [novoPdv, setNovoPdv] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -96,11 +99,18 @@ export default function Caixas() {
           <h1>Gestão de caixas</h1>
           <p className="vazio">Os computadores que recebem pagamentos, quem está com o caixa aberto e os fechamentos.</p>
         </div>
-        {este?.pode_receber && (
-          <Link to="/pdv" className="botao">
-            <Icone nome="caixa" /> Abrir frente de caixa
-          </Link>
-        )}
+        <div className="acoes">
+          {gerente && (
+            <Link to="/caixas/fechamento-do-dia" className="botao-contorno">
+              <Icone nome="recibo" /> Fechamento do dia
+            </Link>
+          )}
+          {este?.pode_receber && (
+            <Link to="/pdv" className="botao">
+              <Icone nome="caixa" /> Abrir frente de caixa
+            </Link>
+          )}
+        </div>
       </div>
       {erro && <p className="erro">{erro}</p>}
 
@@ -150,7 +160,13 @@ export default function Caixas() {
                     <td className="num">{c.quantidade_vendas}</td>
                     <td className="num">{reais(c.total_vendido)}</td>
                     <td className="num">{reais(c.dinheiro_esperado)}</td>
-                    <td className="num">
+                    <td className="num acoes-tabela">
+                      <button type="button" className="botao-pequeno" onClick={() => setMovimento({ resumo: c, tipo: "sangria" })}>
+                        Sangria
+                      </button>
+                      <button type="button" className="botao-pequeno" onClick={() => setMovimento({ resumo: c, tipo: "suprimento" })}>
+                        Suprimento
+                      </button>
                       <button type="button" className="botao-pequeno" onClick={() => setFechando(c)}>
                         Fechar
                       </button>
@@ -236,11 +252,12 @@ export default function Caixas() {
                   <th>Fechado em</th>
                   <th className="num">Total vendido</th>
                   <th className="num">Diferença</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {fechados.map((c) => {
-                  const diferenca = Number(c.diferenca ?? 0);
+                  const diferenca = Number(c.diferenca_total ?? c.diferenca ?? 0);
                   return (
                     <tr key={c.caixa.id}>
                       <td>{c.terminal ?? "-"}</td>
@@ -250,8 +267,14 @@ export default function Caixas() {
                         {(c.caixa.aberto_offline || c.caixa.fechado_offline) && <small className="selo-offline">sem internet</small>}
                       </td>
                       <td className="num">{reais(c.total_vendido)}</td>
-                      <td className={`num ${diferenca < 0 ? "negativo" : diferenca > 0 ? "positivo" : ""}`}>
-                        {reais(c.diferenca ?? "0")}
+                      <td className="num">
+                        <span className={diferenca < 0 ? "negativo" : diferenca > 0 ? "positivo" : ""}>{reais(diferenca, false)}</span>
+                        {c.caixa.observacao_fechamento && <small title={c.caixa.observacao_fechamento}> · com motivo</small>}
+                      </td>
+                      <td className="num">
+                        <button type="button" className="botao-pequeno" onClick={() => setVendo(c)}>
+                          Ver
+                        </button>
                       </td>
                     </tr>
                   );
@@ -267,6 +290,18 @@ export default function Caixas() {
           caixa={fechando}
           aoFechar={() => {
             setFechando(null);
+            carregar();
+          }}
+        />
+      )}
+      {vendo && <DetalheCaixa resumo={vendo} aoFechar={() => setVendo(null)} />}
+      {movimento && (
+        <JanelaMovimento
+          resumo={movimento.resumo}
+          tipo={movimento.tipo}
+          aoCancelar={() => setMovimento(null)}
+          aoSalvar={() => {
+            setMovimento(null);
             carregar();
           }}
         />
@@ -437,20 +472,16 @@ function NovoPdv({
 }
 
 function FecharNaGestao({ caixa, aoFechar }: { caixa: ResumoCaixa; aoFechar: () => void }) {
-  const [valor, setValor] = useState("");
+  const [contagem, setContagem] = useState<Contagem>(contagemVazia);
   const [erro, setErro] = useState("");
   const [resumo, setResumo] = useState<ResumoCaixa | null>(null);
 
   async function fechar(evento: FormEvent) {
     evento.preventDefault();
-    const centavos = paraCentavos(valor);
-    if (centavos === null) return setErro("Informe o dinheiro contado na gaveta");
+    const { corpo, erro: problema } = conferir(caixa, contagem);
+    if (!corpo) return setErro(problema);
     try {
-      setResumo(
-        await api<ResumoCaixa>(`/caixas/${caixa.caixa.id}/fechar`, {
-          corpo: { valor_fechamento_informado: (centavos / 100).toFixed(2) },
-        }),
-      );
+      setResumo(await api<ResumoCaixa>(`/caixas/${caixa.caixa.id}/fechar`, { corpo }));
     } catch (e) {
       setErro(mensagem(e));
     }
@@ -460,8 +491,9 @@ function FecharNaGestao({ caixa, aoFechar }: { caixa: ResumoCaixa; aoFechar: () 
     <Janela titulo={`Fechar caixa · ${caixa.terminal ?? ""} · ${caixa.operador}`} aoFechar={aoFechar}>
       {resumo ? (
         <>
-          <p className={Number(resumo.diferenca) === 0 ? "ok" : "erro"}>
-            Caixa fechado. Diferença: {reais(resumo.diferenca ?? "0")}
+          <TabelaConferencia linhas={resumo.conferencia ?? []} />
+          <p className={Number(resumo.diferenca_total ?? 0) === 0 ? "ok" : "erro"}>
+            Caixa fechado. Diferença: {reais(resumo.diferenca_total ?? resumo.diferenca ?? "0")}
           </p>
           <div className="acoes direita">
             <button type="button" onClick={aoFechar}>
@@ -471,14 +503,13 @@ function FecharNaGestao({ caixa, aoFechar }: { caixa: ResumoCaixa; aoFechar: () 
         </>
       ) : (
         <form onSubmit={fechar} className="campos">
-          <p className="largo">
-            Vendas: {caixa.quantidade_vendas} · {reais(caixa.total_vendido)}. Dinheiro esperado na gaveta:{" "}
-            <strong>{reais(caixa.dinheiro_esperado)}</strong>
-          </p>
-          <label className="largo">
-            Dinheiro contado na gaveta (R$)
-            <input value={valor} onChange={(e) => setValor(e.target.value)} autoFocus inputMode="decimal" />
-          </label>
+          <div className="largo">
+            <LinhasDinheiro resumo={caixa} />
+            <ListaMovimentos movimentos={caixa.movimentos ?? []} />
+          </div>
+          <div className="largo">
+            <CamposFechamento resumo={caixa} contagem={contagem} aoMudar={setContagem} />
+          </div>
           {erro && <p className="erro largo">{erro}</p>}
           <div className="acoes largo direita">
             <button type="button" onClick={aoFechar}>
@@ -488,6 +519,38 @@ function FecharNaGestao({ caixa, aoFechar }: { caixa: ResumoCaixa; aoFechar: () 
           </div>
         </form>
       )}
+    </Janela>
+  );
+}
+
+/** Um caixa já fechado: de onde veio e para onde foi o dinheiro, e a conferência forma por forma. */
+export function DetalheCaixa({ resumo, aoFechar }: { resumo: ResumoCaixa; aoFechar: () => void }) {
+  return (
+    <Janela titulo={`Caixa · ${resumo.terminal ?? "Sem PDV"} · ${resumo.operador}`} aoFechar={aoFechar}>
+      <p className="vazio">
+        Aberto {dataHora(resumo.caixa.aberto_em)}
+        {resumo.caixa.fechado_em && ` · fechado ${dataHora(resumo.caixa.fechado_em)}`}
+        {resumo.loja && ` · ${resumo.loja}`}
+      </p>
+      <LinhasDinheiro resumo={resumo} />
+      {Boolean(resumo.movimentos?.length) && (
+        <>
+          <h3>Sangrias e suprimentos</h3>
+          <ListaMovimentos movimentos={resumo.movimentos ?? []} />
+        </>
+      )}
+      <h3>Conferência</h3>
+      <TabelaConferencia linhas={resumo.conferencia ?? []} />
+      {resumo.caixa.observacao_fechamento && (
+        <p className="nota">
+          <strong>Motivo da diferença:</strong> {resumo.caixa.observacao_fechamento}
+        </p>
+      )}
+      <div className="acoes direita">
+        <button type="button" onClick={aoFechar}>
+          OK
+        </button>
+      </div>
     </Janela>
   );
 }

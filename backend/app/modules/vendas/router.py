@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -12,13 +13,16 @@ from app.modules.vendas.schemas import (
     CaixaAbrir,
     CaixaFechar,
     CaixaSaida,
+    MovimentoCriar,
     PreVendaCriar,
     PreVendaSaida,
+    RelatorioCaixas,
     ResumoCaixa,
     VendaCancelar,
     VendaCriar,
     VendaSaida,
 )
+from app.shared.datas import hoje
 from app.shared.erros import NaoEncontrado
 
 caixas = APIRouter(prefix="/caixas", tags=["caixa"])
@@ -52,6 +56,12 @@ def listar(
     return service.listar_caixas(db, situacao, pagina, por_pagina)
 
 
+@caixas.get("/relatorio")
+def relatorio(db: DB, _: Gerente, dia: date | None = None, loja_id: UUID | None = None) -> RelatorioCaixas:
+    """Fechamento do dia: todos os caixas abertos na data, por forma de pagamento."""
+    return service.relatorio_do_dia(db, dia or hoje(), loja_id)
+
+
 @caixas.get("/{caixa_id}")
 def resumo(db: DB, _: Gerente, caixa_id: UUID) -> ResumoCaixa:
     return service.resumo_caixa(db, service.obter_caixa(db, caixa_id))
@@ -60,6 +70,12 @@ def resumo(db: DB, _: Gerente, caixa_id: UUID) -> ResumoCaixa:
 @caixas.post("/{caixa_id}/fechar")
 def fechar(db: DB, usuario: UsuarioAtual, caixa_id: UUID, dados: CaixaFechar) -> ResumoCaixa:
     return service.fechar_caixa(db, usuario, caixa_id, dados)
+
+
+@caixas.post("/{caixa_id}/movimentos", status_code=status.HTTP_201_CREATED)
+def movimento(db: DB, usuario: UsuarioAtual, caixa_id: UUID, dados: MovimentoCriar) -> ResumoCaixa:
+    """Sangria ou suprimento: tira ou põe dinheiro na gaveta com o caixa aberto."""
+    return service.lancar_movimento(db, usuario, caixa_id, dados)
 
 
 @vendas.post("", status_code=status.HTTP_201_CREATED)

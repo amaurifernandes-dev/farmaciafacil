@@ -4,38 +4,33 @@ import { api, mensagem } from "../../api/cliente";
 import type { ResumoCaixa } from "../../api/tipos";
 import { reais } from "../../formato";
 import { ehFalhaDeRede } from "../../offline/catalogo";
-import { paraCentavos } from "./carrinho";
+import { conferir, type Contagem, contagemVazia } from "../caixas/conferencia";
+import { CamposFechamento, FormMovimento, LinhasDinheiro, ListaMovimentos, TabelaConferencia } from "../caixas/Fechamento";
 
-const NOMES: Record<string, string> = {
-  dinheiro: "Dinheiro",
-  debito: "Débito",
-  credito: "Crédito",
-  pix: "Pix",
-  prazo: "A prazo (fiado)",
-  convenio: "Convênio",
-  popular: "Farmácia Popular",
-  vale: "Vale-troca",
-};
+export type CorpoFechamento = NonNullable<ReturnType<typeof conferir>["corpo"]>;
 
 interface Props {
   caixa: ResumoCaixa;
   /** Fecha aqui e manda depois (sem internet, ou com envios ainda na fila). */
   guardar: boolean;
-  aoFecharSemInternet: (centavos: number) => Promise<ResumoCaixa>;
+  aoFecharSemInternet: (corpo: CorpoFechamento) => Promise<ResumoCaixa>;
+  /** Sangria ou suprimento lançado: o caixa com a gaveta atualizada. */
+  aoAtualizar: (resumo: ResumoCaixa) => void;
   aoCair: () => void;
   aoVoltar: () => void;
   aoFechar: () => void;
 }
 
-export default function FecharCaixa({ caixa, guardar, aoFecharSemInternet, aoCair, aoVoltar, aoFechar }: Props) {
-  const [valor, setValor] = useState("");
+export default function FecharCaixa({ caixa, guardar, aoFecharSemInternet, aoAtualizar, aoCair, aoVoltar, aoFechar }: Props) {
+  const [contagem, setContagem] = useState<Contagem>(contagemVazia);
   const [erro, setErro] = useState("");
   const [resumo, setResumo] = useState<ResumoCaixa | null>(null);
   const [guardado, setGuardado] = useState(false);
+  const [movimento, setMovimento] = useState<"sangria" | "suprimento" | null>(null);
 
-  async function semInternet(centavos: number) {
+  async function semInternet(corpo: CorpoFechamento) {
     try {
-      setResumo(await aoFecharSemInternet(centavos));
+      setResumo(await aoFecharSemInternet(corpo));
       setGuardado(true);
     } catch (e) {
       setErro(`Não deu para guardar o fechamento neste computador: ${mensagem(e)}`);
@@ -44,30 +39,31 @@ export default function FecharCaixa({ caixa, guardar, aoFecharSemInternet, aoCai
 
   async function fechar(evento: FormEvent) {
     evento.preventDefault();
-    const centavos = paraCentavos(valor);
-    if (centavos === null) return setErro("Informe o dinheiro contado na gaveta");
-    if (guardar) return semInternet(centavos);
+    const { corpo, erro: problema } = conferir(caixa, contagem);
+    if (!corpo) return setErro(problema);
+    if (guardar) return semInternet(corpo);
     try {
-      setResumo(
-        await api<ResumoCaixa>(`/caixas/${caixa.caixa.id}/fechar`, {
-          corpo: { valor_fechamento_informado: (centavos / 100).toFixed(2) },
-        }),
-      );
+      setResumo(await api<ResumoCaixa>(`/caixas/${caixa.caixa.id}/fechar`, { corpo }));
     } catch (e) {
       if (!ehFalhaDeRede(e)) return setErro(mensagem(e));
       aoCair();
-      await semInternet(centavos);
+      await semInternet(corpo);
     }
   }
 
   if (resumo) {
-    const diferenca = Number(resumo.diferenca);
+    const diferenca = Number(resumo.diferenca_total ?? resumo.diferenca);
     return (
-      <div className="pdv-centro cartao">
+      <div className="pdv-centro pdv-fechamento cartao">
         <h2>Caixa fechado</h2>
-        <Linhas resumo={resumo} />
+        <LinhasDinheiro resumo={resumo} />
+        {resumo.conferencia?.length ? (
+          <TabelaConferencia linhas={resumo.conferencia} />
+        ) : (
+          <p>Dinheiro esperado: {reais(resumo.dinheiro_esperado)}</p>
+        )}
         <p className={diferenca === 0 ? "ok" : "erro"}>
-          Diferença: {reais(resumo.diferenca ?? "0")} {diferenca < 0 ? "(falta)" : diferenca > 0 ? "(sobra)" : ""}
+          Diferença: {reais(String(diferenca))} {diferenca < 0 ? "(falta)" : diferenca > 0 ? "(sobra)" : ""}
         </p>
         {guardado && (
           <p className="pdv-fechado-guardado">
@@ -82,9 +78,26 @@ export default function FecharCaixa({ caixa, guardar, aoFecharSemInternet, aoCai
     );
   }
 
+  if (movimento) {
+    return (
+      <div className="pdv-centro pdv-fechamento cartao">
+        <h2>{movimento === "sangria" ? "Sangria" : "Suprimento"}</h2>
+        <FormMovimento
+          resumo={caixa}
+          tipo={movimento}
+          aoCancelar={() => setMovimento(null)}
+          aoSalvar={(atualizado) => {
+            aoAtualizar(atualizado);
+            setMovimento(null);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <form
-      className="pdv-centro cartao"
+      className="pdv-centro pdv-fechamento cartao"
       onSubmit={fechar}
       onKeyDown={(e) => {
         if (e.key === "Escape") aoVoltar();
@@ -92,55 +105,23 @@ export default function FecharCaixa({ caixa, guardar, aoFecharSemInternet, aoCai
     >
       <h2>Fechar caixa</h2>
       {guardar && <p className="pdv-offline">Sem internet · o fechamento é guardado e enviado depois</p>}
-      <Linhas resumo={caixa} />
-      <label>
-        Dinheiro contado na gaveta (R$)
-        <input value={valor} onChange={(e) => setValor(e.target.value)} autoFocus />
-      </label>
+      <LinhasDinheiro resumo={caixa} />
+      <ListaMovimentos movimentos={caixa.movimentos ?? []} />
+      <div className="acoes">
+        <button type="button" className="botao-pequeno" disabled={guardar} onClick={() => setMovimento("sangria")}>
+          Sangria
+        </button>
+        <button type="button" className="botao-pequeno" disabled={guardar} onClick={() => setMovimento("suprimento")}>
+          Suprimento
+        </button>
+        {guardar && <small className="vazio">Sangria e suprimento precisam de internet</small>}
+      </div>
+      <CamposFechamento resumo={caixa} contagem={contagem} aoMudar={setContagem} />
       {erro && <p className="erro">{erro}</p>}
       <button type="submit">Fechar (Enter)</button>
       <button type="button" onClick={aoVoltar}>
         Voltar (Esc)
       </button>
     </form>
-  );
-}
-
-function Linhas({ resumo }: { resumo: ResumoCaixa }) {
-  return (
-    <dl className="resumo">
-      <dt>Abertura</dt>
-      <dd>{reais(resumo.caixa.valor_abertura)}</dd>
-      <dt>Vendas</dt>
-      <dd>
-        {resumo.quantidade_vendas} · {reais(resumo.total_vendido)}
-      </dd>
-      {Object.entries(resumo.por_forma).map(([forma, valor]) => (
-        <div key={forma}>
-          <dt>{NOMES[forma] ?? forma}</dt>
-          <dd>{reais(valor)}</dd>
-        </div>
-      ))}
-      {Number(resumo.recebimentos_dinheiro) > 0 && (
-        <div>
-          <dt>Fiado recebido em dinheiro</dt>
-          <dd>{reais(resumo.recebimentos_dinheiro)}</dd>
-        </div>
-      )}
-      {Number(resumo.servicos_dinheiro ?? 0) > 0 && (
-        <div>
-          <dt>Serviços farmacêuticos em dinheiro</dt>
-          <dd>{reais(resumo.servicos_dinheiro)}</dd>
-        </div>
-      )}
-      {Number(resumo.devolucoes_dinheiro ?? 0) > 0 && (
-        <div>
-          <dt>Devolvido a clientes (trocas)</dt>
-          <dd>-{reais(resumo.devolucoes_dinheiro)}</dd>
-        </div>
-      )}
-      <dt>Dinheiro esperado</dt>
-      <dd>{reais(resumo.dinheiro_esperado)}</dd>
-    </dl>
   );
 }

@@ -88,6 +88,7 @@ export function fecharSemInternet(
   resumo: ResumoCaixa,
   informadoCentavos: number,
   agora: Date,
+  extra: { conferencia?: Record<string, string>; observacao?: string | null } = {},
 ): { resumo: ResumoCaixa; guardada: VendaGuardada } {
   const quando = agora.toISOString();
   return {
@@ -99,6 +100,7 @@ export function fecharSemInternet(
         fechado_em: quando,
         valor_fechamento_informado: texto(informadoCentavos),
         fechado_offline: true,
+        observacao_fechamento: extra.observacao ?? null,
       },
       diferenca: texto(informadoCentavos - centavos(resumo.dinheiro_esperado)),
     },
@@ -106,7 +108,7 @@ export function fecharSemInternet(
       chave: `fechar-${resumo.caixa.id}`,
       tipo: "fechar",
       caminho: `/caixas/${resumo.caixa.id}/fechar`,
-      corpo: { valor_fechamento_informado: texto(informadoCentavos), offline_em: quando },
+      corpo: { valor_fechamento_informado: texto(informadoCentavos), offline_em: quando, ...extra },
       total_centavos: 0,
       itens: 0,
       guardada_em: quando,

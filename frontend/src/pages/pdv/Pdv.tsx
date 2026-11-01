@@ -915,10 +915,15 @@ export default function Pdv() {
       <FecharCaixa
         caixa={resumoAtual}
         guardar={guardarCaixa}
-        aoFecharSemInternet={async (centavos) => {
-          const { resumo, guardada } = fecharSemInternet(resumoAtual, centavos, new Date());
+        aoFecharSemInternet={async ({ valor_fechamento_informado, conferencia, observacao }) => {
+          const centavos = Math.round(Number(valor_fechamento_informado) * 100);
+          const { resumo, guardada } = fecharSemInternet(resumoAtual, centavos, new Date(), { conferencia, observacao });
           await guardarNaFila(guardada, null);
           return resumo;
+        }}
+        aoAtualizar={(atualizado) => {
+          setCaixa(atualizado);
+          if (terminal) salvarEstado({ terminal, caixa: atualizado });
         }}
         aoCair={() => setOnline(false)}
         aoVoltar={() => mudarModo("venda")}
