@@ -12,8 +12,12 @@ export interface CatalogoLocal {
 
 export interface VendaGuardada {
   chave: string;
-  /** O corpo do POST /vendas, pronto para reenviar igual. */
-  corpo: Record<string, unknown> & { chave_idempotencia: string; offline_em: string };
+  /** O que foi guardado: uma venda (o normal), a abertura ou o fechamento do caixa. */
+  tipo?: "venda" | "abrir" | "fechar";
+  /** Para onde enviar (sem ele, POST /vendas). */
+  caminho?: string;
+  /** O corpo do POST, pronto para reenviar igual. */
+  corpo: Record<string, unknown> & { offline_em: string };
   total_centavos: number;
   itens: number;
   guardada_em: string;

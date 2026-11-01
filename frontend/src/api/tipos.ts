@@ -81,6 +81,9 @@ export interface Caixa {
   aberto_em: string;
   fechado_em: string | null;
   valor_fechamento_informado: string | null;
+  /** Aberto ou fechado no PDV sem internet e enviado depois. */
+  aberto_offline?: boolean;
+  fechado_offline?: boolean;
 }
 
 export interface ResumoCaixa {

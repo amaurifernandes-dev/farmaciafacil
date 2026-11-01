@@ -143,7 +143,10 @@ export default function Caixas() {
                     </td>
                     <td>{c.loja ?? "-"}</td>
                     <td>{c.operador}</td>
-                    <td>{dataHora(c.caixa.aberto_em)}</td>
+                    <td>
+                      {dataHora(c.caixa.aberto_em)}
+                      {c.caixa.aberto_offline && <small className="selo-offline">sem internet</small>}
+                    </td>
                     <td className="num">{c.quantidade_vendas}</td>
                     <td className="num">{reais(c.total_vendido)}</td>
                     <td className="num">{reais(c.dinheiro_esperado)}</td>
@@ -242,7 +245,10 @@ export default function Caixas() {
                     <tr key={c.caixa.id}>
                       <td>{c.terminal ?? "-"}</td>
                       <td>{c.operador}</td>
-                      <td>{dataHora(c.caixa.fechado_em)}</td>
+                      <td>
+                        {dataHora(c.caixa.fechado_em)}
+                        {(c.caixa.aberto_offline || c.caixa.fechado_offline) && <small className="selo-offline">sem internet</small>}
+                      </td>
                       <td className="num">{reais(c.total_vendido)}</td>
                       <td className={`num ${diferenca < 0 ? "negativo" : diferenca > 0 ? "positivo" : ""}`}>
                         {reais(c.diferenca ?? "0")}

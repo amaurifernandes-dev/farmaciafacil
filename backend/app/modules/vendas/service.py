@@ -31,7 +31,7 @@ from app.modules.servicos.service import recebido_no_caixa as servicos_no_caixa
 from app.modules.promocoes.models import Promocao
 from app.modules.promocoes.service import melhor, vigentes_por_produto
 from app.modules.vendas.models import Caixa, PreVenda, Venda, VendaItem, VendaPagamento
-from app.modules.vendas.schemas import CaixaSaida, PreVendaCriar, PreVendaSaida, ResumoCaixa, VendaCriar
+from app.modules.vendas.schemas import CaixaAbrir, CaixaFechar, CaixaSaida, PreVendaCriar, PreVendaSaida, ResumoCaixa, VendaCriar
 from app.shared.datas import hoje
 from app.shared.erros import Conflito, ErroDeNegocio, NaoEncontrado, SemPermissao
 
@@ -62,8 +62,25 @@ def _exigir_terminal(terminal: Terminal | None) -> Terminal:
     return terminal
 
 
-def abrir_caixa(db: Session, usuario: TokenDados, terminal: Terminal | None, valor_abertura: Decimal) -> Caixa:
+def _conferir_hora_offline(offline_em: datetime, oque: str) -> None:
+    agora = _agora()
+    if offline_em > agora + timedelta(minutes=10):
+        raise ErroDeNegocio(f"A hora {oque} offline está no futuro. Confira o relógio deste computador.")
+    if offline_em < agora - OFFLINE_MAXIMO:
+        raise ErroDeNegocio(f"Envio {oque} offline com mais de 7 dias. Peça a um gerente para lançar à mão.")
+
+
+def abrir_caixa(db: Session, usuario: TokenDados, terminal: Terminal | None, dados: CaixaAbrir) -> Caixa:
     terminal = _exigir_terminal(terminal)
+    if dados.id is not None:
+        # Abertura feita sem internet e reenviada: devolve a mesma, sem abrir outra.
+        ja_aberto = db.get(Caixa, dados.id)
+        if ja_aberto is not None:
+            if ja_aberto.terminal_id != terminal.id or ja_aberto.usuario_id != usuario.usuario_id:
+                raise Conflito("Já existe outro caixa com este código")
+            return ja_aberto
+    if dados.offline_em is not None:
+        _conferir_hora_offline(dados.offline_em, "da abertura do caixa")
     if usuario.papel not in OPERADORES:
         raise SemPermissao("Seu perfil não pode abrir caixa")
     loja = db.get(Loja, terminal.loja_id)
@@ -78,9 +95,12 @@ def abrir_caixa(db: Session, usuario: TokenDados, terminal: Terminal | None, val
         usuario_id=usuario.usuario_id,
         terminal_id=terminal.id,
         loja_id=loja.id,
-        valor_abertura=valor_abertura,
-        aberto_em=_agora(),
+        valor_abertura=dados.valor_abertura,
+        aberto_em=dados.offline_em or _agora(),
+        aberto_offline=dados.offline_em is not None,
     )
+    if dados.id is not None:
+        caixa.id = dados.id
     db.add(caixa)
     try:
         db.commit()
@@ -161,15 +181,22 @@ def resumo_caixa(db: Session, caixa: Caixa) -> ResumoCaixa:
     )
 
 
-def fechar_caixa(db: Session, usuario: TokenDados, caixa_id: UUID, valor_informado: Decimal) -> ResumoCaixa:
+def fechar_caixa(db: Session, usuario: TokenDados, caixa_id: UUID, dados: CaixaFechar) -> ResumoCaixa:
     caixa = obter_caixa(db, caixa_id)
     if caixa.usuario_id != usuario.usuario_id and usuario.papel not in GERENTES:
         raise SemPermissao("Só o próprio operador ou um gerente pode fechar este caixa")
     if caixa.status != "aberto":
+        if dados.offline_em is not None and caixa.fechado_em == dados.offline_em:
+            return resumo_caixa(db, caixa)  # fechamento offline reenviado
         raise Conflito("Este caixa já está fechado")
+    if dados.offline_em is not None:
+        _conferir_hora_offline(dados.offline_em, "do fechamento do caixa")
+        if dados.offline_em < caixa.aberto_em:
+            raise ErroDeNegocio("A hora do fechamento offline é anterior à abertura do caixa")
     caixa.status = "fechado"
-    caixa.fechado_em = _agora()
-    caixa.valor_fechamento_informado = valor_informado
+    caixa.fechado_em = dados.offline_em or _agora()
+    caixa.fechado_offline = dados.offline_em is not None
+    caixa.valor_fechamento_informado = dados.valor_fechamento_informado
     resumo = resumo_caixa(db, caixa)
     db.commit()
     return resumo
