@@ -26,6 +26,7 @@ import Transferencia from "./pages/gestao/Transferencia";
 import Contagem from "./pages/inventario/Contagem";
 import Inventario from "./pages/inventario/Inventario";
 import Inventarios from "./pages/inventario/Inventarios";
+import SemInternet from "./pages/caixas/SemInternet";
 import DeclaracaoServico from "./pages/servicos/Declaracao";
 import ComprovanteDevolucao from "./pages/devolucoes/Comprovante";
 import Devolucoes from "./pages/devolucoes/Devolucoes";
@@ -98,6 +99,7 @@ export default function App() {
         <Route path="/vendas/pre-venda" element={<PreVenda />} />
         <Route path="/devolucoes" element={<SoGerente><Devolucoes /></SoGerente>} />
         <Route path="/caixas" element={<Caixas />} />
+        <Route path="/vendas-offline" element={<SoGerente><SemInternet /></SoGerente>} />
         <Route path="/clientes" element={<Clientes />} />
         <Route path="/clientes/:id" element={<FichaCliente />} />
         <Route path="/estoque" element={<Estoque />}>

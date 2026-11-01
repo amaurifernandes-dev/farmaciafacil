@@ -183,3 +183,38 @@ def test_operador_entra_sem_internet_com_acesso_guardado(client, farmacia_a):
     outro = {**off, "X-Terminal": _registrar_pdv(client, h, "PDV 02")}
     abertura2 = {"id": str(uuid.uuid4()), "valor_abertura": "0", "offline_em": agora.isoformat()}
     assert client.post(f"{API}/caixas/abrir", json=abertura2, headers=outro).status_code == 403
+
+
+def test_painel_das_vendas_sem_internet(client, farmacia_a):
+    h = farmacia_a["headers"]
+    produto = _produto_com_estoque(client, farmacia_a, "Algodão", "4.00", lotes=(("A", 90, 1),))
+    caixa = _abrir_caixa(client, farmacia_a)
+    corpo = _offline(produto, 2, "4.00", [{"forma": "dinheiro", "valor": "8.00"}], caixa["id"])
+    assert client.post(f"{API}/vendas", json=corpo, headers=h).status_code == 201
+
+    # O PDV avisa uma venda recusada (ex.: com mais de 7 dias).
+    velha = _offline(produto, 1, "4.00", [{"forma": "pix", "valor": "4.00"}], caixa["id"],
+                     datetime.now(UTC) - timedelta(days=2))
+    recusa = {"chave": velha["chave_idempotencia"], "tipo": "venda", "offline_em": velha["offline_em"],
+              "total": "4.00", "motivo": "Erro de teste", "corpo": velha}
+    assert client.post(f"{API}/pdv/recusas", json=recusa, headers=h).status_code == 204
+    assert client.post(f"{API}/pdv/recusas", json=recusa, headers=h).status_code == 204  # avisar de novo não duplica
+
+    painel = client.get(f"{API}/vendas-offline", headers=h).json()
+    assert painel["resumo"] == {"vendas": 1, "total": "8.00", "caixas": 0, "itens_sem_estoque": 1, "recusas_pendentes": 1}
+    assert [i["produto"] for i in painel["sem_estoque"]] == ["Algodão"]
+    assert Decimal(painel["sem_estoque"][0]["quantidade"]) == 1
+    assert [(r["tipo"], r["motivo"], r["resolvido_em"]) for r in painel["recusas"]] == [("venda", "Erro de teste", None)]
+
+    # Tentou de novo e entrou: sai das pendentes sozinha.
+    assert client.post(f"{API}/vendas", json=velha, headers=h).status_code == 201
+    painel = client.get(f"{API}/vendas-offline", headers=h).json()
+    assert painel["resumo"]["recusas_pendentes"] == 0
+    assert painel["recusas"][0]["resolucao"] == "enviada"
+
+    # Resolver à mão.
+    outra = {**recusa, "chave": str(uuid.uuid4())}
+    client.post(f"{API}/pdv/recusas", json=outra, headers=h)
+    pendente = next(r for r in client.get(f"{API}/vendas-offline", headers=h).json()["recusas"] if not r["resolvido_em"])
+    assert client.post(f"{API}/vendas-offline/recusas/{pendente['id']}/resolver", headers=h).status_code == 204
+    assert client.get(f"{API}/vendas-offline", headers=h).json()["resumo"]["recusas_pendentes"] == 0

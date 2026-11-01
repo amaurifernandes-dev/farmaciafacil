@@ -13,7 +13,7 @@ from app.core.security import TokenDados, ler_token
 _bearer = HTTPBearer(auto_error=False)
 
 # O acesso offline (login sem internet no PDV) só envia o que foi feito sem internet.
-ROTAS_OFFLINE = re.compile(r"^/api/v1/(vendas|caixas/abrir|caixas/[0-9a-fA-F-]{36}/fechar)/?$")
+ROTAS_OFFLINE = re.compile(r"^/api/v1/(vendas|pdv/recusas|caixas/abrir|caixas/[0-9a-fA-F-]{36}/fechar)/?$")
 
 
 def get_usuario_atual(

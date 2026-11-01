@@ -19,6 +19,24 @@ let enviando = false;
 
 export const ehVenda = (guardada: VendaGuardada) => (guardada.tipo ?? "venda") === "venda";
 
+/** Conta ao servidor (painel do gerente) que este envio foi recusado. */
+function avisarRecusa(guardada: VendaGuardada, motivo: string): Promise<unknown> {
+  return enviar(
+    {
+      ...guardada,
+      caminho: "/pdv/recusas",
+      corpo: {
+        chave: guardada.chave,
+        tipo: guardada.tipo ?? "venda",
+        offline_em: guardada.corpo.offline_em,
+        total: (guardada.total_centavos / 100).toFixed(2),
+        motivo,
+        corpo: guardada.corpo,
+      },
+    },
+  );
+}
+
 /** Vai no nome de quem fez (acesso guardado dela). Se esse acesso venceu, tenta com o login atual. */
 async function enviar(guardada: VendaGuardada): Promise<unknown> {
   const caminho = guardada.caminho ?? "/vendas";
@@ -53,8 +71,10 @@ export async function enviarGuardadas(): Promise<ResultadoEnvio> {
           resultado.semInternet = true;
           break; // tenta de novo daqui a pouco, na mesma ordem
         }
-        // O servidor recusou: fica guardada com o motivo para o gerente ver.
-        await guardarVenda({ ...guardada, problema: (erro as Error).message });
+        // O servidor recusou: fica guardada com o motivo, e o gerente fica sabendo pelo painel.
+        const motivo = (erro as Error).message;
+        await guardarVenda({ ...guardada, problema: motivo });
+        await avisarRecusa(guardada, motivo).catch(() => undefined);
         resultado.comProblema += 1;
       }
     }
