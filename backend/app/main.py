@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.core.config import get_settings
+from app.core.deps import exigir_modulo
 from app.modules import todos_os_modelos  # noqa: F401  (registra as tabelas)
 from app.modules.assistente.router import router as assistente_router
 from app.modules.auth.router import router as auth_router
@@ -58,23 +59,23 @@ app.include_router(terminais_router, prefix="/api/v1")
 app.include_router(configuracoes_router, prefix="/api/v1")
 app.include_router(fiscal_router, prefix="/api/v1")
 app.include_router(financeiro_router, prefix="/api/v1")
-app.include_router(promocoes_router, prefix="/api/v1")
+app.include_router(promocoes_router, prefix="/api/v1", dependencies=[exigir_modulo("promocoes")])
 app.include_router(relatorios_router, prefix="/api/v1")
-app.include_router(faltas_router, prefix="/api/v1")
-app.include_router(controlados_router, prefix="/api/v1")
-app.include_router(convenios_router, prefix="/api/v1")
-app.include_router(popular_router, prefix="/api/v1")
-app.include_router(etiquetas_router, prefix="/api/v1")
-app.include_router(comissoes_router, prefix="/api/v1")
-app.include_router(metas_router, prefix="/api/v1")
+app.include_router(faltas_router, prefix="/api/v1", dependencies=[exigir_modulo("faltas")])
+app.include_router(controlados_router, prefix="/api/v1", dependencies=[exigir_modulo("controlados")])
+app.include_router(convenios_router, prefix="/api/v1", dependencies=[exigir_modulo("convenios")])
+app.include_router(popular_router, prefix="/api/v1", dependencies=[exigir_modulo("popular")])
+app.include_router(etiquetas_router, prefix="/api/v1", dependencies=[exigir_modulo("etiquetas")])
+app.include_router(comissoes_router, prefix="/api/v1", dependencies=[exigir_modulo("comissoes")])
+app.include_router(metas_router, prefix="/api/v1", dependencies=[exigir_modulo("metas")])
 app.include_router(inventario_router, prefix="/api/v1")
-app.include_router(servicos_router, prefix="/api/v1")
-app.include_router(devolucoes_router, prefix="/api/v1")
+app.include_router(servicos_router, prefix="/api/v1", dependencies=[exigir_modulo("servicos")])
+app.include_router(devolucoes_router, prefix="/api/v1", dependencies=[exigir_modulo("devolucoes")])
 app.include_router(catalogo_pdv_router, prefix="/api/v1")
 app.include_router(recusas_pdv_router, prefix="/api/v1")
 app.include_router(painel_offline_router, prefix="/api/v1")
-app.include_router(vales_router, prefix="/api/v1")
-app.include_router(pedidos_router, prefix="/api/v1")
+app.include_router(vales_router, prefix="/api/v1", dependencies=[exigir_modulo("devolucoes")])
+app.include_router(pedidos_router, prefix="/api/v1", dependencies=[exigir_modulo("pedidos")])
 app.include_router(loja_online_router, prefix="/api/v1")
 app.include_router(assistente_router, prefix="/api/v1")
 

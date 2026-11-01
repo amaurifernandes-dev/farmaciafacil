@@ -7,10 +7,12 @@ import type { StatusAssistente } from "../../components/assistente/visivel";
 import Icone from "../../components/Icone";
 import { reais } from "../../formato";
 import { useInstalacao } from "../../instalacao";
+import { useModulos } from "../../modulos";
 import { ehAdmin, NOMES_PAPEIS, useSessao } from "../../sessao";
 
 export default function Gerais() {
   const { sessao } = useSessao();
+  const { ligado } = useModulos(sessao);
   const podeEditar = ehAdmin(sessao);
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [terminais, setTerminais] = useState<Terminal[]>([]);
@@ -65,7 +67,7 @@ export default function Gerais() {
       <RegrasGerais podeEditar={podeEditar} />
       <AssistenteIA podeEditar={podeEditar} />
       <ProgramaDePontos podeEditar={podeEditar} />
-      {instalacao?.loja_online && <LojaOnline podeEditar={podeEditar} lojas={lojas} />}
+      {instalacao?.loja_online && ligado("loja_online") && <LojaOnline podeEditar={podeEditar} lojas={lojas} />}
       {instalacao?.modo === "farmacia" && (
         <div className="cartao cartao-separado">
           <h2>Loja online</h2>

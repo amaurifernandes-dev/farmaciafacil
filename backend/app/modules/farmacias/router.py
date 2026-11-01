@@ -11,6 +11,7 @@ from app.modules.farmacias.schemas import (
 from app.modules.lojas.service import obter_loja
 from app.modules.pedidos.pix import normalizar_chave
 from app.shared.erros import Conflito, ErroDeNegocio
+from app.shared.modulos import MODULOS
 
 router = APIRouter(prefix="/configuracoes", tags=["configurações"])
 
@@ -37,6 +38,8 @@ def atualizar(db: DB, usuario: Admin, dados: ConfiguracoesAtualizar) -> Configur
         ]
     if dados.assistente_perfis is not None:
         farmacia.assistente_perfis = sorted(set(dados.assistente_perfis))
+    if dados.modulos_desligados is not None:
+        farmacia.modulos_desligados = [m for m in MODULOS if m in dados.modulos_desligados]
     if farmacia.pix_chave:
         farmacia.pix_chave = normalizar_chave(farmacia.pix_chave)
     if farmacia.pix_no_site and not (farmacia.pix_chave and farmacia.pix_nome and farmacia.pix_cidade):

@@ -1,5 +1,6 @@
 import type { Sessao } from "./api/tipos";
 import type { NomeIcone } from "./components/Icone";
+import type { Modulo } from "./modulos";
 import { atende, cuidaDoEstoque, ehAdmin, ehFarmaceutico, ehGerente, podeReceber } from "./sessao";
 
 /** Grupos do menu lateral, na ordem em que aparecem. */
@@ -28,6 +29,8 @@ export interface Tela {
   agrupa?: boolean;
   /** Aba dentro de outra tela: aparece só na busca, não no menu. */
   aba?: boolean;
+  /** Função que o administrador pode desligar no Gerenciamento de telas. */
+  modulo?: Modulo;
 }
 
 const naoGerente = (s: Sessao | null) => atende(s) && !ehGerente(s);
@@ -39,19 +42,19 @@ export const TELAS: Tela[] = [
   { para: "/vendas", rotulo: "Vendas / PDV", icone: "carrinho", grupo: "dia", agrupa: true, pode: atende, descricao: "Vendas do dia e entrada no caixa", palavras: "venda pdv cupom balcao" },
   { para: "/vendas/pre-venda", rotulo: "Nova pré-venda", icone: "carrinho", grupo: "dia", aba: true, pode: atende, descricao: "Separar os produtos do cliente para pagar no caixa", palavras: "orcamento pre venda" },
   { para: "/pdv", rotulo: "Abrir o caixa (PDV)", icone: "caixa", grupo: "dia", aba: true, pode: podeReceber, descricao: "Tela cheia do caixa para receber", palavras: "frente de caixa receber pagamento" },
-  { para: "/pedidos", rotulo: "Pedidos", icone: "recibo", grupo: "dia", pode: atende, descricao: "Pedidos da loja online, WhatsApp e telefone", palavras: "site delivery entrega whatsapp" },
+  { para: "/pedidos", rotulo: "Pedidos", icone: "recibo", modulo: "pedidos", grupo: "dia", pode: atende, descricao: "Pedidos da loja online, WhatsApp e telefone", palavras: "site delivery entrega whatsapp" },
   { para: "/clientes", rotulo: "Clientes", icone: "pessoa", grupo: "dia", agrupa: true, pode: atende, descricao: "Cadastro, histórico de compras, pontos e fiado", palavras: "cliente cadastro fiado pontos fidelidade" },
-  { para: "/faltas", rotulo: "Faltas e encomendas", icone: "sino", grupo: "dia", descricao: "O que o cliente pediu e não tinha", palavras: "encomenda falta reserva" },
+  { para: "/faltas", rotulo: "Faltas e encomendas", icone: "sino", modulo: "faltas", grupo: "dia", descricao: "O que o cliente pediu e não tinha", palavras: "encomenda falta reserva" },
   { para: "/caixas", rotulo: "Caixas", icone: "caixa", grupo: "dia", agrupa: true, pode: podeReceber, descricao: "Abrir, fechar e conferir os caixas", palavras: "abertura fechamento sangria suprimento pdv" },
   { para: "/caixas/fechamento-do-dia", rotulo: "Fechamento do dia", icone: "recibo", grupo: "dia", aba: true, pode: ehGerente, descricao: "Todos os caixas do dia por forma de pagamento, sangrias e diferenças", palavras: "fechamento caixa conferencia sangria diferenca relatorio do dia" },
-  { para: "/devolucoes", rotulo: "Trocas e devoluções", icone: "troca", grupo: "dia", pode: ehGerente, descricao: "Devolver itens de uma venda e vale-troca", palavras: "troca devolucao vale estorno" },
+  { para: "/devolucoes", rotulo: "Trocas e devoluções", icone: "troca", modulo: "devolucoes", grupo: "dia", pode: ehGerente, descricao: "Devolver itens de uma venda e vale-troca", palavras: "troca devolucao vale estorno" },
   { para: "/vendas-offline", rotulo: "Vendas sem internet", icone: "alerta", grupo: "dia", pode: ehGerente, descricao: "Vendas feitas sem internet que precisam de atenção", palavras: "offline sem internet recusadas" },
 
   // Farmácia
-  { para: "/controlados", rotulo: "Controlados", icone: "remedio", grupo: "farmacia", pode: ehFarmaceutico, descricao: "Livro de controlados e envio ao SNGPC", palavras: "sngpc portaria 344 receita anvisa" },
-  { para: "/servicos", rotulo: "Serviços farmacêuticos", icone: "estetoscopio", grupo: "farmacia", pode: ehFarmaceutico, descricao: "Pressão, glicemia, injetáveis e declarações", palavras: "servico pressao glicemia injecao aplicacao" },
-  { para: "/popular", rotulo: "Farmácia Popular", icone: "remedio", grupo: "farmacia", pode: ehGerente, descricao: "Vendas do programa do governo e o que receber", palavras: "popular governo gratuidade" },
-  { para: "/convenios", rotulo: "Convênios", icone: "loja", grupo: "farmacia", agrupa: true, pode: ehGerente, descricao: "Empresas conveniadas e faturas do mês", palavras: "convenio empresa fatura" },
+  { para: "/controlados", rotulo: "Controlados", icone: "remedio", modulo: "controlados", grupo: "farmacia", pode: ehFarmaceutico, descricao: "Livro de controlados e envio ao SNGPC", palavras: "sngpc portaria 344 receita anvisa" },
+  { para: "/servicos", rotulo: "Serviços farmacêuticos", icone: "estetoscopio", modulo: "servicos", grupo: "farmacia", pode: ehFarmaceutico, descricao: "Pressão, glicemia, injetáveis e declarações", palavras: "servico pressao glicemia injecao aplicacao" },
+  { para: "/popular", rotulo: "Farmácia Popular", icone: "remedio", modulo: "popular", grupo: "farmacia", pode: ehGerente, descricao: "Vendas do programa do governo e o que receber", palavras: "popular governo gratuidade" },
+  { para: "/convenios", rotulo: "Convênios", icone: "loja", modulo: "convenios", grupo: "farmacia", agrupa: true, pode: ehGerente, descricao: "Empresas conveniadas e faturas do mês", palavras: "convenio empresa fatura" },
 
   // Estoque e compras
   { para: "/estoque", rotulo: "Estoque", icone: "pacote", grupo: "estoque", agrupa: true, descricao: "Alertas de estoque baixo, vencendo e vencido", palavras: "alerta vencimento validade minimo" },
@@ -62,17 +65,17 @@ export const TELAS: Tela[] = [
   { para: "/compras", rotulo: "Compras", icone: "caminhao", grupo: "estoque", agrupa: true, pode: cuidaDoEstoque, descricao: "Notas de entrada pelo XML", palavras: "nota fiscal xml nfe entrada fornecedor" },
   { para: "/compras/pedidos", rotulo: "Pedidos de compra", icone: "caminhao", grupo: "estoque", aba: true, pode: cuidaDoEstoque, descricao: "O que foi pedido a cada fornecedor e o que chegou", palavras: "pedido compra fornecedor distribuidora" },
   { para: "/compras/sugestao", rotulo: "Sugestão de compras", icone: "caminhao", grupo: "estoque", aba: true, pode: cuidaDoEstoque, descricao: "O que comprar pelo ritmo de vendas", palavras: "sugestao reposicao comprar" },
-  { para: "/etiquetas", rotulo: "Etiquetas de preço", icone: "etiqueta", grupo: "estoque", descricao: "Imprimir e trocar etiquetas de gôndola", palavras: "etiqueta preco gondola imprimir" },
+  { para: "/etiquetas", rotulo: "Etiquetas de preço", icone: "etiqueta", modulo: "etiquetas", grupo: "estoque", descricao: "Imprimir e trocar etiquetas de gôndola", palavras: "etiqueta preco gondola imprimir" },
 
   // Gestão
   { para: "/financeiro", rotulo: "Financeiro", icone: "dinheiro", grupo: "gestao", agrupa: true, pode: ehGerente, descricao: "Contas a pagar", palavras: "contas pagar boleto despesa" },
   { para: "/financeiro/receber", rotulo: "Contas a receber", icone: "dinheiro", grupo: "gestao", aba: true, pode: ehGerente, descricao: "Fiado, convênios e cartões a receber", palavras: "receber fiado cartao" },
   { para: "/financeiro/fluxo", rotulo: "Fluxo de caixa", icone: "dinheiro", grupo: "gestao", aba: true, pode: ehGerente, descricao: "Entradas e saídas previstas", palavras: "fluxo caixa saldo" },
   { para: "/relatorios", rotulo: "Relatórios", icone: "grafico", grupo: "gestao", pode: ehGerente, descricao: "Vendas, mais vendidos, curva ABC e parados", palavras: "relatorio abc margem lucro" },
-  { para: "/promocoes", rotulo: "Promoções", icone: "etiqueta", grupo: "gestao", pode: ehGerente, descricao: "Preços promocionais por período", palavras: "promocao oferta desconto" },
-  { para: "/metas", rotulo: "Metas de vendas", icone: "alvo", grupo: "gestao", pode: ehGerente, descricao: "Metas do mês por loja e por vendedor", palavras: "meta objetivo" },
-  { para: "/comissoes", rotulo: "Comissões", icone: "pessoas", grupo: "gestao", pode: ehGerente, descricao: "Quanto cada vendedor ganhou", palavras: "comissao vendedor" },
-  { para: "/comissoes", rotulo: "Minhas vendas", icone: "grafico", grupo: "dia", pode: naoGerente, descricao: "Suas vendas, comissão e meta do mês", palavras: "minha comissao meta" },
+  { para: "/promocoes", rotulo: "Promoções", icone: "etiqueta", modulo: "promocoes", grupo: "gestao", pode: ehGerente, descricao: "Preços promocionais por período", palavras: "promocao oferta desconto" },
+  { para: "/metas", rotulo: "Metas de vendas", icone: "alvo", modulo: "metas", grupo: "gestao", pode: ehGerente, descricao: "Metas do mês por loja e por vendedor", palavras: "meta objetivo" },
+  { para: "/comissoes", rotulo: "Comissões", icone: "pessoas", modulo: "comissoes", grupo: "gestao", pode: ehGerente, descricao: "Quanto cada vendedor ganhou", palavras: "comissao vendedor" },
+  { para: "/comissoes", rotulo: "Minhas vendas", icone: "grafico", modulo: "comissoes", grupo: "dia", pode: naoGerente, descricao: "Suas vendas, comissão e meta do mês", palavras: "minha comissao meta" },
   { para: "/fiscal", rotulo: "Fechamento fiscal", icone: "recibo", grupo: "gestao", pode: ehGerente, descricao: "SPED e arquivos do mês para o contador", palavras: "sped contador fiscal imposto" },
 
   // Configurações
@@ -81,11 +84,19 @@ export const TELAS: Tela[] = [
   { para: "/configuracoes/fornecedores", rotulo: "Fornecedores", icone: "caminhao", grupo: "config", pode: cuidaDoEstoque, descricao: "Distribuidoras e contatos de compra", palavras: "fornecedor distribuidora" },
   { para: "/configuracoes/usuarios", rotulo: "Usuários", icone: "pessoas", grupo: "config", pode: ehAdmin, descricao: "Quem acessa o sistema e o que pode fazer", palavras: "usuario senha perfil acesso funcionario" },
   { para: "/configuracoes/farmacia", rotulo: "Minha farmácia", icone: "loja", grupo: "config", pode: ehGerente, descricao: "Dados da farmácia, matriz e filiais", palavras: "loja filial matriz cnpj" },
+  { para: "/configuracoes/telas", rotulo: "Gerenciamento de telas", icone: "painel", grupo: "config", pode: ehAdmin, descricao: "Ligar e desligar funções do sistema para todos", palavras: "modulos funcoes ligar desligar esconder habilitar telas" },
   { para: "/configuracoes/gerais", rotulo: "Configurações gerais", icone: "ajustes", grupo: "config", pode: ehGerente, descricao: "Caixas, descontos, pontos, loja online e assistente de IA", palavras: "configuracao regras ia assistente pontos loja online" },
 ];
 
-export function telasDe(sessao: Sessao | null): Tela[] {
-  return TELAS.filter((t) => !t.pode || t.pode(sessao));
+/** As telas que esta pessoa vê: pelo perfil e pelas funções ligadas no Gerenciamento de telas. */
+export function telasDe(sessao: Sessao | null, ligado: (m: Modulo) => boolean = () => true): Tela[] {
+  return TELAS.filter((t) => (!t.pode || t.pode(sessao)) && (!t.modulo || ligado(t.modulo)));
+}
+
+/** A função desligada a que este endereço pertence (para avisar em vez de abrir a tela). */
+export function moduloDoEndereco(pathname: string): Modulo | undefined {
+  if (pathname === "/") return undefined;
+  return telaAtual(TELAS.filter((t) => t.modulo), pathname)?.modulo;
 }
 
 export function ativa(tela: Tela, pathname: string): boolean {

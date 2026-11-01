@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { ehAdmin, NOMES_PAPEIS, useSessao } from "../sessao";
-import { ativa, GRUPOS, type Grupo, telaAtual, telasDe } from "../telas";
+import { MODULOS, useModulos } from "../modulos";
+import { ativa, GRUPOS, type Grupo, moduloDoEndereco, telaAtual, telasDe } from "../telas";
 import Assistente from "./assistente/Assistente";
 import { useAssistente } from "./assistente/visivel";
 import BuscaTelas from "./BuscaTelas";
@@ -29,7 +30,10 @@ function lerAbertos(): Grupo[] {
 export default function Layout() {
   const { sessao, sair } = useSessao();
   const { pathname } = useLocation();
-  const telas = telasDe(sessao);
+  const modulos = useModulos(sessao);
+  const telas = telasDe(sessao, modulos.ligado);
+  const desligada = moduloDoEndereco(pathname);
+  const moduloDesligado = desligada && !modulos.ligado(desligada) ? MODULOS.find((m) => m.id === desligada) : undefined;
   const noMenu = telas.filter((t) => !t.aba);
   const atual = telaAtual(telas, pathname);
   const [abertos, setAbertos] = useState<Grupo[]>(lerAbertos);
@@ -178,7 +182,32 @@ export default function Layout() {
           </span>
         </header>
         <main className="conteudo">
-          <Outlet />
+          {moduloDesligado ? (
+            <div className="pagina">
+              <section className="cartao modulo-desligado">
+                <Icone nome="alerta" />
+                <div>
+                  <h1>{moduloDesligado.rotulo} está desligado</h1>
+                  <p className="vazio">
+                    Esta função foi desligada para todos no Gerenciamento de telas.
+                    {ehAdmin(sessao) ? " Você pode ligar de novo quando quiser." : " Fale com o administrador se precisar dela."}
+                  </p>
+                  <div className="acoes">
+                    {ehAdmin(sessao) && (
+                      <Link to="/configuracoes/telas" className="botao">
+                        Abrir o Gerenciamento de telas
+                      </Link>
+                    )}
+                    <Link to="/" className="botao-contorno">
+                      Voltar ao início
+                    </Link>
+                  </div>
+                </div>
+              </section>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
       {assistente.visivel && <Assistente abrir={assistente.abrirAgora} />}

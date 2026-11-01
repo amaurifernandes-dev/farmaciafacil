@@ -941,3 +941,13 @@ a.indicador-link:hover { border-color: var(--primaria); box-shadow: 0 4px 14px r
 }
 .fechamento-dia .cartao > h2 { margin-bottom: 12px; }
 .sem-conferir { display: block; color: var(--suave); font-size: 12px; }
+.modulo-desligado { display: flex; gap: 16px; align-items: flex-start; max-width: 640px; }
+.modulo-desligado > svg { color: #b54708; flex-shrink: 0; margin-top: 6px; }
+.grade-modulos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.modulo { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.modulo p { margin: 0; }
+.modulo-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.modulo-topo h2 { margin: 0; font-size: 17px; }
+.modulo-off { background: var(--fundo); }
+.modulo-off h2, .modulo-off p { color: var(--suave); }
+.modulo-aviso { display: inline-flex; align-items: center; gap: 6px; color: #b54708; }

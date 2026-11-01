@@ -61,3 +61,5 @@ class Farmacia(ComDatas, Base):
     assistente_perfis: Mapped[list[str]] = mapped_column(
         JSONB, default=lambda: ["admin", "gerente", "farmaceutico", "caixa", "atendente", "estoque"]
     )
+    # Funções desligadas no Gerenciamento de telas: somem para todos e as rotas respondem 403.
+    modulos_desligados: Mapped[list[str]] = mapped_column(JSONB, default=list)

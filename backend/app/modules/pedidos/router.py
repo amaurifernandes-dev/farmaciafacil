@@ -23,6 +23,7 @@ from app.modules.pedidos.schemas import (
     Situacao,
 )
 from app.shared.erros import NaoEncontrado
+from app.shared.modulos import desligado
 
 pedidos = APIRouter(prefix="/pedidos", tags=["pedidos"])
 
@@ -84,6 +85,9 @@ def _db_da_loja(endereco: str) -> Iterator[Session]:
         raise NaoEncontrado("Loja não encontrada")
     db = SessionLocal(info={"farmacia_id": farmacia_id})
     try:
+        # Loja online desligada no Gerenciamento de telas: para o cliente, a loja não existe.
+        if desligado(db.get(Farmacia, farmacia_id).modulos_desligados, "loja_online"):
+            raise NaoEncontrado("Loja não encontrada")
         yield db
     finally:
         db.close()

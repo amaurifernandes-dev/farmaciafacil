@@ -467,6 +467,7 @@ export interface EsteTerminal {
 export interface Configuracoes {
   /** Perfis que podem usar o assistente de IA. */
   assistente_perfis: Papel[];
+  modulos_desligados?: string[];
   desconto_maximo_caixa: string;
   dias_alerta_vencimento: number;
   dias_prazo_padrao: number;
